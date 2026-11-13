@@ -815,7 +815,9 @@ onSnapshot(doc(db, 'config', 'event'), s => { S.event = s.exists() ? s.data() : 
 onSnapshot(doc(db, 'config', 'draw'), s => { S.drawMeta = s.exists() ? s.data() : null; render(); }, fail('draw'));
 onSnapshot(collection(db, 'participants'), s => {
   S.participants = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at));
-  S.me = S.uid ? P(S.uid) || null : null; maybeForcePin(); render();
+  S.me = S.uid ? P(S.uid) || null : null; maybeForcePin();
+  if (S.me && userSubDenied) retryUserSubs();
+  render();
 }, fail('participants'));
 onSnapshot(collection(db, 'activities'), s => {
   S.activities = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ((a.date || '') + (a.time || '')).localeCompare((b.date || '') + (b.time || ''))); render();
@@ -823,6 +825,53 @@ onSnapshot(collection(db, 'activities'), s => {
 
 
 let unsubUser = [];
+// Justo al registrarse, la cuenta existe antes que su ficha de participante, y las reglas
+// rechazan las suscripciones. Si eso pasa, se reintentan cuando aparece la ficha.
+let userSubDenied = false;
+let subRetryT = null, subRetries = 0;
+const retryUserSubs = () => {
+  if (subRetryT || subRetries >= 4) return;
+  subRetryT = setTimeout(() => {
+    subRetryT = null;
+    if (!userSubDenied || !S.me || auth.currentUser?.uid !== S.uid) return;
+    subRetries++; startUserSubs(auth.currentUser); syncQuestions(true); syncGuesses(true); render();
+  }, 1200);
+};
+const ufail = what => e => {
+  console.warn(what, e);
+  if (e?.code !== 'permission-denied') return;
+  userSubDenied = true; if (S.me) retryUserSubs();
+};
+function startUserSubs(user) {
+  unsubUser.forEach(u => u()); unsubUser = []; userSubDenied = false;
+    unsubUser.push(onSnapshot(collection(db, 'wishes'), s => {
+      S.wishes = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at)); render();
+    }, ufail('wishes')));
+    unsubUser.push(onSnapshot(doc(db, 'assignments', user.uid), s => { S.assignment = s.exists() ? s.data() : null; render(); }, ufail('assignment')));
+    const rows = s => s.docs.map(d => ({ id: d.id, ...d.data() }));
+    unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('uid', '==', user.uid)), s => { S.myPicks = rows(s); render(); }, ufail('myPicks')));
+    unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('public', '==', true)), s => { S.publicPicks = rows(s); render(); }, ufail('publicPicks')));
+    unsubUser.push(onSnapshot(query(collection(db, 'votes'), where('uid', '==', user.uid)), s => { S.myVotes = Object.fromEntries(rows(s).map(v => [v.act, v.choice])); render(); }, ufail('myVotes')));
+    unsubUser.push(onSnapshot(collection(db, 'activitySignups'), s => { S.signups = rows(s); render(); }, ufail('signups')));
+    unsubUser.push(onSnapshot(collection(db, 'suggestions'), s => { S.suggestions = rows(s); render(); }, ufail('suggestions')));
+    unsubUser.push(onSnapshot(collection(db, 'sugVotes'), s => { S.sugVotes = rows(s); render(); }, ufail('sugVotes')));
+    unsubUser.push(onSnapshot(collection(db, 'attendance'), s => { S.att = Object.fromEntries(rows(s).map(x => [x.id, x])); render(); }, ufail('attendance')));
+    unsubUser.push(onSnapshot(doc(db, 'giftStatus', user.uid), s => { if (!S.isOwner) S.giftStatus = s.exists() ? { [user.uid]: s.data().status } : {}; render(); }, ufail('giftStatus')));
+    unsubUser.push(onSnapshot(doc(db, 'giftIncoming', user.uid), s => { S.incoming = s.exists() ? s.data() : null; render(); }, ufail('incoming')));
+    unsubUser.push(onSnapshot(query(collection(db, 'notices'), orderBy('ts', 'desc'), limit(30)), s => { S.notices = rows(s); render(); }, ufail('notices')));
+    unsubUser.push(onSnapshot(doc(db, 'party', 'live'), s => { S.live = s.exists() ? s.data() : null; render(); }, () => { }));
+    unsubUser.push(onSnapshot(doc(db, 'stats', 'questions'), s => { S.qCount = s.exists() ? (s.data().count || 0) : 0; render(); }, ufail('stats')));
+    unsubUser.push(onSnapshot(doc(db, 'thanks', user.uid), s => { S.myThanks = s.exists() ? s.data() : null; render(); }, ufail('thanks')));
+    unsubUser.push(onSnapshot(doc(db, 'wishPick', user.uid), s => { S.wishPick = s.exists() ? s.data() : null; render(); }, ufail('wishPick')));
+    unsubUser.push(onSnapshot(collection(db, 'memories'), s => { S.memories = rows(s); render(); }, ufail('memories')));
+    unsubUser.push(onSnapshot(collection(db, 'profiles'), s => { S.profiles = Object.fromEntries(rows(s).map(x => [x.id, x])); render(); }, ufail('profiles')));
+    unsubUser.push(onSnapshot(query(collection(db, 'hints'), where('to', '==', user.uid)), s => { S.hintsIn = rows(s); render(); }, ufail('hints')));
+    unsubUser.push(onSnapshot(doc(db, 'hintsSent', user.uid), s => { S.hintsSent = s.exists() ? (s.data().texts || []) : []; render(); }, ufail('hintsSent')));
+    unsubUser.push(onSnapshot(doc(db, 'angelGuess', user.uid), s => { S.myAngelGuess = s.exists() ? s.data() : null; render(); }, ufail('angelGuess')));
+    unsubUser.push(onSnapshot(doc(db, 'reveal', 'main'), s => { S.reveal = s.exists() ? s.data() : null; syncAngelGuesses(); render(); }, ufail('reveal')));
+    unsubUser.push(onSnapshot(doc(db, 'guesses', user.uid), s => { S.myGuess = s.exists() ? s.data() : null; render(); }, ufail('myGuess')));
+    unsubUser.push(onSnapshot(query(collection(db, 'chat'), orderBy('ts', 'desc'), limit(120)), s => { S.chat = rows(s).reverse(); render(); }, ufail('chat')));
+}
 onAuthStateChanged(auth, user => {
   unsubUser.forEach(u => u()); unsubUser = [];
   if ((user ? user.uid : null) !== S.uid) { S.wishPid = null; S.revealed = {}; S.rot = 0; const wc = $('#wheel'); if (wc) { wc.style.transition = 'none'; wc.style.transform = ''; requestAnimationFrame(() => { wc.style.transition = ''; }); } }
@@ -830,35 +879,8 @@ onAuthStateChanged(auth, user => {
   S.myPicks = []; S.publicPicks = []; S.rsvps = []; S.myVotes = {}; S.signups = []; S.revealed = {}; if (!S.isAdmin) S.suggestions = []; S.hintsIn = []; S.hintsSent = []; S.myAngelGuess = null; S.myThanks = null; S.wishPick = null; S.replyTo = null; S.myLive = {}; if (unsubPhotos) { unsubPhotos(); unsubPhotos = null; } S.photos = []; if (!S.isOwner) { S.reveal = null; S.angelGuesses = []; }
   S.giftStatus = {}; S.incoming = null; S.myGuess = null; S.chat = []; if (!S.isAdmin) S.att = {};
   S.authReady = true; setTimeout(maybeForcePin, 0);
-  if (user) {
-    unsubUser.push(onSnapshot(collection(db, 'wishes'), s => {
-      S.wishes = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at)); render();
-    }, fail('wishes')));
-    unsubUser.push(onSnapshot(doc(db, 'assignments', user.uid), s => { S.assignment = s.exists() ? s.data() : null; render(); }, fail('assignment')));
-    const rows = s => s.docs.map(d => ({ id: d.id, ...d.data() }));
-    unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('uid', '==', user.uid)), s => { S.myPicks = rows(s); render(); }, fail('myPicks')));
-    unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('public', '==', true)), s => { S.publicPicks = rows(s); render(); }, fail('publicPicks')));
-    unsubUser.push(onSnapshot(query(collection(db, 'votes'), where('uid', '==', user.uid)), s => { S.myVotes = Object.fromEntries(rows(s).map(v => [v.act, v.choice])); render(); }, fail('myVotes')));
-    unsubUser.push(onSnapshot(collection(db, 'activitySignups'), s => { S.signups = rows(s); render(); }, fail('signups')));
-    unsubUser.push(onSnapshot(collection(db, 'suggestions'), s => { S.suggestions = rows(s); render(); }, fail('suggestions')));
-    unsubUser.push(onSnapshot(collection(db, 'sugVotes'), s => { S.sugVotes = rows(s); render(); }, fail('sugVotes')));
-    unsubUser.push(onSnapshot(collection(db, 'attendance'), s => { S.att = Object.fromEntries(rows(s).map(x => [x.id, x])); render(); }, fail('attendance')));
-    unsubUser.push(onSnapshot(doc(db, 'giftStatus', user.uid), s => { if (!S.isOwner) S.giftStatus = s.exists() ? { [user.uid]: s.data().status } : {}; render(); }, fail('giftStatus')));
-    unsubUser.push(onSnapshot(doc(db, 'giftIncoming', user.uid), s => { S.incoming = s.exists() ? s.data() : null; render(); }, fail('incoming')));
-    unsubUser.push(onSnapshot(query(collection(db, 'notices'), orderBy('ts', 'desc'), limit(30)), s => { S.notices = rows(s); render(); }, fail('notices')));
-    unsubUser.push(onSnapshot(doc(db, 'party', 'live'), s => { S.live = s.exists() ? s.data() : null; render(); }, () => { }));
-    unsubUser.push(onSnapshot(doc(db, 'stats', 'questions'), s => { S.qCount = s.exists() ? (s.data().count || 0) : 0; render(); }, fail('stats')));
-    unsubUser.push(onSnapshot(doc(db, 'thanks', user.uid), s => { S.myThanks = s.exists() ? s.data() : null; render(); }, fail('thanks')));
-    unsubUser.push(onSnapshot(doc(db, 'wishPick', user.uid), s => { S.wishPick = s.exists() ? s.data() : null; render(); }, fail('wishPick')));
-    unsubUser.push(onSnapshot(collection(db, 'memories'), s => { S.memories = rows(s); render(); }, fail('memories')));
-    unsubUser.push(onSnapshot(collection(db, 'profiles'), s => { S.profiles = Object.fromEntries(rows(s).map(x => [x.id, x])); render(); }, fail('profiles')));
-    unsubUser.push(onSnapshot(query(collection(db, 'hints'), where('to', '==', user.uid)), s => { S.hintsIn = rows(s); render(); }, fail('hints')));
-    unsubUser.push(onSnapshot(doc(db, 'hintsSent', user.uid), s => { S.hintsSent = s.exists() ? (s.data().texts || []) : []; render(); }, fail('hintsSent')));
-    unsubUser.push(onSnapshot(doc(db, 'angelGuess', user.uid), s => { S.myAngelGuess = s.exists() ? s.data() : null; render(); }, fail('angelGuess')));
-    unsubUser.push(onSnapshot(doc(db, 'reveal', 'main'), s => { S.reveal = s.exists() ? s.data() : null; syncAngelGuesses(); render(); }, fail('reveal')));
-    unsubUser.push(onSnapshot(doc(db, 'guesses', user.uid), s => { S.myGuess = s.exists() ? s.data() : null; render(); }, fail('myGuess')));
-    unsubUser.push(onSnapshot(query(collection(db, 'chat'), orderBy('ts', 'desc'), limit(120)), s => { S.chat = rows(s).reverse(); render(); }, fail('chat')));
-  }
+  subRetries = 0;
+  if (user) startUserSubs(user);
   syncQuestions(true); syncGuesses(true); render();
   if (user && canNotify() && Notification.permission === 'granted') setTimeout(() => registerPush(), 1500);
 });
