@@ -105,6 +105,17 @@ a{color:var(--gold)}
 .chip[disabled]{opacity:.45;cursor:not-allowed}
 .chip .n{font-size:.72rem;background:rgba(255,255,255,.12);padding:2px 7px;border-radius:999px}
 .chip.on .n{background:rgba(0,0,0,.1)}
+/* selector de personas (una fila deslizable, cómodo en el celular) */
+.psearch{margin:0 0 10px}
+.pscroll{display:flex;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding:6px 16px 10px;margin:0 -16px 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.pscroll::-webkit-scrollbar{display:none}
+.pav{flex:0 0 auto;width:70px;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;color:inherit;padding:0;cursor:pointer;scroll-snap-align:start;font:inherit}
+.pav .ci{width:56px;height:56px;border-radius:50%;background:var(--card);border:2px solid var(--line);display:grid;place-items:center;font-size:27px;position:relative;transition:.2s}
+.pav.on .ci{border-color:var(--gold);box-shadow:0 0 0 3px rgba(236,188,92,.25);background:var(--card2)}
+.pav .nm{font-size:.74rem;line-height:1.15;max-width:70px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85}
+.pav.on .nm{opacity:1;font-weight:700;color:var(--gold)}
+.pav .n{position:absolute;top:-3px;right:-5px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--gold);color:#2a140f;font-size:.68rem;font-weight:800;display:grid;place-items:center;border:2px solid var(--bg,#0f1d17)}
+.pempty{padding:8px 2px 14px;font-size:.85rem;opacity:.7}
 
 /* wheel */
 .wheel-wrap{position:relative;width:min(88vw,360px);aspect-ratio:1;margin:22px auto 8px}
@@ -1491,11 +1502,10 @@ function renderWishes() {
   const mine = S.wishPid === S.uid;
   const items = S.wishes.filter(w => w.uid === S.wishPid).sort((a, b) => (b.top ? 1 : 0) - (a.top ? 1 : 0));
   const isRec = !mine && S.assignment?.revealed && S.assignment.recipient === S.wishPid;
-  const keep = { t: $('#w-text')?.value || '', l: $('#w-link')?.value || '', p: $('#w-price')?.value || '', f: document.activeElement?.id };
-  root.innerHTML = `<div class="chips">${S.participants.map(p => {
-    const n = S.wishes.filter(w => w.uid === p.id).length;
-    return `<button class="chip ${S.wishPid === p.id ? 'on' : ''}" data-p="${esc(p.id)}">${esc(p.emoji)} ${esc(p.id === S.uid ? 'Mi lista' : p.name)} <span class="n">${n}</span></button>`;
-  }).join('')}</div>
+  const keep = { t: $('#w-text')?.value || '', l: $('#w-link')?.value || '', p: $('#w-price')?.value || '', f: document.activeElement?.id, sl: $('#w-strip')?.scrollLeft || 0 };
+  const many = S.participants.length > 8;
+  root.innerHTML = `${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}
+  <div class="pscroll" id="w-strip">${wishStrip()}</div>
   <div class="h2row"><h2>${esc(pEmoji(S.wishPid))} ${mine ? 'Mi lista de deseos' : 'Lista de ' + esc(pName(S.wishPid))}</h2>${mine ? `<div style="display:flex;gap:6px"><button class="btn sm" id="prof-icon">${esc(S.me.emoji)} Ícono</button>${mod('perfil') ? '<button class="btn sm" id="prof-edit">👕 Mi perfil</button>' : ''}</div>` : ''}</div>
   ${mod('perfil') ? profileHtml(S.wishPid) : ''}
   <div class="stack">${items.length ? items.map(w => `
@@ -1513,10 +1523,30 @@ function renderWishes() {
     <input class="in" id="w-text" maxlength="160" placeholder="Ej. Un libro de cocina, talla M, color azul…" required>
     <div class="row"><input class="in" id="w-link" maxlength="300" placeholder="Enlace (opcional)"><input class="in" id="w-price" maxlength="30" placeholder="Precio aprox. (opcional)"></div>
     <button class="btn gold" type="submit">✨ Agregar a mi lista</button></form>` : ''}`;
-  if (mine) { $('#w-text').value = keep.t; $('#w-link').value = keep.l; $('#w-price').value = keep.p; if (keep.f && $('#' + keep.f)) $('#' + keep.f).focus(); }
+  if (mine) { $('#w-text').value = keep.t; $('#w-link').value = keep.l; $('#w-price').value = keep.p; }
+  $('#w-strip').scrollLeft = keep.sl;
+  if (keep.f && $('#' + keep.f)) { const f = $('#' + keep.f); f.focus(); if (keep.f === 'w-q') { const L = f.value.length; f.setSelectionRange?.(L, L); } }
 }
+// Orden: yo, la persona que me tocó (si ya la vi), quienes tienen deseos y luego el resto, por nombre.
+function wishStrip() {
+  const rec = S.assignment?.revealed ? S.assignment.recipient : null;
+  const cnt = id => S.wishes.filter(w => w.uid === id).length;
+  const q = normName(S.wishQ || '');
+  const rank = p => p.id === S.uid ? 0 : p.id === rec ? 1 : cnt(p.id) ? 2 : 3;
+  const list = S.participants.filter(p => !q || p.id === S.wishPid || normName(p.name).includes(q))
+    .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, 'es'));
+  if (!list.length) return '<div class="pempty">Nadie con ese nombre.</div>';
+  const fc = {}; S.participants.forEach(p => { const k = normName(p.first); fc[k] = (fc[k] || 0) + 1; });
+  const label = p => fc[normName(p.first)] > 1 ? shortName(p) : p.first;
+  return list.map(p => { const n = cnt(p.id);
+    return `<button class="pav ${S.wishPid === p.id ? 'on' : ''}" data-p="${esc(p.id)}" title="${esc(p.name)}"><span class="ci">${esc(p.emoji)}${n ? `<span class="n">${n}</span>` : ''}</span><span class="nm">${esc(p.id === S.uid ? 'Mi lista' : p.id === rec ? '🎁 ' + label(p) : label(p))}</span></button>`; }).join('');
+}
+$('#w-root').addEventListener('input', e => {
+  if (e.target.id !== 'w-q') return;
+  S.wishQ = e.target.value; $('#w-strip').innerHTML = wishStrip(); $('#w-strip').scrollLeft = 0;
+});
 $('#w-root').addEventListener('click', async e => {
-  const c = e.target.closest('[data-p]'); if (c) { S.wishPid = c.dataset.p; $$('#w-form input').forEach(i => i.value = ''); renderWishes(); return; }
+  const c = e.target.closest('[data-p]'); if (c) { S.wishPid = c.dataset.p; $$('#w-form input').forEach(i => i.value = ''); renderWishes(); $('#w-strip [data-p].on')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' }); return; }
   const d = e.target.closest('[data-del]');
   if (d && await confirmBox('¿Borrar este deseo?', 'Se quitará de la lista.', 'Borrar')) {
     const xdb = d.dataset.own ? db : adb, b = writeBatch(xdb); b.delete(doc(xdb, 'wishes', d.dataset.del));
@@ -2455,7 +2485,7 @@ function renderActDetail() {
     } else if (!S.me) h += needLogin('Entra con tu PIN para votar.');
     else {
       const opts = voteOptions(a), my = S.myVotes[a.id];
-      h += opts.length ? `<div class="stack">${opts.map((o, i) => `<button class="opt ${my === o.key ? 'on' : ''}" data-vote="${i}"><span class="radio"></span>${o.emoji ? esc(o.emoji) + ' ' : ''}${esc(o.label)}</button>`).join('')}</div>
+      h += opts.length ? `<div class="stack"${opts.length > 8 ? ' style="max-height:55vh;overflow:auto;padding-right:2px"' : ''}>${opts.map((o, i) => `<button class="opt ${my === o.key ? 'on' : ''}" data-vote="${i}"><span class="radio"></span>${o.emoji ? esc(o.emoji) + ' ' : ''}${esc(o.label)}</button>`).join('')}</div>
         <p class="muted small center" style="margin-top:10px">${my ? '✅ Ya votaste. Puedes cambiar tu voto' : 'Los demás participantes no ven tu voto. Puedes cambiarlo'} hasta que el organizador publique los resultados.</p>`
         : `<div class="card empty"><span class="e">🗳️</span>Todavía no hay opciones para votar.</div>`;
     }
