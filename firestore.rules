@@ -108,10 +108,21 @@ service cloud.firestore {
     match /wishes/{id} {
       allow read: if member();
       allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
-        && request.resource.data.keys().hasOnly(['uid', 'text', 'link', 'price', 'at'])
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'link', 'price', 'at', 'hasImg'])
+        && (!('hasImg' in request.resource.data) || (request.resource.data.hasImg == true
+            && existsAfter(/databases/$(database)/documents/wishImg/$(id))))
         && str(request.resource.data.text, 200) && request.resource.data.text.size() > 0
         && str(request.resource.data.get('link', ''), 300) && str(request.resource.data.get('price', ''), 30);
       allow update: if isParticipant() && resource.data.uid == me() && changed().hasOnly(['top']) && request.resource.data.top is bool;
+      allow delete: if can('moderar') || can('participantes') || (signedIn() && resource.data.uid == me());
+    }
+    // Foto de un deseo (aparte, para que la lista cargue rápido).
+    match /wishImg/{id} {
+      allow read: if member();
+      allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
+        && request.resource.data.keys().hasOnly(['uid', 'data'])
+        && str(request.resource.data.data, 160000) && request.resource.data.data.matches('^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
+        && getAfter(/databases/$(database)/documents/wishes/$(id)).data.uid == me();
       allow delete: if can('moderar') || can('participantes') || (signedIn() && resource.data.uid == me());
     }
     // "Este lo compro yo": apartado privado de cada quien.
