@@ -104,6 +104,27 @@ export function botChoice(hand, chain, mustOpen) {
   return best;
 }
 
+/* Mesa en serpentín: fila, al llegar al borde baja con una ficha parada y regresa.
+   Devuelve posiciones en unidades (1 unidad = medio dominó). */
+export function snakeLayout(chain, cols) {
+  cols = Math.max(6, cols | 0);
+  const out = []; let dir = 1, x = 0, yc = 1, maxY = 2, prevDbl = false;
+  for (let k = 0; k < chain.length; k++) {
+    const t = chain[k], dbl = isDouble(t), w = dbl ? 1 : 2;
+    if ((dir > 0 && x + w > cols) || (dir < 0 && x - w < 0)) { // vuelta: ficha parada hacia abajo
+      const cx = dir > 0 ? x - 1 : x, top = yc + (prevDbl ? 1 : 0.5);
+      out.push({ t, k, x: cx, y: top, w: 1, h: 2, v: true, a: +t[0], b: +t[1] });
+      yc = top + 1.5; maxY = Math.max(maxY, yc + 1); prevDbl = false;
+      dir = -dir; x = dir < 0 ? cx : cx + 1;
+      continue;
+    }
+    if (dbl) out.push({ t, k, x: dir > 0 ? x : x - 1, y: yc - 1, w: 1, h: 2, v: true, a: +t[0], b: +t[1] });
+    else out.push({ t, k, x: dir > 0 ? x : x - 2, y: yc - 0.5, w: 2, h: 1, v: false, a: dir > 0 ? +t[0] : +t[1], b: dir > 0 ? +t[1] : +t[0] });
+    x += dir * w; maxY = Math.max(maxY, yc + 1); prevDbl = dbl;
+  }
+  return { tiles: out, rows: maxY };
+}
+
 /* X y O */
 const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
 export function tttWinner(b) { for (const [x, y, z] of LINES) if (b[x] !== '.' && b[x] === b[y] && b[y] === b[z]) return b[x]; return b.includes('.') ? null : 'draw'; }
@@ -118,23 +139,66 @@ export function tttBot(b, me) { // gana si puede, bloquea, centro, esquina, lo q
 }
 
 /* Ahorcado */
-export const WORDS = ['ANGELITO', 'NAVIDAD', 'REGALO', 'PASTELITO', 'PUERCO ASADO', 'MORIR SOÑANDO', 'AGUINALDO', 'NOCHEBUENA', 'VILLANCICO', 'CHAMPÁN', 'GUIRNALDA',
-  'ESTRELLA', 'PESEBRE', 'REYES MAGOS', 'TELERAÑA', 'BACALAO', 'PONCHE', 'JENGIBRE', 'CASCABEL', 'ARBOLITO', 'POSTRE', 'MERENGUE', 'BACHATA', 'PARRANDA',
-  'TERRÓN DE DULCE', 'HABICHUELAS CON DULCE', 'MOFONGO', 'QUIPE', 'PICADERA', 'TOSTONES', 'CENA', 'FAMILIA', 'ABRAZO', 'CHOCOLATE', 'BOMBILLITOS', 'SUÉTER',
-  'MUÉRDAGO', 'RENO', 'TRINEO', 'DUENDE', 'BOTELLA DE ROMO', 'JAVIERES', 'CAMPANAS', 'BELÉN', 'MANZANA', 'UVAS', 'AÑO NUEVO', 'FUEGOS ARTIFICIALES'];
+export const WORD_CATS = {
+  cultura: { e: '🇩🇴', name: 'Cultura dominicana', words: ['MERENGUE', 'BACHATA', 'MANGÚ', 'SANCOCHO', 'TAMBORA', 'GÜIRA', 'LARIMAR', 'CARNAVAL', 'DIABLO COJUELO', 'CHINCHORRO', 'COLMADO',
+    'MOFONGO', 'CONCÓN', 'CHICHARRÓN', 'PLÁTANO', 'HABICHUELAS CON DULCE', 'CASABE', 'YANIQUEQUE', 'PICA POLLO', 'MORIR SOÑANDO', 'MABÍ', 'GUAGUA', 'MOTOCONCHO',
+    'DOMINÓ', 'PELOTA', 'PICO DUARTE', 'LAGO ENRIQUILLO', 'ZONA COLONIAL', 'SAMANÁ', 'PUNTA CANA', 'DUARTE', 'ÁMBAR', 'CACAO', 'TOSTONES', 'QUIPE', 'CHIVO GUISADO',
+    'LOS TRES GOLPES', 'BIZCOCHO', 'DULCE DE LECHE', 'MAMAJUANA', 'TIGUERE', 'JEVI', 'VAINA', 'CHERCHA', 'PALOS', 'CARABINÉ', 'BOLO', 'FRÍO FRÍO', 'SALCOCHO', 'PASTELÓN'] },
+  biblia: { e: '📖', name: 'Biblia', words: ['NOÉ', 'MOISÉS', 'DAVID', 'GOLIAT', 'SANSÓN', 'JONÁS', 'DANIEL', 'ABRAHAM', 'SARA', 'RUT', 'ESTER', 'DÉBORA', 'ELÍAS', 'SALOMÓN',
+    'JERUSALÉN', 'BELÉN', 'NAZARET', 'EGIPTO', 'ARCA DE NOÉ', 'MANÁ', 'PARÁBOLA', 'APÓSTOLES', 'PEDRO', 'PABLO', 'JUAN BAUTISTA', 'MARÍA', 'JOSÉ', 'PESEBRE',
+    'REYES MAGOS', 'GÉNESIS', 'SALMOS', 'PROVERBIOS', 'ÉXODO', 'DIEZ MANDAMIENTOS', 'MAR ROJO', 'TORRE DE BABEL', 'JARDÍN DEL EDÉN', 'ZAQUEO', 'LÁZARO', 'BUEN SAMARITANO',
+    'HIJO PRÓDIGO', 'JACOB', 'ISAAC', 'GEDEÓN', 'SAMUEL', 'NEHEMÍAS', 'APOCALIPSIS', 'BAUTISMO'] },
+  navidad: { e: '🎄', name: 'Navidad', words: ['ANGELITO', 'NAVIDAD', 'REGALO', 'PASTELITO', 'PUERCO ASADO', 'AGUINALDO', 'NOCHEBUENA', 'VILLANCICO', 'GUIRNALDA',
+    'ESTRELLA', 'PESEBRE', 'REYES MAGOS', 'PONCHE', 'JENGIBRE', 'CASCABEL', 'ARBOLITO', 'PARRANDA', 'MUÉRDAGO', 'RENO', 'TRINEO', 'DUENDE', 'CAMPANAS', 'UVAS',
+    'AÑO NUEVO', 'FUEGOS ARTIFICIALES', 'BOTA NAVIDEÑA', 'ESFERAS', 'TURRÓN', 'MANZANAS', 'COQUITO', 'NIEVE', 'SANTA CLOS'] },
+  variado: { e: '🎲', name: 'De todo un poco', words: ['ELEFANTE', 'BICICLETA', 'COMPUTADORA', 'MARIPOSA', 'TELÉFONO', 'PARAGUAS', 'GUITARRA', 'HELICÓPTERO', 'CHOCOLATE', 'ARCOÍRIS',
+    'ZAPATO', 'ALMOHADA', 'LÁPIZ', 'TORTUGA', 'DINOSAURIO', 'VOLCÁN', 'ASTRONAUTA', 'PIRATA', 'NEVERA', 'SANDÍA', 'PIÑA', 'AGUACATE', 'ESPEJO', 'ESCALERA', 'GLOBO',
+    'CAMARÓN', 'PULPO', 'CANGREJO', 'HORMIGA', 'COCODRILO', 'TELEVISOR', 'AVIÓN', 'BIBLIOTECA', 'HOSPITAL', 'PLAYA', 'MONTAÑA', 'CASTILLO', 'RELOJ', 'SEMÁFORO', 'MAQUILLAJE'] },
+};
+export const WORDS = Object.values(WORD_CATS).flatMap(c => c.words);
+export function pickWord(cat) {
+  const key = cat && WORD_CATS[cat] ? cat : Object.keys(WORD_CATS)[Math.floor(Math.random() * 4)];
+  const ws = WORD_CATS[key].words; return { word: ws[Math.floor(Math.random() * ws.length)], cat: key };
+}
 // Quita tildes pero respeta la Ñ (á→A, ñ→Ñ).
 export const letterKey = str => [...String(str).toUpperCase()].map(c => c === '\u00D1' ? c : c.normalize('NFD').replace(/[\u0300-\u036f]/g, '')).join('');
 export function hangSolved(word, guessed) { return [...word].every(ch => !/[A-ZÁÉÍÓÚÑ]/i.test(ch) || guessed.includes(letterKey(ch))); }
 export function hangCount(word, L) { return [...word].filter(ch => letterKey(ch) === L).length; }
+
+/* 4 en línea: tablero de 7 columnas × 6 filas (fila 0 arriba) */
+export const C4W = 7, C4H = 6, C4EMPTY = '.'.repeat(42);
+export function c4Drop(b, col, m) { for (let r = C4H - 1; r >= 0; r--) { const i = r * C4W + col; if (b[i] === '.') return { b: b.slice(0, i) + m + b.slice(i + 1), i }; } return null; }
+export function c4Winner(b) {
+  const at = (r, c) => (r >= 0 && r < C4H && c >= 0 && c < C4W) ? b[r * C4W + c] : '#';
+  for (let r = 0; r < C4H; r++) for (let c = 0; c < C4W; c++) { const m = at(r, c); if (m === '.') continue;
+    for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) if ([1, 2, 3].every(k => at(r + dr * k, c + dc * k) === m)) return m; }
+  return b.includes('.') ? null : 'draw';
+}
+export function c4Bot(b, me) {
+  const op = me === 'R' ? 'Y' : 'R', cols = [3, 2, 4, 1, 5, 0, 6].filter(c => b[c] === '.');
+  for (const c of cols) if (c4Winner(c4Drop(b, c, me).b) === me) return c;
+  for (const c of cols) if (c4Winner(c4Drop(b, c, op).b) === op) return c;
+  const safe = cols.filter(c => { const nb = c4Drop(b, c, me).b; return !cols.some(c2 => { const d = c4Drop(nb, c2, op); return d && c4Winner(d.b) === op; }); });
+  return (safe.length ? safe : cols)[Math.random() < .75 ? 0 : Math.floor(Math.random() * (safe.length || cols.length))];
+}
 
 /* ================= pantalla ================= */
 const GINFO = {
   domino: { e: '🁫', name: 'Dominó', pts: 3 },
   ttt: { e: '❌', name: 'X y O', pts: 1 },
   ahorcado: { e: '🔤', name: 'Ahorcado', pts: 2 },
+  c4: { e: '🔴', name: '4 en línea', pts: 2 },
 };
 const PIPS = { 0: [], 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
 const half = v => `<span class="dh">${Array.from({ length: 9 }, (_, k) => `<i class="${PIPS[v].includes(k) ? 'on' : ''}"></i>`).join('')}</span>`;
+const halfS = v => `<span class="dmh">${Array.from({ length: 9 }, (_, k) => `<i class="${PIPS[v].includes(k) ? 'on' : ''}"></i>`).join('')}</span>`;
+function snakeHTML(chain, width) {
+  if (!chain.length) return '<span class="muted small" style="margin:auto">La mesa está vacía · sale la primera ficha</span>';
+  const S = Math.max(20, Math.min(30, Math.floor(width / 14))), cols = Math.floor(width / S);
+  const { tiles, rows } = snakeLayout(chain, cols), off = Math.max(0, (width - cols * S) / 2);
+  return `<div class="snake" style="height:${rows * S}px">${tiles.map(o => `<span class="dmt ${o.v ? 'v' : 'h'} ${o.k === 0 || o.k === chain.length - 1 ? 'end' : ''} ${o.k === LAST.k ? 'new' : ''}" style="left:${off + o.x * S}px;top:${o.y * S}px;width:${o.w * S - 2}px;height:${o.h * S - 2}px">${halfS(o.a)}<b></b>${halfS(o.b)}</span>`).join('')}</div>`;
+}
+const LAST = { k: -1 };
 export const tileHTML = (t, cls = '', attrs = '') => `<span class="dmn ${isDouble(t) ? 'dbl' : ''} ${cls}" ${attrs}>${half(+t[0])}<b></b>${half(+t[1])}</span>`;
 const BOT_NAMES = { bot1: '🤖 Robertico', bot2: '🤖 Chispita', bot3: '🤖 Turrón' };
 
@@ -191,13 +255,15 @@ export function initGames(X) {
 
   /* ----- crear / unirse ----- */
   async function create(type, mode) {
-    if (G.busy) return; G.busy = true; setTimeout(() => { G.busy = false; }, 1500);
+    if (G.creating) return; G.creating = true; setTimeout(() => { G.creating = false; }, 1500);
     const id = doc(collection(db, 'games')).id, now = Date.now();
     const base = { type, host: me(), players: [me()], status: 'lobby', createdAt: now, updatedAt: now, seq: 0, title: '' };
     if (type === 'domino') Object.assign(base, { mode, max: mode === 'parejas' ? 4 : 4, target: mode === 'parejas' ? 200 : 100, scores: mode === 'parejas' ? [0, 0] : [], title: mode === 'parejas' ? 'Dominó en parejas' : 'Dominó, cada quien solo' });
     if (type === 'ttt') Object.assign(base, { max: 2, board: '.........', title: 'X y O' });
-    if (type === 'ahorcado') Object.assign(base, { max: 6, title: 'Ahorcado navideño' });
-    try { await setDoc(doc(db, 'games', id), base); location.hash = 'juego-' + id; } catch (e) { toast(X.authErr(e)); }
+    if (type === 'c4') Object.assign(base, { max: 2, board: C4EMPTY, title: '4 en línea' });
+    if (type === 'ahorcado') Object.assign(base, { max: 6, cat: mode || 'mix', title: 'Ahorcado · ' + (WORD_CATS[mode]?.name || 'De todo') });
+    if (mode === 'bot') base.title += ' contra 🤖'; // las reglas exigen crear la mesa solo con uno mismo; start() sienta al 🤖
+    try { await setDoc(doc(db, 'games', id), base); location.hash = 'juego-' + id; if (mode === 'bot') setTimeout(() => { if (G.cur?.id === id) start(); }, 900); } catch (e) { toast(X.authErr(e)); }
   }
   async function tx(fn) {
     if (G.busy) return; G.busy = true;
@@ -226,13 +292,13 @@ export function initGames(X) {
       try { await b.commit(); } catch (e) { toast(X.authErr(e)); }
       return;
     }
-    if (g.type === 'ttt') {
+    if (g.type === 'ttt' || g.type === 'c4') {
       const players = g.players.length < 2 ? [...g.players, 'bot1'] : g.players;
-      return tx((t, gg) => upd(t, gg, { players, status: 'playing', board: '.........', turn: 0, winners: [], result: null }));
+      return tx((t, gg) => upd(t, gg, { players, status: 'playing', board: g.type === 'c4' ? C4EMPTY : '.........', turn: 0, winners: [], result: null, lastCell: -1 }));
     }
     if (g.type === 'ahorcado') {
-      const word = WORDS[Math.floor(Math.random() * WORDS.length)];
-      return tx((t, gg) => upd(t, gg, { status: 'playing', word, guessed: '', errors: 0, maxErrors: 6, scores: gg.players.map(() => 0), turn: 0, winners: [], result: null }));
+      const { word, cat } = pickWord(g.cat);
+      return tx((t, gg) => upd(t, gg, { status: 'playing', word, wcat: cat, guessed: '', errors: 0, maxErrors: 6, scores: gg.players.map(() => 0), turn: 0, winners: [], result: null }));
     }
   }
   async function nextHand() {
@@ -246,7 +312,7 @@ export function initGames(X) {
   async function rematch() {
     const g = G.cur; if (g.host !== me()) return;
     const human = g.players.filter(s => !isBot(s));
-    await tx((t, gg) => upd(t, gg, { status: 'lobby', players: gg.type === 'domino' && gg.mode === 'parejas' ? gg.players : human.concat(gg.players.filter(isBot)), winners: [], result: null, handOver: false, scores: gg.mode === 'parejas' ? [0, 0] : [], chain: [], hand: 0, board: '.........', guessed: '', errors: 0 }));
+    await tx((t, gg) => upd(t, gg, { status: 'lobby', players: gg.type === 'domino' && gg.mode === 'parejas' ? gg.players : human.concat(gg.players.filter(isBot)), winners: [], result: null, handOver: false, scores: gg.mode === 'parejas' ? [0, 0] : [], chain: [], hand: 0, board: gg.type === 'c4' ? C4EMPTY : '.........', guessed: '', errors: 0, lastCell: -1 }));
   }
   async function del() {
     if (!(await confirmBox('¿Cerrar esta mesa?', 'Se borra la partida para todos.', 'Cerrar mesa'))) return;
@@ -274,6 +340,8 @@ export function initGames(X) {
       G.botT = setTimeout(() => { const c = botChoice(G.botHands[seat], g.chain || [], g.mustOpen); playDomino(seat, c ? c.tile : null, c?.side); }, 1100 + Math.random() * 700);
     } else if (g.type === 'ttt') {
       G.botT = setTimeout(() => playTTT(seat, tttBot(g.board, g.turn === 0 ? 'X' : 'O')), 700);
+    } else if (g.type === 'c4') {
+      G.botT = setTimeout(() => playC4(seat, c4Bot(g.board, g.turn === 0 ? 'R' : 'Y')), 800);
     }
   }
   function playTTT(seat, cell) {
@@ -282,6 +350,15 @@ export function initGames(X) {
       if (g.board[cell] !== '.') throw new Error('Esa casilla está ocupada');
       const m = i === 0 ? 'X' : 'O', board = g.board.slice(0, cell) + m + g.board.slice(cell + 1), w = tttWinner(board);
       const p = { board, turn: 1 - i };
+      if (w) Object.assign(p, { status: 'done', result: w === 'draw' ? { why: 'empate' } : { seat, why: 'gano' }, winners: w === 'draw' || isBot(seat) ? [] : [seat] });
+      upd(t, g, p);
+    });
+  }
+  function playC4(seat, col) {
+    return tx((t, g) => {
+      const i = g.players.indexOf(seat); if (g.status !== 'playing' || i !== g.turn) throw new Error('No es tu turno');
+      const d = c4Drop(g.board, col, i === 0 ? 'R' : 'Y'); if (!d) throw new Error('Esa columna está llena');
+      const w = c4Winner(d.b), p = { board: d.b, turn: 1 - i, lastCell: d.i };
       if (w) Object.assign(p, { status: 'done', result: w === 'draw' ? { why: 'empate' } : { seat, why: 'gano' }, winners: w === 'draw' || isBot(seat) ? [] : [seat] });
       upd(t, g, p);
     });
@@ -314,7 +391,7 @@ export function initGames(X) {
   /* ----- pintar ----- */
   function board() { // tabla de campeones
     const by = {};
-    for (const w of G.wins) { if (!X.P(w.uid)) continue; const o = by[w.uid] ||= { pts: 0, domino: 0, ttt: 0, ahorcado: 0 }; o.pts += GINFO[w.type]?.pts || 1; o[w.type] = (o[w.type] || 0) + 1; }
+    for (const w of G.wins) { if (!X.P(w.uid)) continue; const o = by[w.uid] ||= { pts: 0, domino: 0, ttt: 0, ahorcado: 0, c4: 0 }; o.pts += GINFO[w.type]?.pts || 1; o[w.type] = (o[w.type] || 0) + 1; }
     return Object.entries(by).sort((a, b) => b[1].pts - a[1].pts);
   }
   function renderLobbyList() {
@@ -324,14 +401,15 @@ export function initGames(X) {
     const live = G.list.filter(g => g.status === 'playing' && fresh(g));
     const mineIds = new Set(G.list.filter(g => g.players?.includes(me())).map(g => g.id));
     const row = g => { const full = g.players.length >= g.max, inIt = g.players.includes(me());
+      if (!inIt && full && g.max <= 2) return `<div class="card gm" style="opacity:.6"><div class="gm-e">${GINFO[g.type]?.e || '🎮'}</div><div class="grow"><b>${esc(g.title || GINFO[g.type]?.name)}</b><div class="muted small">${g.players.map(s => esc(seatName(s))).join(' vs ')}</div></div><span class="muted small">🔒 Llena</span></div>`;
       return `<a class="card gm clk" href="#juego-${esc(g.id)}"><div class="gm-e">${GINFO[g.type]?.e || '🎮'}</div><div class="grow"><b>${esc(g.title || GINFO[g.type]?.name)}</b>
         <div class="muted small">${g.players.map(s => esc(seatEmoji(s))).join(' ')} · ${g.players.length}/${g.max} ${g.status === 'lobby' ? (full ? '· llena' : '· esperando') : '· jugando'}</div></div>
         <span class="btn sm ${inIt ? '' : 'gold'}">${inIt ? (g.status === 'playing' ? 'Seguir' : 'Ver') : g.status === 'lobby' && !full ? 'Unirme' : 'Mirar'}</span></a>`; };
     return `<div class="gcreate">
-        <button class="gc" data-gnew="domino:parejas"><span class="gc-e">🁫</span><b>Dominó en parejas</b><span>2 contra 2 · a 200</span></button>
-        <button class="gc" data-gnew="domino:solo"><span class="gc-e">🁫</span><b>Dominó cada quien</b><span>2 a 4 · a 100</span></button>
-        <button class="gc" data-gnew="ttt"><span class="gc-e">❌⭕</span><b>X y O</b><span>1 contra 1</span></button>
-        <button class="gc" data-gnew="ahorcado"><span class="gc-e">🔤</span><b>Ahorcado</b><span>Palabras navideñas</span></button>
+        <button class="gc" data-gpick="domino"><span class="gc-e">🁫</span><b>Dominó</b><span>En parejas o cada quien</span></button>
+        <button class="gc" data-gpick="ahorcado"><span class="gc-e">🔤</span><b>Ahorcado</b><span>Cultura, Biblia y más</span></button>
+        <button class="gc" data-gpick="c4"><span class="gc-e">🔴🟡</span><b>4 en línea</b><span>1 contra 1</span></button>
+        <button class="gc" data-gpick="ttt"><span class="gc-e">❌⭕</span><b>X y O</b><span>1 contra 1</span></button>
       </div>
       <p class="muted small center" style="margin:-4px 0 16px">¿No llegan todos? Completa la mesa con 🤖.</p>
       ${live.filter(g => mineIds.has(g.id)).length ? `<div class="h2row"><h2>Tus partidas</h2></div><div class="stack">${live.filter(g => mineIds.has(g.id)).map(row).join('')}</div>` : ''}
@@ -339,8 +417,8 @@ export function initGames(X) {
       <div class="stack">${open.map(row).join('') || '<div class="card empty"><span class="e">🎲</span>No hay mesas abiertas. ¡Crea una y que se unan!</div>'}</div>
       ${live.filter(g => !mineIds.has(g.id)).length ? `<div class="h2row"><h2>Jugando ahora</h2></div><div class="stack">${live.filter(g => !mineIds.has(g.id)).map(row).join('')}</div>` : ''}
       <div class="h2row"><h2>🏆 Tabla de campeones</h2></div>
-      <div class="card">${ranks.length ? ranks.slice(0, 15).map(([uid, o], k) => `<div class="rk ${uid === me() ? 'me' : ''}"><span class="rk-n">${medal[k] || k + 1}</span><span class="rk-a">${esc(X.pEmoji(uid))}</span><span class="grow"><b>${esc(X.pName(uid))}</b><div class="muted small">${o.domino ? `🁫 ${o.domino} ` : ''}${o.ahorcado ? `🔤 ${o.ahorcado} ` : ''}${o.ttt ? `❌ ${o.ttt}` : ''}</div></span><b class="rk-p">${o.pts}</b></div>`).join('')
-        : '<p class="muted small center">Todavía nadie ha ganado. Dominó vale 3 puntos, ahorcado 2 y X y O 1.</p>'}</div>`;
+      <div class="card">${ranks.length ? ranks.slice(0, 15).map(([uid, o], k) => `<div class="rk ${uid === me() ? 'me' : ''}"><span class="rk-n">${medal[k] || k + 1}</span><span class="rk-a">${esc(X.pEmoji(uid))}</span><span class="grow"><b>${esc(X.pName(uid))}</b><div class="muted small">${o.domino ? `🁫 ${o.domino} ` : ''}${o.ahorcado ? `🔤 ${o.ahorcado} ` : ''}${o.ttt ? `❌ ${o.ttt} ` : ''}${o.c4 ? `🔴 ${o.c4}` : ''}</div></span><b class="rk-p">${o.pts}</b></div>`).join('')
+        : '<p class="muted small center">Todavía nadie ha ganado. Dominó vale 3 puntos, ahorcado y 4 en línea 2, y X y O 1.</p>'}</div>`;
   }
   function seatsHTML(g) {
     const n = g.players.length;
@@ -349,12 +427,12 @@ export function initGames(X) {
       ${g.type === 'domino' && g.status !== 'lobby' ? `<span class="sc">${g.counts?.[i] ?? 7} 🁢</span>` : ''}
       ${g.type === 'domino' && g.mode === 'parejas' ? `<span class="team t${i % 2}">${i % 2 ? 'B' : 'A'}</span>` : ''}
       ${g.type === 'ahorcado' && g.scores ? `<span class="sc">${g.scores[i] || 0} pts</span>` : ''}
-      ${g.type === 'ttt' ? `<span class="sc">${i === 0 ? '❌' : '⭕'}</span>` : ''}
+      ${g.type === 'ttt' ? `<span class="sc">${i === 0 ? '❌' : '⭕'}</span>` : ''}${g.type === 'c4' ? `<span class="sc">${i === 0 ? '🔴' : '🟡'}</span>` : ''}
       ${g.status === 'lobby' && g.host === me() && s !== me() ? `<button class="x" data-gkick="${esc(s)}" aria-label="Quitar">✕</button>` : ''}</div>`).join('')}</div>`;
   }
   function lobbyHTML(g) {
     const inIt = g.players.includes(me()), host = g.host === me(), full = g.players.length >= g.max;
-    const need = g.type === 'domino' && g.mode === 'parejas' ? 'Faltan asientos: se llenan con 🤖 al empezar.' : g.type === 'ttt' && g.players.length < 2 ? 'Si nadie se une, juegas contra 🤖.' : '';
+    const need = g.type === 'domino' && g.mode === 'parejas' ? 'Faltan asientos: se llenan con 🤖 al empezar.' : (g.type === 'ttt' || g.type === 'c4') && g.players.length < 2 ? 'Si nadie se une, juegas contra 🤖.' : '';
     return `${seatsHTML(g)}
       ${g.type === 'domino' && g.mode === 'parejas' && g.players.length >= 3 ? '<p class="muted small center">Pareja A: asientos 1 y 3 · Pareja B: asientos 2 y 4</p>' : ''}
       <div class="card center" style="margin-top:12px">
@@ -375,7 +453,7 @@ export function initGames(X) {
     const R = g.result, why = { domino: '¡Dominó!', capicua: '¡Capicúa! (+25)', tranque: '¡Tranque!', empate: 'Tranque empatado: nadie suma' };
     const winnerTxt = R ? (R.team < 0 ? why.empate : `${g.mode === 'parejas' ? 'Pareja ' + (R.team ? 'B' : 'A') : esc(seatName(g.players[R.team]))} gana ${R.pts} puntos · ${why[R.why]}`) : '';
     return `${sc}${seatsHTML(g)}
-      <div class="mesa" id="g-mesa">${chain.length ? chain.map((t, k) => tileHTML(t, `ch ${(k === 0 || k === chain.length - 1) ? 'end' : ''}`)).join('') : '<span class="muted small">La mesa está vacía</span>'}</div>
+      <div class="mesa" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth()))}</div>
       <p class="glog">${last}</p>
       ${g.handOver ? `<div class="card center hover"><div style="font-size:36px">${R?.team < 0 ? '🤝' : '🎉'}</div><b>${winnerTxt}</b>
           ${g.status === 'done' ? `<p style="margin-top:8px">🏆 ${(g.winners || []).length ? 'Ganan ' + g.winners.map(s => esc(seatName(s))).join(' y ') : 'Ganaron los 🤖'}</p>` : ''}
@@ -390,11 +468,19 @@ export function initGames(X) {
       <p class="glog">${g.status === 'done' ? (R?.why === 'empate' ? '🤝 ¡Empate!' : `🏆 Ganó ${esc(R.seat === me() ? 'tú' : seatName(R.seat))}`) : myTurn ? '👉 ¡Te toca!' : `Turno de ${esc(seatName(g.players[g.turn]))}`}</p>
       ${g.status === 'done' && g.host === me() ? '<div class="qa" style="justify-content:center"><button class="btn gold" data-gact="again">🔁 Otra</button></div>' : ''}`;
   }
+  function c4HTML(g) {
+    const mySeat = g.players.indexOf(me()), myTurn = g.status === 'playing' && g.turn === mySeat, R = g.result, b = g.board || C4EMPTY;
+    const cols = Array.from({ length: C4W }, (_, c) => `<button class="c4c" data-c4="${c}" ${!myTurn || b[c] !== '.' ? 'disabled' : ''}>${Array.from({ length: C4H }, (_, r) => { const i = r * C4W + c, v = b[i]; return `<span class="c4h ${v === 'R' ? 'r' : v === 'Y' ? 'y' : ''} ${i === g.lastCell ? 'nw' : ''}"></span>`; }).join('')}</button>`).join('');
+    return `${seatsHTML(g)}<div class="c4">${cols}</div>
+      <p class="glog">${g.status === 'done' ? (R?.why === 'empate' ? '🤝 ¡Empate!' : `🏆 Ganó ${esc(R.seat === me() ? 'tú' : seatName(R.seat))}`) : myTurn ? '👉 ¡Te toca! Toca una columna' : `Turno de ${esc(seatName(g.players[g.turn]))}`}</p>
+      ${g.status === 'done' && g.host === me() ? '<div class="qa" style="justify-content:center"><button class="btn gold" data-gact="again">🔁 Otra</button></div>' : ''}`;
+  }
   function hangHTML(g) {
     const mySeat = g.players.indexOf(me()), myTurn = g.status === 'playing' && g.turn === mySeat, gs = g.guessed || '';
     const shown = [...g.word].map(ch => /\s/.test(ch) ? '<span class="hw sp"></span>' : `<span class="hw">${g.status === 'done' || gs.includes(letterKey(ch)) ? esc(ch) : ''}</span>`).join('');
     const parts = ['🎅', '🧣', '🧤', '🎄', '⛄', '💀'].slice(0, g.errors || 0).join(' ');
-    return `${seatsHTML(g)}<div class="card center"><div class="muted small">Errores ${g.errors || 0} de ${g.maxErrors}</div><div style="font-size:26px;min-height:36px;letter-spacing:4px">${parts}</div><div class="hword">${shown}</div></div>
+    const cat = WORD_CATS[g.wcat];
+    return `${seatsHTML(g)}<div class="card center">${cat ? `<div class="hcat">${cat.e} Pista: ${esc(cat.name)}</div>` : ''}<div class="muted small">Errores ${g.errors || 0} de ${g.maxErrors}</div><div style="font-size:26px;min-height:36px;letter-spacing:4px">${parts}</div><div class="hword">${shown}</div></div>
       ${g.status === 'done' ? `<p class="glog">${g.result?.why === 'ahorcado' ? '💀 ¡Ahorcados!' : '🎉 ¡Resuelta!'} ${(g.winners || []).length ? '🏆 ' + g.winners.map(s => esc(seatName(s))).join(' y ') : ''}</p>${g.host === me() ? '<div class="qa" style="justify-content:center"><button class="btn gold" data-gact="again">🔁 Otra palabra</button></div>' : ''}`
       : `<p class="glog">${myTurn ? '👉 ¡Te toca! Elige una letra' : `Turno de ${esc(seatName(g.players[g.turn]))}`}</p>
         <div class="hkb">${'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ'.split('').map(L => `<button data-hl="${L}" ${!myTurn || gs.includes(L) ? 'disabled' : ''} class="${gs.includes(L) ? (hangCount(g.word, L) ? 'hit' : 'miss') : ''}">${L}</button>`).join('')}</div>
@@ -405,22 +491,35 @@ export function initGames(X) {
     if (g.gone) return '<div class="card empty"><span class="e">🫥</span>Esta mesa ya no existe.<div class="qa" style="justify-content:center"><a class="btn" href="#juegos">Volver</a></div></div>';
     const head = `<div class="ghead"><a class="btn sm ghost" href="#juegos">‹ Juegos</a><b>${GINFO[g.type]?.e || ''} ${esc(g.title || GINFO[g.type]?.name)}</b>${g.host === me() || X.can('moderar') ? '<button class="btn sm ghost" data-gact="del" aria-label="Cerrar mesa">🗑️</button>' : '<span></span>'}</div>`;
     if (g.status === 'lobby') return head + lobbyHTML(g);
-    return head + (g.type === 'domino' ? dominoHTML(g) : g.type === 'ttt' ? tttHTML(g) : hangHTML(g));
+    if (g.status !== 'lobby' && !g.players.includes(me()) && g.max <= 2) return head + `<div class="card empty"><span class="e">🔒</span>Esta partida es solo de ${g.players.map(s => esc(seatName(s))).join(' y ')}<div class="qa" style="justify-content:center"><a class="btn" href="#juegos">Volver</a></div></div>`;
+    return head + (g.type === 'domino' ? dominoHTML(g) : g.type === 'ttt' ? tttHTML(g) : g.type === 'c4' ? c4HTML(g) : hangHTML(g));
   }
+  const mesaWidth = () => Math.max(260, (($('#g-root')?.clientWidth) || 360) - 28);
+  let rzT; addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => { if (G.cur?.type === 'domino' && document.querySelector('#g-mesa')) renderView(); }, 150); });
   function renderView() {
     const root = $('#g-root'); if (!root) return;
     if (!S.me) { root.innerHTML = X.needLogin('Entra para jugar con el grupo.'); return; }
     ensure();
     const h = location.hash.slice(1), m = h.match(/^juego-(.+)$/);
     if (m) open(m[1]); else if (G.cur) closeGame();
-    const scroll = $('#g-mesa')?.scrollLeft;
     root.innerHTML = G.cur ? renderGame(G.cur) : renderLobbyList();
-    const ms = $('#g-mesa'); if (ms) ms.scrollLeft = scroll ?? ms.scrollWidth;
+  }
+
+  function pickMode(type) {
+    const opt = (v, e, t, d) => `<button class="gopt" data-gnew="${type}:${v}"><span class="go-e">${e}</span><span><b>${t}</b><span class="muted small">${d}</span></span></button>`;
+    const body = {
+      domino: ['🁫 Dominó', opt('parejas', '👥', 'En parejas', '2 contra 2 · se juega a 200 · los asientos vacíos se llenan con 🤖') + opt('solo', '🙋', 'Cada quien', 'De 2 a 4 · se juega a 100')],
+      ahorcado: ['🔤 Ahorcado', Object.entries(WORD_CATS).map(([k, c]) => opt(k, c.e, c.name, `${c.words.length} palabras`)).join('') + opt('mix', '🎰', 'Al azar', 'Cualquier categoría')],
+      c4: ['🔴 4 en línea', opt('', '🙋', 'Contra alguien', 'Creas la mesa y otra persona se une') + opt('bot', '🤖', 'Contra la máquina', 'Empieza de una vez')],
+      ttt: ['❌ X y O', opt('', '🙋', 'Contra alguien', 'Creas la mesa y otra persona se une') + opt('bot', '🤖', 'Contra la máquina', 'Empieza de una vez')],
+    }[type];
+    openModal(`<h3>${body[0]}</h3><p class="muted small">¿Cómo quieres jugar?</p><div class="stack" style="margin-top:12px">${body[1]}</div><div class="actions"><button class="btn ghost" data-a="x">Cancelar</button></div>`).onclick = ev => { if (ev.target.closest('[data-a]')) closeModal(); };
   }
 
   /* ----- toques ----- */
   document.addEventListener('click', async e => {
-    const nw = e.target.closest('[data-gnew]'); if (nw) { const [t, m] = nw.dataset.gnew.split(':'); return create(t, m); }
+    const pk = e.target.closest('[data-gpick]'); if (pk) return pickMode(pk.dataset.gpick);
+    const nw = e.target.closest('[data-gnew]'); if (nw) { closeModal(); const [t, m] = nw.dataset.gnew.split(':'); return create(t, m); }
     if (!G.cur) return;
     const a = e.target.closest('[data-gact]')?.dataset.gact;
     if (a === 'join') return join();
@@ -442,6 +541,7 @@ export function initGames(X) {
     const k = e.target.closest('[data-gkick]'); if (k) return kick(k.dataset.gkick);
     const hl = e.target.closest('[data-hl]'); if (hl && !hl.disabled) return hangLetter(hl.dataset.hl);
     const c = e.target.closest('[data-ttt]'); if (c && !c.disabled) return playTTT(me(), +c.dataset.ttt);
+    const c4 = e.target.closest('[data-c4]'); if (c4 && !c4.disabled) return playC4(me(), +c4.dataset.c4);
     const tl = e.target.closest('[data-tile]');
     if (tl && G.cur.type === 'domino') {
       const g = G.cur, t = tl.dataset.tile, chain = g.chain || [];

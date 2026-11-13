@@ -249,6 +249,16 @@ details.fold[open]{padding-bottom:14px}
 .todo-h{display:flex;justify-content:space-between;align-items:baseline}
 .todo-ok{margin-bottom:16px;padding:14px 16px}
 /* 🎮 juegos */
+.gopt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:14px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:inherit;font:inherit;cursor:pointer}
+.gopt:active{transform:scale(.98)}.gopt .go-e{font-size:28px;width:36px;text-align:center}.gopt b{display:block}
+.hcat{display:inline-block;margin-bottom:6px;padding:4px 10px;border-radius:999px;background:rgba(236,188,92,.16);color:var(--gold);font-weight:700;font-size:.82rem}
+.c4{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:8px;border-radius:18px;background:#1d4fa8;box-shadow:inset 0 -6px 0 rgba(0,0,0,.25);max-width:420px;margin:6px auto}
+.c4c{display:grid;grid-template-rows:repeat(6,1fr);gap:4px;border:0;background:none;padding:2px;border-radius:12px;cursor:pointer}
+.c4c:not([disabled]):active{background:rgba(255,255,255,.12)}
+.c4h{aspect-ratio:1;border-radius:50%;background:#0c2a5e;box-shadow:inset 0 3px 5px rgba(0,0,0,.45)}
+.c4h.r{background:radial-gradient(circle at 35% 30%,#ff7b6b,#d2261b)}.c4h.y{background:radial-gradient(circle at 35% 30%,#ffe58a,#e8b51f)}
+.c4h.nw{animation:c4drop .35s ease-in}
+@keyframes c4drop{from{transform:translateY(-120px);opacity:.3}}
 .gcreate{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .gc{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:16px 14px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(160deg,rgba(236,188,92,.14),rgba(255,255,255,.04));color:inherit;font:inherit;text-align:left;cursor:pointer;transition:transform .15s}
 .gc:active{transform:scale(.97)}
@@ -273,7 +283,17 @@ details.fold[open]{padding-bottom:14px}
 .score2>div.mine{background:rgba(236,188,92,.14)}
 .score2 span{font-size:.72rem;opacity:.75}.score2 b{font-size:1.5rem;font-family:var(--serif,inherit)}
 .score2.solo{flex-wrap:wrap}
+.snake{position:relative;width:100%}
+.dmt{position:absolute;display:flex;background:linear-gradient(145deg,#fffdf6,#ece4cf);border-radius:4px;box-shadow:0 1px 0 #b9ad90,0 2px 4px rgba(0,0,0,.35)}
+.dmt.h{flex-direction:row}.dmt.v{flex-direction:column}
+.dmt b{background:#a89a7a;flex:0 0 1px}.dmt.h b{width:1px;margin:2px 0}.dmt.v b{height:1px;margin:0 2px}
+.dmt .dmh{flex:1;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:13%;gap:6%}
+.dmt .dmh i{border-radius:50%}.dmt .dmh i.on{background:#151515}
+.dmt.end{box-shadow:0 0 0 2px var(--gold),0 2px 4px rgba(0,0,0,.35)}
+.dmt.new{animation:drop .35s ease}
+@keyframes drop{from{transform:scale(1.35);opacity:.2}}
 .mesa{display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:center;gap:4px;min-height:120px;padding:14px 10px;border-radius:22px;background:radial-gradient(circle at 50% 40%,#1f6b45,#0f3d27);border:6px solid #5b3a1e;box-shadow:inset 0 0 30px rgba(0,0,0,.45)}
+.mesa{padding:12px 4px}
 .glog{text-align:center;min-height:1.4em;margin:10px 0;font-weight:600;opacity:.9}
 .dmn{display:inline-flex;align-items:center;background:#f7f2e6;border-radius:6px;padding:2px;box-shadow:0 2px 0 #c9bfa8,0 3px 6px rgba(0,0,0,.35);flex:0 0 auto}
 .dmn b{width:1.5px;align-self:stretch;margin:2px 1px;background:#9c8f72}
@@ -2103,8 +2123,18 @@ function renderChat() {
 }
 // Mientras se escribe, la barra de pestañas se esconde para que el teclado no tape el cuadro de texto.
 const isTyping = el => el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && /^(text|search|tel|url|email|password|number)$/.test(el.type || 'text')));
-document.addEventListener('focusin', e => { if (isTyping(e.target)) document.body.classList.add('kb'); });
-document.addEventListener('focusout', () => setTimeout(() => { if (!isTyping(document.activeElement)) document.body.classList.remove('kb'); }, 120));
+// Solo cuenta como "teclado abierto" si la pantalla visible se encogió de verdad (teclado del teléfono),
+// así en computadoras o con teclado físico la barra nunca desaparece.
+let baseH = Math.max(innerHeight, visualViewport?.height || 0);
+function kbCheck() {
+  const vh = visualViewport?.height || innerHeight, typing = isTyping(document.activeElement);
+  if (!typing) baseH = Math.max(vh, innerHeight);
+  document.body.classList.toggle('kb', typing && baseH - vh > 140);
+}
+document.addEventListener('focusin', () => setTimeout(kbCheck, 250));
+document.addEventListener('focusout', () => setTimeout(kbCheck, 150));
+visualViewport?.addEventListener('resize', kbCheck);
+addEventListener('resize', kbCheck);
 visualViewport?.addEventListener('resize', () => { if (document.activeElement?.id === 'c-text') try { scrollChat(true); } catch { } });
 $('#c-emo').addEventListener('click', e => { const b = e.target.closest('[data-e]'); if (!b) return; const i = $('#c-text'); i.value += b.dataset.e; i.focus(); });
 const prompts = () => (Array.isArray(S.event.chatPrompts) && S.event.chatPrompts.length) ? S.event.chatPrompts : OCURRENCIAS;
@@ -2406,7 +2436,6 @@ function applyAdmGroups() {
 }
 function admGo(g) {
   S.admGrp = g; try { sessionStorage.setItem('angelito:admGrp', g); } catch { }
-  const rr = $('#d-reveal-row'); if (rr) rr.style.display = S.drawMeta ? '' : 'none';
   applyAdmGroups(); renderAdmDash();
   $('#adm-nav [data-ag].on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   const top = $('#adm-nav').getBoundingClientRect().top + scrollY - 8; if (scrollY > top) scrollTo({ top, behavior: 'smooth' });
@@ -2458,6 +2487,7 @@ function renderAdmin() {
   }
   if (!S.isAdmin) return;
   $$('#adm-panel [data-perm]').forEach(el => { el.style.display = (el.dataset.perm === 'owner' ? S.isOwner : can(el.dataset.perm)) ? '' : 'none'; });
+  const rr = $('#d-reveal-row'); if (rr) rr.style.display = S.drawMeta ? '' : 'none';
   applyAdmGroups(); renderAdmDash();
   $('#adm-who').textContent = S.isOwner ? '🔓 Modo organizador principal' : `🛡️ ${S.staff?.name || 'Organizador'} · ayudante`;
   renderStaff();

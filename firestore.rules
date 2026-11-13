@@ -124,7 +124,7 @@ service cloud.firestore {
     // games/{id}: la mesa. Solo los inscritos. Para jugar hay que estar sentado en la mesa;
     // para unirse solo se puede agregar uno mismo mientras está en espera.
     function gameOk(d) {
-      return d.type in ['domino', 'ttt', 'ahorcado'] && d.players is list && d.players.size() <= 6
+      return d.type in ['domino', 'ttt', 'ahorcado', 'c4'] && d.players is list && d.players.size() <= d.get('max', 6) && d.get('max', 6) <= 6
         && d.status in ['lobby', 'playing', 'done'] && d.host is string && d.updatedAt is int && d.seq is int;
     }
     match /games/{gid} {
