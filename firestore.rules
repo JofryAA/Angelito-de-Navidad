@@ -1,0 +1,405 @@
+rules_version = '2';
+// Reglas de seguridad del Angelito de Navidad.
+// Pégalas en Firebase → Firestore Database → Reglas → Publicar.
+// Si cambias el correo del organizador principal, cámbialo también abajo en isOwner().
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- ayudantes ----------
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    // Organizador principal: puede todo.
+    function isOwner() { return signedIn() && request.auth.token.email == 'admin@angelito.app'; }
+    function isStaff() { return signedIn() && exists(/databases/$(database)/documents/staff/$(me())); }
+    // Organizadores ayudantes: solo lo que el principal les marcó.
+    function can(p) {
+      return isOwner() || (isStaff() && get(/databases/$(database)/documents/staff/$(me())).data.get('perms', {}).get(p, false) == true);
+    }
+    function isParticipant() { return signedIn() && exists(/databases/$(database)/documents/participants/$(me())); }
+    // Solo los inscritos y el equipo organizador leen los datos del grupo (no cualquiera con una cuenta).
+    function member() { return isParticipant() || isOwner() || isStaff(); }
+    function hasEvent() { return exists(/databases/$(database)/documents/config/event); }
+    function ev(k, d) { return hasEvent() ? get(/databases/$(database)/documents/config/event).data.get(k, d) : d; }
+    function regOpen() { return ev('registrationOpen', true) == true; }
+    function revealed() {
+      return ev('revealNow', false) == true || (ev('revealAt', null) != null && request.time >= ev('revealAt', null));
+    }
+    // Ids creados por la app: solo letras, números, _ y - (evita que alguien meta código en un id).
+    function okId(id) { return id.matches('^[A-Za-z0-9_-]{1,80}$'); }
+    function str(v, max) { return v is string && v.size() <= max; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    // El organizador principal puede leer y corregir cualquier dato (por ejemplo, al restablecer un PIN).
+    match /{document=**} {
+      allow read, write: if isOwner();
+    }
+
+    // ---------- equipo organizador ----------
+    match /staff/{uid} {
+      allow read: if isOwner() || (signedIn() && me() == uid);
+      allow write: if isOwner();
+    }
+
+    // ---------- evento ----------
+    // config/draw (sorteo) es solo del principal. Los ayudantes de "evento" no pueden abrir
+    // los anónimos ni las adivinanzas antes de tiempo.
+    match /config/{id} {
+      allow read: if true;
+      allow write: if isOwner();
+      allow update: if id == 'event' && (
+        (can('evento') && !changed().hasAny(['revealNow', 'revealAt', 'revealDate', 'guessesOpen', 'guessesLocked', 'registrationOpen', 'angelLocked', 'guessWinner']))
+        || (can('participantes') && changed().hasOnly(['registrationOpen'])));
+    }
+
+    match /activities/{id} {
+      allow read: if true;
+      allow write: if can('actividades') && okId(id);
+    }
+
+    // ---------- participantes ----------
+    function validPerson(d) {
+      return d.keys().hasOnly(['first', 'last', 'name', 'nameKey', 'email', 'emoji', 'at', 'mustChangePin'])
+        && d.keys().hasAll(['first', 'last', 'name', 'nameKey', 'email', 'emoji'])
+        && str(d.first, 25) && d.first.size() > 0 && str(d.last, 25) && d.last.size() > 0
+        && str(d.name, 60) && str(d.nameKey, 60) && str(d.email, 120) && str(d.emoji, 16);
+    }
+    // Índice de nombres: impide que dos personas se registren con el mismo nombre.
+    match /names/{nameKey} {
+      allow read: if true;
+      allow create: if (can('participantes') || (signedIn() && request.resource.data.uid == me()))
+        && request.resource.data.keys().hasOnly(['uid'])
+        && getAfter(/databases/$(database)/documents/participants/$(request.resource.data.uid)).data.nameKey == nameKey;
+      allow delete: if can('participantes');
+    }
+    // Personas quitadas por el organizador: no pueden volver con la misma cuenta.
+    match /banned/{uid} {
+      allow read: if isOwner() || isStaff();
+      allow write: if can('participantes');
+    }
+    match /participants/{uid} {
+      allow read: if true;
+      allow create: if validPerson(request.resource.data)
+        && getAfter(/databases/$(database)/documents/names/$(request.resource.data.nameKey)).data.uid == uid
+        && (can('participantes')
+            || (signedIn() && me() == uid && regOpen()
+                && request.resource.data.email == request.auth.token.email
+                && !exists(/databases/$(database)/documents/banned/$(uid))));
+      allow update: if can('participantes') && validPerson(request.resource.data)
+        && changed().hasOnly(['first', 'last', 'name', 'nameKey', 'emoji'])
+        && (!changed().hasAny(['nameKey'])
+            || getAfter(/databases/$(database)/documents/names/$(request.resource.data.nameKey)).data.uid == uid);
+      // Cada quien puede cambiar su propio ícono de perfil.
+      allow update: if isParticipant() && me() == uid && changed().hasOnly(['emoji'])
+        && request.resource.data.emoji is string && request.resource.data.emoji.size() > 0 && request.resource.data.emoji.size() <= 16;
+      // Quien entró con un PIN temporal marca que ya creó el suyo.
+      allow update: if signedIn() && me() == uid && changed().hasOnly(['mustChangePin']) && request.resource.data.mustChangePin == false;
+      allow delete: if can('participantes');
+    }
+
+    // ---------- sorteo ----------
+    // A quién le regala cada uno: solo esa persona (y el organizador principal).
+    match /assignments/{uid} {
+      allow read: if isOwner() || (isParticipant() && me() == uid);
+      allow create, delete: if isOwner();
+      allow update: if isOwner() || (isParticipant() && me() == uid && changed().hasOnly(['revealed', 'revealedAt']));
+    }
+
+    // ---------- deseos ----------
+    match /wishes/{id} {
+      allow read: if member();
+      allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'link', 'price', 'at'])
+        && str(request.resource.data.text, 200) && request.resource.data.text.size() > 0
+        && str(request.resource.data.get('link', ''), 300) && str(request.resource.data.get('price', ''), 30);
+      allow update: if isParticipant() && resource.data.uid == me() && changed().hasOnly(['top']) && request.resource.data.top is bool;
+      allow delete: if can('moderar') || can('participantes') || (signedIn() && resource.data.uid == me());
+    }
+    // "Este lo compro yo": apartado privado de cada quien.
+    match /wishPick/{uid} {
+      allow read: if signedIn() && me() == uid;
+      allow write: if isParticipant() && me() == uid
+        && request.resource.data.keys().hasOnly(['wishId']) && str(request.resource.data.wishId, 80);
+    }
+
+    // ---------- actividades ----------
+    match /activityPicks/{id} {
+      allow read: if can('actividades') || (isParticipant() && (resource.data.uid == me() || resource.data.public == true));
+      allow write: if can('actividades') && okId(id);
+    }
+    match /rsvps/{id} {   // ya no se usa
+      allow read: if member();
+      allow delete: if can('actividades');
+    }
+    match /votes/{id} {
+      allow read: if can('actividades') || (signedIn() && resource.data.uid == me());
+      allow create, update: if isParticipant() && request.resource.data.uid == me()
+        && id == request.resource.data.act + '__' + me()
+        && request.resource.data.keys().hasOnly(['act', 'uid', 'choice', 'at'])
+        && str(request.resource.data.choice, 120) && request.resource.data.choice != me()
+        && get(/databases/$(database)/documents/activities/$(request.resource.data.act)).data.get('kind', '') == 'vote'
+        && get(/databases/$(database)/documents/activities/$(request.resource.data.act)).data.get('resultsOpen', false) == false;
+      allow delete: if can('actividades');
+    }
+    match /activitySignups/{id} {
+      allow read: if member();
+      allow create: if isParticipant() && request.resource.data.uid == me()
+        && request.resource.data.keys().hasOnly(['act', 'idx', 'uid', 'at'])
+        && request.resource.data.idx is int && request.resource.data.idx >= 0
+        && id == request.resource.data.act + '__' + string(request.resource.data.idx)
+        && request.resource.data.idx < get(/databases/$(database)/documents/activities/$(request.resource.data.act)).data.get('items', []).size();
+      allow delete: if can('actividades') || (signedIn() && resource.data.uid == me());
+    }
+
+    // ---------- buzón anónimo ----------
+    // Los participantes no ven el autor. Nadie lo lee hasta el día indicado.
+    match /questions/{id} {
+      allow read: if isOwner() || (member() && revealed());
+      allow create: if isParticipant() && okId(id)
+        && request.resource.data.keys().hasOnly(['text', 'to'])
+        && str(request.resource.data.text, 500) && request.resource.data.text.size() > 0 && str(request.resource.data.to, 80)
+        && getAfter(/databases/$(database)/documents/questionAuthors/$(id)).data.uid == me();
+      allow delete: if isOwner();
+    }
+    // Autor de cada mensaje anónimo: SOLO el organizador principal.
+    match /questionAuthors/{id} {
+      allow read, delete: if isOwner();
+      allow create: if isParticipant() && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == me()
+        && existsAfter(/databases/$(database)/documents/questions/$(id))
+        && !exists(/databases/$(database)/documents/questions/$(id));
+    }
+    // Contador público: solo sube de 1 en 1 y solo junto con un mensaje nuevo de verdad.
+    match /stats/questions {
+      allow read: if member();
+      allow create, update: if isParticipant()
+        && request.resource.data.count == (resource == null ? 0 : resource.data.count) + 1
+        && request.resource.data.keys().hasOnly(['count', 'last'])
+        && existsAfter(/databases/$(database)/documents/questions/$(request.resource.data.last))
+        && !exists(/databases/$(database)/documents/questions/$(request.resource.data.last));
+      allow write: if isOwner();
+    }
+
+    // ---------- sugerencias ----------
+    match /suggestions/{id} {
+      allow read: if member();
+      allow create: if isParticipant() && okId(id) && request.resource.data.status == 'nueva'
+        && str(request.resource.data.text, 600) && request.resource.data.text.size() > 0
+        && ((request.resource.data.signed == true && request.resource.data.uid == me()
+              && request.resource.data.keys().hasOnly(['text', 'signed', 'uid', 'status', 'ts']))
+          || (request.resource.data.signed == false
+              && request.resource.data.keys().hasOnly(['text', 'signed', 'status', 'ts'])))
+        && request.resource.data.ts is int
+        && getAfter(/databases/$(database)/documents/suggestionAuthors/$(id)).data.uid == me();
+      allow update: if can('moderar') && changed().hasOnly(['status'])
+        && request.resource.data.status in ['nueva', 'revision', 'aprobada', 'hecho', 'no'];
+      allow delete: if can('moderar');
+    }
+    match /sugVotes/{id} {
+      allow read: if member();
+      allow create: if isParticipant() && request.resource.data.uid == me()
+        && id == request.resource.data.sug + '__' + me()
+        && request.resource.data.keys().hasOnly(['sug', 'uid', 'at'])
+        && exists(/databases/$(database)/documents/suggestions/$(request.resource.data.sug));
+      allow delete: if can('moderar') || (signedIn() && resource.data.uid == me());
+    }
+    // Autor real de cada sugerencia: SOLO el organizador principal.
+    match /suggestionAuthors/{id} {
+      allow read: if isOwner();
+      allow delete: if can('moderar');
+      allow create: if isParticipant() && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == me()
+        && existsAfter(/databases/$(database)/documents/suggestions/$(id))
+        && !exists(/databases/$(database)/documents/suggestions/$(id));
+    }
+
+    // ---------- asistencia y aporte ----------
+    // Cada quien marca lo suyo; solo el organizador confirma que lo recibió.
+    match /attendance/{uid} {
+      allow read: if member();
+      allow create: if (can('aportes') && request.resource.data.keys().hasOnly(['uid', 'confirmed']))
+        || (isParticipant() && me() == uid && request.resource.data.uid == uid
+            && request.resource.data.keys().hasOnly(['uid', 'status', 'paid', 'at'])
+            && request.resource.data.status in ['si', 'no'] && request.resource.data.paid is bool);
+      allow update: if (can('aportes') && changed().hasOnly(['confirmed', 'uid']) && request.resource.data.confirmed is bool)
+        || (isParticipant() && me() == uid && changed().hasOnly(['status', 'paid', 'at', 'uid'])
+            && request.resource.data.uid == uid && request.resource.data.status in ['si', 'no'] && request.resource.data.paid is bool);
+      allow delete: if isOwner();
+    }
+
+    // ---------- estado del regalo ----------
+    // Cada quien ve solo el suyo (y el principal). Así nadie puede cruzar datos para adivinar su angelito.
+    match /giftStatus/{uid} {
+      allow read: if isOwner() || (signedIn() && me() == uid);
+      allow create, update: if isParticipant() && me() == uid
+        && request.resource.data.keys().hasOnly(['status', 'at'])
+        && request.resource.data.status in ['pensando', 'ideas', 'comprado', 'envuelto'];
+      allow delete: if isOwner();
+    }
+    // Aviso que le llega a quien recibe el regalo. Solo lo escribe su angelito de verdad. No guarda quién ni cuándo.
+    match /giftIncoming/{rid} {
+      allow read: if isOwner() || (signedIn() && me() == rid);
+      allow create, update: if isParticipant()
+        && get(/databases/$(database)/documents/assignments/$(me())).data.recipient == rid
+        && request.resource.data.keys().hasOnly(['status'])
+        && request.resource.data.status in ['pensando', 'ideas', 'comprado', 'envuelto'];
+      allow delete: if isOwner();
+    }
+
+    // ---------- ¿qué crees que te van a regalar? ----------
+    // Secreto hasta que el principal las revele; después ya no se pueden cambiar (solo agregar lo que te regalaron).
+    match /guesses/{uid} {
+      allow read: if isOwner() || (signedIn() && me() == uid) || (member() && ev('guessesOpen', false) == true);
+      allow create: if isParticipant() && me() == uid && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'at']) && str(request.resource.data.text, 200)
+        && ev('guessesLocked', false) == false && ev('guessesOpen', false) == false;
+      allow update: if isParticipant() && me() == uid && request.resource.data.uid == uid
+        && ((ev('guessesLocked', false) == false && ev('guessesOpen', false) == false
+              && changed().hasOnly(['text', 'at']) && str(request.resource.data.text, 200))
+            || (changed().hasOnly(['actual', 'actualAt']) && str(request.resource.data.actual, 200)));
+      allow delete: if isOwner();
+    }
+
+    // ---------- perfil de gustos ----------
+    match /profiles/{uid} {
+      allow read: if member();
+      allow create, update: if isParticipant() && me() == uid
+        && request.resource.data.keys().hasOnly(['shirt', 'pants', 'shoe', 'colors', 'likes', 'allergy', 'nogift'])
+        && str(request.resource.data.get('shirt', ''), 120) && str(request.resource.data.get('pants', ''), 120)
+        && str(request.resource.data.get('shoe', ''), 120) && str(request.resource.data.get('colors', ''), 120)
+        && str(request.resource.data.get('likes', ''), 120) && str(request.resource.data.get('allergy', ''), 120)
+        && str(request.resource.data.get('nogift', ''), 120);
+      allow delete: if can('participantes');
+    }
+
+    // ---------- pistas secretas ----------
+    // Solo el angelito de verdad puede mandarle pistas a su persona, y solo esa persona las lee. No guardan quién las mandó.
+    match /hints/{id} {
+      allow read: if signedIn() && resource.data.to == me();
+      allow create: if isParticipant() && okId(id)
+        && request.resource.data.keys().hasOnly(['to', 'text', 'ts'])
+        && str(request.resource.data.text, 200) && request.resource.data.text.size() > 0 && request.resource.data.ts is int
+        && get(/databases/$(database)/documents/assignments/$(me())).data.recipient == request.resource.data.to
+        && !exists(/databases/$(database)/documents/reveal/main) && ev('angelLocked', false) == false;
+    }
+    // Copia privada de las pistas que yo mandé.
+    match /hintsSent/{uid} {
+      allow read: if signedIn() && me() == uid;
+      allow create, update: if isParticipant() && me() == uid
+        && request.resource.data.keys().hasOnly(['texts']) && request.resource.data.texts is list && request.resource.data.texts.size() <= 10;
+    }
+
+    // ---------- ¿quién es mi angelito? ----------
+    // Secreto hasta la gran revelación; después ya no se puede cambiar.
+    match /angelGuess/{uid} {
+      allow read: if (signedIn() && me() == uid) || (member() && exists(/databases/$(database)/documents/reveal/main));
+      allow create, update: if isParticipant() && me() == uid
+        && request.resource.data.keys().hasOnly(['guess', 'at']) && str(request.resource.data.guess, 128)
+        && request.resource.data.guess != me()
+        && !exists(/databases/$(database)/documents/reveal/main) && ev('angelLocked', false) == false;
+    }
+    // Gran revelación (la escribe el organizador principal en la fiesta).
+    match /reveal/{id} {
+      allow read: if member();
+    }
+
+    // ---------- chat ----------
+    match /chat/{id} {
+      allow read: if member();
+      allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'at', 'replyTo'])
+        && !('r' in request.resource.data)
+        && (!('replyTo' in request.resource.data) || (request.resource.data.replyTo is map
+            && request.resource.data.replyTo.keys().hasOnly(['id', 'uid', 'text']) && str(request.resource.data.replyTo.text, 120)))
+        && str(request.resource.data.text, 500) && request.resource.data.text.size() > 0
+        && request.resource.data.ts is int
+        && request.resource.data.ts > request.time.toMillis() - 900000
+        && request.resource.data.ts < request.time.toMillis() + 900000;
+      // Reacciones: cada quien solo cambia la suya dentro del campo r.
+      allow update: if isParticipant() && changed().hasOnly(['r'])
+        && request.resource.data.r.diff(resource.data.get('r', {})).affectedKeys().hasOnly([me()])
+        && (!(me() in request.resource.data.r) || request.resource.data.r[me()] in ['❤️', '😂', '🔥', '👍', '😮', '🎄']);
+      allow delete: if can('moderar') || (signedIn() && resource.data.uid == me());
+    }
+
+    // Reacciones del chat: una por persona por mensaje.
+    match /chatReacts/{id} {
+      allow read: if member();
+      allow create, update: if isParticipant() && request.resource.data.uid == me()
+        && id == request.resource.data.msg + '__' + me()
+        && request.resource.data.keys().hasOnly(['msg', 'uid', 'e'])
+        && request.resource.data.e in ['❤️', '😂', '🔥', '👍', '😮', '🎄'];
+      allow delete: if can('moderar') || (signedIn() && resource.data.uid == me());
+    }
+
+    // ---------- 💛 recibí mi regalo ----------
+    // Lo lee quien lo escribió y su angelito de verdad (nadie más).
+    match /thanks/{uid} {
+      allow read: if (signedIn() && me() == uid)
+        || (isParticipant() && get(/databases/$(database)/documents/assignments/$(me())).data.recipient == uid);
+      allow create, update: if isParticipant() && me() == uid
+        && request.resource.data.keys().hasOnly(['received', 'note', 'at'])
+        && request.resource.data.received is bool && str(request.resource.data.note, 500);
+    }
+
+    // ---------- 📸 fotos (reducidas) ----------
+    match /photos/{id} {
+      allow read: if member();
+      allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
+        && request.resource.data.keys().hasOnly(['uid', 'thumb', 'caption', 'at'])
+        && str(request.resource.data.thumb, 80000) && request.resource.data.thumb.matches('^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
+        && str(request.resource.data.caption, 120)
+        && existsAfter(/databases/$(database)/documents/photosFull/$(id));
+      allow delete: if can('moderar') || (signedIn() && resource.data.uid == me());
+    }
+    match /photosFull/{id} {
+      allow read: if member();
+      allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
+        && request.resource.data.keys().hasOnly(['uid', 'data'])
+        && str(request.resource.data.data, 950000) && request.resource.data.data.matches('^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
+        && existsAfter(/databases/$(database)/documents/photos/$(id));
+      allow delete: if can('moderar') || (signedIn() && resource.data.uid == me());
+    }
+
+    // ---------- 🎲 en vivo (modo fiesta) ----------
+    // El organizador principal maneja party/live; los teléfonos responden mientras está abierto.
+    function live() { return get(/databases/$(database)/documents/party/live).data; }
+    match /party/{id} {
+      allow read: if member();
+    }
+    match /anonVotes/{id} {
+      allow create, update: if isParticipant() && request.resource.data.uid == me()
+        && id == request.resource.data.qid + '__' + me()
+        && request.resource.data.keys().hasOnly(['qid', 'uid', 'choice']) && str(request.resource.data.choice, 128)
+        && live().get('mode', '') == 'anon' && live().get('qid', '') == request.resource.data.qid && live().get('open', false) == true;
+    }
+    match /triviaAns/{id} {
+      allow create: if isParticipant() && request.resource.data.uid == me()
+        && request.resource.data.qi is int && id == string(request.resource.data.qi) + '__' + me()
+        && request.resource.data.keys().hasOnly(['qi', 'uid', 'a', 't']) && request.resource.data.a is int && request.resource.data.t == request.time
+        && live().get('mode', '') == 'trivia' && live().get('qi', -1) == request.resource.data.qi && live().get('open', false) == true;
+    }
+
+    // ---------- 📖 recuerdos ----------
+    match /memories/{year} {
+      allow read: if member();
+    }
+
+    // ---------- avisos ----------
+    match /notices/{id} {
+      allow read: if member();
+      allow create: if okId(id) && (can('evento') || (can('aportes') && request.resource.data.target in ['unpaid', 'pending']))
+        && request.resource.data.keys().hasOnly(['title', 'body', 'target', 'ts', 'at'])
+        && str(request.resource.data.title, 80) && str(request.resource.data.body, 300)
+        && request.resource.data.target in ['all', 'unpaid', 'pending'];
+      allow delete: if can('evento') || can('aportes');
+    }
+
+    // Token de notificaciones push de cada teléfono.
+    match /fcmTokens/{uid} {
+      allow read: if isOwner();
+      allow create, update: if isParticipant() && me() == uid && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly(['uid', 'token', 'at']) && str(request.resource.data.token, 4096);
+      allow delete: if isOwner() || (signedIn() && me() == uid);
+    }
+  }
+}

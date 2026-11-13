@@ -1,0 +1,22 @@
+# Publica automáticamente en Firebase Hosting cada vez que se sube un cambio a la rama main.
+# Requiere el secreto FIREBASE_SERVICE_ACCOUNT en GitHub (ver LEEME → "Publicar con GitHub").
+name: Publicar en Firebase
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Marcar versión (para que los teléfonos se actualicen solos)
+        run: |
+          V=$(date -u +%Y.%m.%d-%H%M%S)
+          sed -i "s/__APP_VERSION__/$V/g" sitio/index.html sitio/sw.js
+          echo "{\"version\": \"$V\"}" > sitio/version.json
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
