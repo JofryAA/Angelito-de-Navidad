@@ -1,6 +1,6 @@
 /* Service worker del Angelito: funciona como app, abre sin internet y recibe notificaciones. */
 const VERSION = 'angelito-2026.11.13-114418';
-const SHELL = ['./', './index.html', './firebase-config.js', './manifest.webmanifest',
+const SHELL = ['./', './index.html', './firebase-config.js', './juegos.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon-64.png'];
 
 self.addEventListener('install', e => {
@@ -13,7 +13,7 @@ self.addEventListener('fetch', e => {
   const req = e.request; if (req.method !== 'GET') return;
   const url = new URL(req.url);
   // Firebase (datos en vivo) y el archivo de versión nunca se guardan en caché.
-  if (/googleapis\.com|firebaseio|identitytoolkit|securetoken/.test(url.host)) return;
+  if (/firestore\.googleapis|firebaseio|identitytoolkit|securetoken|firebaseinstallations|fcmregistrations|firebaseappcheck|recaptcha|google\.com$/.test(url.host)) return;
   if (url.pathname.endsWith('version.json')) return;
   // Página principal: primero internet (para tener siempre la última versión), si no hay, la copia guardada.
   if (req.mode === 'navigate' || (url.origin === location.origin && /\/(index\.html)?$/.test(url.pathname))) {
@@ -22,7 +22,7 @@ self.addEventListener('fetch', e => {
     return;
   }
   // Configuración: siempre la más reciente (si cambias firebase-config.js se nota de inmediato).
-  if (url.origin === location.origin && url.pathname.endsWith('firebase-config.js')) {
+  if (url.origin === location.origin && /(firebase-config|juegos)\.js$/.test(url.pathname)) {
     e.respondWith(fetch(req).then(r => { if (r.ok) { const c = r.clone(); caches.open(VERSION).then(x => x.put(req, c)); } return r; }).catch(() => caches.match(req)));
     return;
   }
