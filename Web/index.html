@@ -258,6 +258,11 @@ details.fold[open]{padding-bottom:14px}
 .c4h{aspect-ratio:1;border-radius:50%;background:#0c2a5e;box-shadow:inset 0 3px 5px rgba(0,0,0,.45)}
 .c4h.r{background:radial-gradient(circle at 35% 30%,#ff7b6b,#d2261b)}.c4h.y{background:radial-gradient(circle at 35% 30%,#ffe58a,#e8b51f)}
 .c4h.nw{animation:c4drop .35s ease-in}
+.c4.won .c4h:not(.win){opacity:.35;filter:saturate(.5)}
+.c4h.win{position:relative;animation:winpulse 1s ease-in-out infinite;box-shadow:0 0 0 3px #fff,0 0 16px 4px rgba(255,255,255,.75)}
+.ttt.won .tc:not(.win){opacity:.35}
+.tc.win{background:rgba(236,188,92,.28);border-color:var(--gold);animation:winpulse 1s ease-in-out infinite}
+@keyframes winpulse{50%{transform:scale(1.12)}}
 @keyframes c4drop{from{transform:translateY(-120px);opacity:.3}}
 .gcreate{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .gc{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:16px 14px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(160deg,rgba(236,188,92,.14),rgba(255,255,255,.04));color:inherit;font:inherit;text-align:left;cursor:pointer;transition:transform .15s}
@@ -284,26 +289,28 @@ details.fold[open]{padding-bottom:14px}
 .score2 span{font-size:.72rem;opacity:.75}.score2 b{font-size:1.5rem;font-family:var(--serif,inherit)}
 .score2.solo{flex-wrap:wrap}
 .snake{position:relative;width:100%}
-.dmt{position:absolute;display:flex;background:linear-gradient(145deg,#fffdf6,#ece4cf);border-radius:4px;box-shadow:0 1px 0 #b9ad90,0 2px 4px rgba(0,0,0,.35)}
+.dmt{position:absolute;display:flex;background:linear-gradient(160deg,#fffef9 0%,#f6f0df 55%,#e4dabf 100%);border:1px solid #c9bc99;border-radius:5px;box-shadow:inset 0 1px 0 #fff,inset 0 -2px 0 rgba(90,70,30,.12),0 2px 3px rgba(0,0,0,.4)}
 .dmt.h{flex-direction:row}.dmt.v{flex-direction:column}
-.dmt b{background:#a89a7a;flex:0 0 1px}.dmt.h b{width:1px;margin:2px 0}.dmt.v b{height:1px;margin:0 2px}
-.dmt .dmh{flex:1;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:13%;gap:6%}
-.dmt .dmh i{border-radius:50%}.dmt .dmh i.on{background:#151515}
-.dmt.end{box-shadow:0 0 0 2px var(--gold),0 2px 4px rgba(0,0,0,.35)}
+.dmt b{position:relative;background:linear-gradient(#b3a57f,#8f8160);flex:0 0 1.5px}.dmt.h b{width:1.5px;margin:12% 0}.dmt.v b{height:1.5px;margin:0 12%}
+.dmt b::after,.dmn b::after{content:'';position:absolute;left:50%;top:50%;width:4px;height:4px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff3c4,#b8862b);box-shadow:0 0 0 .5px rgba(0,0,0,.25)}
+.dmt .dmh{flex:1;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:11%}
+.dmt .dmh i{width:74%;aspect-ratio:1;place-self:center}
+.dmt .dmh i{border-radius:50%}.dmt .dmh i.on,.dmn .dh i.on{background:radial-gradient(circle at 38% 32%,#6b6b6b 0,#1a1a1a 55%,#000 100%);box-shadow:inset 0 1px 1px rgba(0,0,0,.6),0 .5px 0 rgba(255,255,255,.7)}
+.dmt.end{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold),0 0 12px rgba(236,188,92,.55),0 2px 3px rgba(0,0,0,.4)}
 .dmt.new{animation:drop .35s ease}
 @keyframes drop{from{transform:scale(1.35);opacity:.2}}
 .mesa{display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:center;gap:4px;min-height:120px;padding:14px 10px;border-radius:22px;background:radial-gradient(circle at 50% 40%,#1f6b45,#0f3d27);border:6px solid #5b3a1e;box-shadow:inset 0 0 30px rgba(0,0,0,.45)}
 .mesa{padding:12px 4px}
 .glog{text-align:center;min-height:1.4em;margin:10px 0;font-weight:600;opacity:.9}
-.dmn{display:inline-flex;align-items:center;background:#f7f2e6;border-radius:6px;padding:2px;box-shadow:0 2px 0 #c9bfa8,0 3px 6px rgba(0,0,0,.35);flex:0 0 auto}
-.dmn b{width:1.5px;align-self:stretch;margin:2px 1px;background:#9c8f72}
+.dmn{display:inline-flex;align-items:stretch;background:linear-gradient(160deg,#fffef9 0%,#f6f0df 55%,#e4dabf 100%);border:1px solid #c9bc99;border-radius:7px;padding:2px;box-shadow:inset 0 1px 0 #fff,inset 0 -3px 0 rgba(90,70,30,.12),0 3px 6px rgba(0,0,0,.4);flex:0 0 auto}
+.dmn b{position:relative;width:1.5px;align-self:stretch;margin:3px 1px;background:linear-gradient(#b3a57f,#8f8160)}
 .dh{display:grid;grid-template-columns:repeat(3,5px);grid-template-rows:repeat(3,5px);gap:1.5px;padding:2px}
-.dh i{border-radius:50%}.dh i.on{background:#1b1b1b}
+.dh i{border-radius:50%}
 .dmn.dbl{flex-direction:column}.dmn.dbl b{width:auto;height:1.5px;margin:1px 2px}
 .dmn.ch.end{box-shadow:0 0 0 2px var(--gold),0 3px 6px rgba(0,0,0,.35)}
-.dmn.big{padding:3px;border-radius:9px;flex-direction:column}
-.dmn.big .dh{grid-template-columns:repeat(3,8px);grid-template-rows:repeat(3,8px);gap:3px;padding:4px}
-.dmn.big b{width:auto;height:2px;margin:1px 3px}
+.dmn.big{padding:4px 3px;border-radius:10px;flex-direction:column}
+.dmn.big .dh{grid-template-columns:repeat(3,9px);grid-template-rows:repeat(3,9px);gap:3.5px;padding:5px}
+.dmn.big b{width:auto;height:2px;margin:2px 4px}
 .myhand{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom));margin-top:8px;padding:12px;border-radius:20px;background:rgba(10,25,18,.92);backdrop-filter:blur(8px);border:1px solid var(--line);z-index:5}
 .myhand.turn{border-color:var(--gold)}
 .mh-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;min-height:32px}
@@ -333,6 +340,10 @@ body.kb .tabs{display:none}
 body.kb.chat-on #c-dock{bottom:calc(8px + env(safe-area-inset-bottom))}
 .spin-cta{position:sticky;bottom:calc(92px + env(safe-area-inset-bottom));z-index:6;padding:8px 0}
 #offline{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));z-index:120;padding:8px 14px;border-radius:999px;background:#5b3a1e;color:#fff4dc;font-size:.82rem;font-weight:700;box-shadow:var(--shadow);white-space:nowrap}
+#inst-btn{position:relative}
+.idot{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 0 rgba(236,188,92,.6);animation:idot 1.8s infinite}
+@keyframes idot{70%{box-shadow:0 0 0 8px rgba(236,188,92,0)}100%{box-shadow:0 0 0 0 rgba(236,188,92,0)}}
+.inst-pts{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px 0 6px}.inst-pts span{padding:6px 10px;border-radius:999px;background:var(--card2);font-size:.85rem;font-weight:600}
 /* modal + toast */
 .modal{position:fixed;inset:0;z-index:80;display:none;align-items:flex-end;justify-content:center;background:rgba(3,8,6,.7);backdrop-filter:blur(6px);padding:16px}
 .modal.on{display:flex;animation:fade .25s}
@@ -522,7 +533,6 @@ a.clk.join:active{transform:scale(.98)}
 
 html.big{font-size:118%}
 html.big .tab{font-size:.6rem}
-#big-btn.on{background:var(--cream);color:#2a140f}
 .replybar{display:flex;gap:10px;align-items:center;padding:8px 12px;margin-top:8px;border-radius:14px;background:var(--card2);border-left:3px solid var(--gold)}
 .quote{font-size:.78rem;padding:6px 8px;margin-bottom:6px;border-radius:10px;background:rgba(0,0,0,.2);border-left:3px solid var(--gold);opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
 .reacts{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
@@ -559,7 +569,7 @@ html.big .tab{font-size:.6rem}
 <div class="app" id="app">
   <header class="top">
     <div class="brand"><div class="logo">🎁</div><span>Angelito</span></div>
-    <div class="topr"><button class="iconbtn" id="big-btn" aria-label="Letra grande" title="Letra grande" style="font-weight:800;font-size:15px">A+</button><button class="iconbtn" id="gear" aria-label="Organizador">⚙️</button><div id="userbox"></div></div>
+    <div class="topr"><button class="iconbtn" id="inst-btn" aria-label="Instalar la app" title="Instalar la app" hidden>📲<span class="idot"></span></button><button class="iconbtn" id="gear" aria-label="Organizador">⚙️</button><div id="userbox"></div></div>
   </header>
 
   <!-- INICIO -->
@@ -1348,7 +1358,7 @@ function maybeAskNotif() {
       closeModal(); if (a === 'ok') await enableNotifications();
     };
   };
-  askT = setTimeout(tryAsk, 2500);
+  askT = setTimeout(tryAsk, 6000);
 }
 function maybeForcePin() {
   if (S.forcePin && S.me && !S.me.mustChangePin) { S.forcePin = false; closeModal(); return; }
@@ -2940,7 +2950,7 @@ const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.
 const canNotify = () => 'Notification' in window;
 let installEvt = null, swReg = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; render(); });
-addEventListener('appinstalled', () => { installEvt = null; toast('¡App instalada! 🎉'); render(); });
+addEventListener('appinstalled', () => { installEvt = null; toast('¡App instalada! 🎉'); try { localStorage.setItem(INST_KEY, String(Date.now() + 3650 * 864e5)); } catch { } render(); });
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   const cfgQ = encodeURIComponent(JSON.stringify({ apiKey: firebaseConfig.apiKey, projectId: firebaseConfig.projectId, messagingSenderId: firebaseConfig.messagingSenderId, appId: firebaseConfig.appId }));
   navigator.serviceWorker.register('sw.js?cfg=' + cfgQ).then(r => { swReg = r; if (canNotify() && Notification.permission === 'granted') registerPush(); }).catch(() => {});
@@ -2988,28 +2998,36 @@ function installApp() {
     <div class="actions"><button class="btn gold" data-a="ok">Entendido</button></div>`).onclick = e => { if (e.target.closest('[data-a]')) closeModal(); };
 }
 const hideKey = 'angelito:hideAppCard';
+// Ya no hay tarjetas en Inicio: solo el ícono 📲 arriba (para quien no la ha instalado) y una ventana que lo invita.
 function renderAppCard() {
-  const box = $('#h-app'); if (!box) return;
-  // "Ahora no" esconde la invitación 2 días; después vuelve a aparecer (no es obligatorio instalar).
-  let until = 0; try { const v = localStorage.getItem(hideKey); until = v === '1' ? 0 : +v || 0; } catch { }
-  const needInstall = !isStandalone() && Date.now() > until;
-  const needNotif = !!S.me && canNotify() && Notification.permission === 'default';
-  let h = '';
-  if (needInstall) h += `<div class="card appbig">
-    <div class="ab-top"><div class="ab-ic">🎁</div><div><div class="ab-k">Recomendado</div><h3>Descarga la app del angelito</h3></div></div>
-    <ul class="ab-list"><li>⚡ Abre al instante desde tu pantalla de inicio</li><li>🔔 Te avisa de mensajes, pistas y la ruleta</li><li>📷 Toma y sube fotos más fácil</li></ul>
-    <button class="btn gold ab-go" id="app-install">📲 ${isIOS() ? 'Cómo instalarla' : 'Instalar la app'}</button>
-    <button class="ab-no" id="app-hide">Ahora no</button></div>`;
-  if (needNotif) h += `<div class="card join" style="flex-wrap:wrap"><div class="je">🔔</div><div style="flex:1;min-width:170px"><b>Activa las notificaciones</b>
-    <div class="muted small">Te avisamos cuando se habilite la ruleta, te escriban en el chat o haya que pagar.</div></div>
-    <button class="btn sm gold" id="app-notif">Activar</button></div>`;
-  box.innerHTML = h;
+  const box = $('#h-app'); if (box) box.innerHTML = '';
+  const ib = $('#inst-btn'); if (ib) ib.hidden = isStandalone();
+  maybeAskNotif(); // también al entrar, no solo al registrarse
 }
-document.addEventListener('click', e => {
-  if (e.target.closest('#app-install')) installApp();
-  if (e.target.closest('#app-notif')) enableNotifications();
-  if (e.target.closest('#app-hide')) { try { localStorage.setItem(hideKey, String(Date.now() + 2 * 864e5)); } catch { } renderAppCard(); }
-});
+const INST_KEY = 'angelito:askInstall';
+let instT = null;
+function maybeAskInstall() {
+  if (isStandalone() || instT) return;
+  let last = 0; try { last = +localStorage.getItem(INST_KEY) || 0; } catch { }
+  if (Date.now() - last < 2 * 864e5) return; // "Ahora no" vuelve a preguntar en 2 días
+  const busyNow = () => S.spinning || S.forcePin || (typeof PARTY !== 'undefined' && PARTY) || location.hash.startsWith('#juego-') || location.hash === '#ruleta'
+    || location.hash === '#admin' || document.body.classList.contains('kb') || $('#modal').classList.contains('on') || $('#csel').classList.contains('on');
+  const tryAsk = () => {
+    instT = null; if (isStandalone()) return;
+    if (busyNow()) { instT = setTimeout(tryAsk, 8000); return; }
+    openModal(`<div style="text-align:center"><div class="ab-ic" style="margin:0 auto 10px">🎁</div><h3>Instala la app del angelito</h3>
+      <p class="muted">Ábrela con un toque desde tu pantalla de inicio, como cualquier otra app.</p>
+      <div class="inst-pts"><span>⚡ Más rápida</span><span>🔔 Avisos</span><span>📷 Fotos fácil</span></div>
+      <p class="muted small">Si ahora no, la encuentras arriba en 📲.</p></div>
+      <div class="actions"><button class="btn" data-a="no">Ahora no</button><button class="btn gold" data-a="ok">📲 ${isIOS() ? 'Cómo instalarla' : 'Instalar'}</button></div>`).onclick = e => {
+      const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+      try { localStorage.setItem(INST_KEY, String(Date.now())); } catch { }
+      closeModal(); if (a === 'ok') setTimeout(installApp, 120);
+    };
+  };
+  instT = setTimeout(tryAsk, 2000);
+}
+document.addEventListener('click', e => { if (e.target.closest('#inst-btn')) installApp(); });
 
 /* ---------- avisos del organizador ---------- */
 const seenKey = 'angelito:seenNotices';
@@ -3297,9 +3315,8 @@ $('#party-open').addEventListener('click', openParty);
 /* ================= LOTE 3 ================= */
 
 /* ---------- 🔠 letra grande ---------- */
-const BIG_KEY = 'angelito:big';
-function applyBig() { let on = false; try { on = localStorage.getItem(BIG_KEY) === '1'; } catch { } document.documentElement.classList.toggle('big', on); const b = $('#big-btn'); if (b) b.classList.toggle('on', on); }
-$('#big-btn').addEventListener('click', () => { let on = false; try { on = localStorage.getItem(BIG_KEY) !== '1'; localStorage.setItem(BIG_KEY, on ? '1' : '0'); } catch { } applyBig(); toast(on ? '🔠 Letra grande activada' : 'Letra normal'); drawWheel(); });
+// Se quitó el botón A+: si alguien lo tenía activado, se vuelve a la letra normal.
+function applyBig() { document.documentElement.classList.remove('big'); try { localStorage.removeItem('angelito:big'); } catch { } }
 applyBig();
 
 /* ---------- 💛 recibí mi regalo + agradecimiento ---------- */
@@ -3419,7 +3436,12 @@ async function shareInvite() {
   if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], text }); return; } catch (e) { if (e?.name === 'AbortError') return; } }
   const url = URL.createObjectURL(blob);
   openModal(`<h3>🖼️ Tu invitación</h3><p class="muted small">Mantén presionada la imagen para guardarla o compartirla.</p><img src="${url}" alt="Invitación" style="width:100%;border-radius:16px;margin-top:10px">
-    <div class="actions"><a class="btn gold" href="${url}" download="invitacion-angelito.png" style="text-decoration:none">⬇️ Descargar</a><button class="btn" data-a="x">Cerrar</button></div>`).onclick = e => { if (e.target.closest('[data-a]')) closeModal(); };
+    <div class="qa" style="justify-content:center;margin-top:12px"><a class="btn sm" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a><button class="btn sm" data-a="copy">📋 Copiar enlace</button></div>
+    <div class="actions"><a class="btn gold" href="${url}" download="invitacion-angelito.png" style="text-decoration:none">⬇️ Descargar</a><button class="btn" data-a="x">Cerrar</button></div>`).onclick = async e => {
+    const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+    if (a === 'copy') { try { await navigator.clipboard.writeText(text); toast('📋 Enlace copiado'); } catch { toast(location.origin + location.pathname); } return; }
+    closeModal(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 }
 document.addEventListener('click', e => { if (e.target.closest('#q-inv')) shareInvite(); });
 
@@ -3682,7 +3704,7 @@ addEventListener('resize', () => { if (!S.spinning) drawWheel(); });
 
 const netState = () => { $('#offline').hidden = navigator.onLine !== false; };
 addEventListener('online', () => { netState(); toast('✅ De vuelta en línea'); }); addEventListener('offline', netState); netState();
-snow(); buildBulbs(); route(); renderAll(); tick();
+snow(); buildBulbs(); route(); renderAll(); tick(); maybeAskInstall();
 try { if (sessionStorage.getItem('angelito:afterLogout') === 'reg') { sessionStorage.removeItem('angelito:afterLogout'); setTimeout(() => openAuth('reg'), 1200); } } catch { }
 
 </script>

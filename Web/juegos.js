@@ -128,6 +128,7 @@ export function snakeLayout(chain, cols) {
 /* X y O */
 const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
 export function tttWinner(b) { for (const [x, y, z] of LINES) if (b[x] !== '.' && b[x] === b[y] && b[y] === b[z]) return b[x]; return b.includes('.') ? null : 'draw'; }
+export function tttWinCells(b) { for (const L of LINES) if (b[L[0]] !== '.' && b[L[0]] === b[L[1]] && b[L[1]] === b[L[2]]) return L; return []; }
 export function tttBot(b, me) { // gana si puede, bloquea, centro, esquina, lo que quede
   const op = me === 'X' ? 'O' : 'X', free = [...b].map((c, i) => c === '.' ? i : -1).filter(i => i >= 0);
   const tryWin = m => free.find(i => tttWinner(b.slice(0, i) + m + b.slice(i + 1)) === m);
@@ -173,6 +174,16 @@ export function c4Winner(b) {
   for (let r = 0; r < C4H; r++) for (let c = 0; c < C4W; c++) { const m = at(r, c); if (m === '.') continue;
     for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) if ([1, 2, 3].every(k => at(r + dr * k, c + dc * k) === m)) return m; }
   return b.includes('.') ? null : 'draw';
+}
+// Las 4 casillas que formaron la línea ganadora (para resaltarlas).
+export function c4WinCells(b) {
+  const at = (r, c) => (r >= 0 && r < C4H && c >= 0 && c < C4W) ? b[r * C4W + c] : '#';
+  for (let r = 0; r < C4H; r++) for (let c = 0; c < C4W; c++) { const m = at(r, c); if (m === '.') continue;
+    for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) if ([1, 2, 3].every(k => at(r + dr * k, c + dc * k) === m)) {
+      const cells = [0, 1, 2, 3].map(k => (r + dr * k) * C4W + c + dc * k);
+      for (let k = 4; at(r + dr * k, c + dc * k) === m; k++) cells.push((r + dr * k) * C4W + c + dc * k); // si son 5 o más, todas
+      return cells; } }
+  return [];
 }
 export function c4Bot(b, me) {
   const op = me === 'R' ? 'Y' : 'R', cols = [3, 2, 4, 1, 5, 0, 6].filter(c => b[c] === '.');
@@ -464,14 +475,16 @@ export function initGames(X) {
   function tttHTML(g) {
     const mySeat = g.players.indexOf(me()), myTurn = g.status === 'playing' && g.turn === mySeat;
     const R = g.result;
-    return `${seatsHTML(g)}<div class="ttt">${[...(g.board || '.........')].map((c, k) => `<button class="tc ${c !== '.' ? 'f' : ''}" data-ttt="${k}" ${!myTurn || c !== '.' ? 'disabled' : ''}>${c === 'X' ? '❌' : c === 'O' ? '⭕' : ''}</button>`).join('')}</div>
+    const win = new Set(g.status === 'done' ? tttWinCells(g.board || '.........') : []);
+    return `${seatsHTML(g)}<div class="ttt ${win.size ? 'won' : ''}">${[...(g.board || '.........')].map((c, k) => `<button class="tc ${c !== '.' ? 'f' : ''} ${win.has(k) ? 'win' : ''}" data-ttt="${k}" ${!myTurn || c !== '.' ? 'disabled' : ''}>${c === 'X' ? '❌' : c === 'O' ? '⭕' : ''}</button>`).join('')}</div>
       <p class="glog">${g.status === 'done' ? (R?.why === 'empate' ? '🤝 ¡Empate!' : `🏆 Ganó ${esc(R.seat === me() ? 'tú' : seatName(R.seat))}`) : myTurn ? '👉 ¡Te toca!' : `Turno de ${esc(seatName(g.players[g.turn]))}`}</p>
       ${g.status === 'done' && g.host === me() ? '<div class="qa" style="justify-content:center"><button class="btn gold" data-gact="again">🔁 Otra</button></div>' : ''}`;
   }
   function c4HTML(g) {
     const mySeat = g.players.indexOf(me()), myTurn = g.status === 'playing' && g.turn === mySeat, R = g.result, b = g.board || C4EMPTY;
-    const cols = Array.from({ length: C4W }, (_, c) => `<button class="c4c" data-c4="${c}" ${!myTurn || b[c] !== '.' ? 'disabled' : ''}>${Array.from({ length: C4H }, (_, r) => { const i = r * C4W + c, v = b[i]; return `<span class="c4h ${v === 'R' ? 'r' : v === 'Y' ? 'y' : ''} ${i === g.lastCell ? 'nw' : ''}"></span>`; }).join('')}</button>`).join('');
-    return `${seatsHTML(g)}<div class="c4">${cols}</div>
+    const win = new Set(g.status === 'done' ? c4WinCells(b) : []);
+    const cols = Array.from({ length: C4W }, (_, c) => `<button class="c4c" data-c4="${c}" ${!myTurn || b[c] !== '.' ? 'disabled' : ''}>${Array.from({ length: C4H }, (_, r) => { const i = r * C4W + c, v = b[i]; return `<span class="c4h ${v === 'R' ? 'r' : v === 'Y' ? 'y' : ''} ${i === g.lastCell && !win.size ? 'nw' : ''} ${win.has(i) ? 'win' : ''}"></span>`; }).join('')}</button>`).join('');
+    return `${seatsHTML(g)}<div class="c4 ${win.size ? 'won' : ''}">${cols}</div>
       <p class="glog">${g.status === 'done' ? (R?.why === 'empate' ? '🤝 ¡Empate!' : `🏆 Ganó ${esc(R.seat === me() ? 'tú' : seatName(R.seat))}`) : myTurn ? '👉 ¡Te toca! Toca una columna' : `Turno de ${esc(seatName(g.players[g.turn]))}`}</p>
       ${g.status === 'done' && g.host === me() ? '<div class="qa" style="justify-content:center"><button class="btn gold" data-gact="again">🔁 Otra</button></div>' : ''}`;
   }
@@ -531,7 +544,14 @@ export function initGames(X) {
     if (a === 'again') return rematch();
     if (a === 'del') return del();
     if (a === 'pass') return playDomino(me(), null);
-    if (a === 'share') { const url = location.href.split('#')[0] + '#juego-' + G.cur.id; const txt = `🎮 ¡Únete a mi mesa de ${G.cur.title} en el angelito! ${url}`; if (navigator.share) navigator.share({ text: txt }).catch(() => { }); else { navigator.clipboard?.writeText(txt); toast('📋 Enlace copiado'); } return; }
+    if (a === 'share') {
+      const url = location.href.split('#')[0] + '#juego-' + G.cur.id, txt = `🎮 ¡Únete a la mesa de ${G.cur.title} en el angelito! ${url}`;
+      if (navigator.share) { navigator.share({ text: txt }).catch(() => { }); return; }
+      const s2 = openModal(`<h3>📲 Invitar a la mesa</h3><p class="muted small">Quien abra el enlace entra directo a esta mesa.</p><input class="in" readonly value="${esc(url)}" style="margin-top:10px">
+        <div class="actions"><a class="btn" href="https://wa.me/?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a><button class="btn gold" data-a="copy">📋 Copiar</button></div>`);
+      s2.onclick = async ev => { const b = ev.target.closest('[data-a]')?.dataset.a; if (b !== 'copy') return; try { await navigator.clipboard.writeText(txt); toast('📋 Enlace copiado'); closeModal(); } catch { s2.querySelector('input').select(); toast('Selecciónalo y cópialo'); } };
+      return;
+    }
     if (a === 'word') {
       const s2 = openModal(`<h3>💡 ¿Cuál es la palabra?</h3><p class="muted small">Si aciertas ganas 30 puntos más 10 por cada letra que faltaba. Si fallas, cuenta como error.</p><input class="in" id="hw-in" maxlength="40" autocomplete="off" style="margin-top:10px;text-transform:uppercase"><div class="actions"><button class="btn" data-a="x">Cancelar</button><button class="btn gold" data-a="ok">Adivinar</button></div>`);
       setTimeout(() => $('#hw-in')?.focus(), 80);
