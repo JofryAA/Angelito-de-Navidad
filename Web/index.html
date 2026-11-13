@@ -195,6 +195,16 @@ input[type=date].in,input[type=datetime-local].in,input[type=time].in{color-sche
 .cs-o.on .rd{border-color:var(--gold)}
 .cs-o.on .rd::after{content:'';width:10px;height:10px;border-radius:50%;background:var(--gold)}
 .cs-o[disabled]{opacity:.4}
+/* invitación grande a instalar */
+.appbig{position:relative;overflow:hidden;padding:22px 20px 14px;border:1.5px solid rgba(236,188,92,.55);background:radial-gradient(120% 90% at 100% 0,rgba(236,188,92,.22),transparent 60%),linear-gradient(160deg,#1d3a2c,#11251b);box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 4px rgba(236,188,92,.07)}
+.ab-top{display:flex;align-items:center;gap:14px}
+.ab-ic{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;font-size:36px;background:linear-gradient(145deg,#e0483b,#a71f24);box-shadow:0 6px 18px rgba(0,0,0,.4);flex:0 0 auto}
+.ab-k{font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+.appbig h3{font-size:1.35rem;line-height:1.15;margin:2px 0 0}
+.ab-list{list-style:none;padding:0;margin:16px 0;display:grid;gap:8px;font-size:.95rem}
+.ab-go{width:100%;padding:16px;font-size:1.08rem;justify-content:center;animation:abpulse 2.4s ease-in-out infinite}
+@keyframes abpulse{50%{box-shadow:0 0 0 7px rgba(236,188,92,.16)}}
+.ab-no{display:block;margin:10px auto 0;background:none;border:0;color:var(--muted);font:inherit;font-size:.88rem;padding:6px 12px;cursor:pointer}
 /* modal + toast */
 .modal{position:fixed;inset:0;z-index:80;display:none;align-items:flex-end;justify-content:center;background:rgba(3,8,6,.7);backdrop-filter:blur(6px);padding:16px}
 .modal.on{display:flex;animation:fade .25s}
@@ -2683,18 +2693,25 @@ function installApp() {
 const hideKey = 'angelito:hideAppCard';
 function renderAppCard() {
   const box = $('#h-app'); if (!box) return;
-  let hidden = false; try { hidden = localStorage.getItem(hideKey) === '1'; } catch { }
-  const needInstall = !isStandalone();
-  const needNotif = !!S.me && (!canNotify() ? isIOS() && !isStandalone() ? false : false : Notification.permission === 'default');
-  if (hidden || (!needInstall && !needNotif)) { box.innerHTML = ''; return; }
-  box.innerHTML = `<div class="card join" style="flex-wrap:wrap"><div class="je">📲</div><div style="flex:1;min-width:170px"><b>${needInstall ? 'Instala el angelito en tu teléfono' : 'Activa las notificaciones'}</b>
-    <div class="muted small">${needInstall ? 'Ábrelo como app desde tu pantalla de inicio y recibe avisos.' : 'Te avisamos cuando se habilite la ruleta, te escriban en el chat o haya que pagar.'}</div></div>
-    <div style="display:flex;gap:6px">${needInstall ? '<button class="btn sm gold" id="app-install">Instalar</button>' : ''}${needNotif ? '<button class="btn sm gold" id="app-notif">🔔 Activar</button>' : ''}<button class="btn sm ghost" id="app-hide" aria-label="Ocultar">✕</button></div></div>`;
+  // "Ahora no" esconde la invitación 2 días; después vuelve a aparecer (no es obligatorio instalar).
+  let until = 0; try { const v = localStorage.getItem(hideKey); until = v === '1' ? 0 : +v || 0; } catch { }
+  const needInstall = !isStandalone() && Date.now() > until;
+  const needNotif = !!S.me && canNotify() && Notification.permission === 'default';
+  let h = '';
+  if (needInstall) h += `<div class="card appbig">
+    <div class="ab-top"><div class="ab-ic">🎁</div><div><div class="ab-k">Recomendado</div><h3>Descarga la app del angelito</h3></div></div>
+    <ul class="ab-list"><li>⚡ Abre al instante desde tu pantalla de inicio</li><li>🔔 Te avisa de mensajes, pistas y la ruleta</li><li>📷 Toma y sube fotos más fácil</li></ul>
+    <button class="btn gold ab-go" id="app-install">📲 ${isIOS() ? 'Cómo instalarla' : 'Instalar la app'}</button>
+    <button class="ab-no" id="app-hide">Ahora no</button></div>`;
+  if (needNotif) h += `<div class="card join" style="flex-wrap:wrap"><div class="je">🔔</div><div style="flex:1;min-width:170px"><b>Activa las notificaciones</b>
+    <div class="muted small">Te avisamos cuando se habilite la ruleta, te escriban en el chat o haya que pagar.</div></div>
+    <button class="btn sm gold" id="app-notif">Activar</button></div>`;
+  box.innerHTML = h;
 }
 document.addEventListener('click', e => {
   if (e.target.closest('#app-install')) installApp();
   if (e.target.closest('#app-notif')) enableNotifications();
-  if (e.target.closest('#app-hide')) { try { localStorage.setItem(hideKey, '1'); } catch { } renderAppCard(); }
+  if (e.target.closest('#app-hide')) { try { localStorage.setItem(hideKey, String(Date.now() + 2 * 864e5)); } catch { } renderAppCard(); }
 });
 
 /* ---------- avisos del organizador ---------- */
