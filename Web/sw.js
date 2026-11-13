@@ -46,7 +46,7 @@ try {
     messaging.onBackgroundMessage(p => {
       if (p.notification) return; // Firebase ya la muestra
       const d = p.data || {};
-      self.registration.showNotification(d.title || 'Angelito 🎁', { body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/favicon-64.png', data: { url: d.url || './' } });
+      self.registration.showNotification(d.title || 'Angelito 🎁', { body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/favicon-64.png', tag: 'angelito', renotify: true, data: { url: d.url || './' } });
     });
   }
 } catch (e) { /* sin push */ }

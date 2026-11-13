@@ -815,7 +815,7 @@ onSnapshot(doc(db, 'config', 'event'), s => { S.event = s.exists() ? s.data() : 
 onSnapshot(doc(db, 'config', 'draw'), s => { S.drawMeta = s.exists() ? s.data() : null; render(); }, fail('draw'));
 onSnapshot(collection(db, 'participants'), s => {
   S.participants = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at));
-  S.me = S.uid ? P(S.uid) || null : null; maybeForcePin();
+  S.me = S.uid ? P(S.uid) || null : null; maybeForcePin(); maybeAskNotif();
   if (S.me && userSubDenied) retryUserSubs();
   render();
 }, fail('participants'));
@@ -1057,6 +1057,26 @@ function openAuth(tab = 'login', then) {
   show(tab);
 }
 /* ---------- PIN temporal: obligar a crear uno nuevo ---------- */
+// Invita a activar las notificaciones apenas la persona entra (el navegador exige que ella toque "Permitir").
+const ASK_KEY = 'angelito:askNotif';
+function maybeAskNotif() {
+  if (!S.me || S.forcePin || !canNotify() || Notification.permission !== 'default') return;
+  if (isIOS() && !isStandalone()) return;
+  let last = 0; try { last = +localStorage.getItem(ASK_KEY) || 0; } catch { }
+  if (Date.now() - last < 3 * 864e5) return;
+  setTimeout(() => {
+    let l2 = 0; try { l2 = +localStorage.getItem(ASK_KEY) || 0; } catch { }
+    if (!S.me || S.forcePin || Notification.permission !== 'default' || $('#modal').classList.contains('on') || Date.now() - l2 < 3 * 864e5) return;
+    try { localStorage.setItem(ASK_KEY, String(Date.now())); } catch { }
+    openModal(`<div style="text-align:center"><div style="font-size:46px">🔔</div><h3>¿Te avisamos?</h3>
+      <p class="muted">Te llegará un aviso cuando haya mensajes, actividades, pistas de tu angelito o cambios del evento. Nunca varios seguidos: el nuevo reemplaza al anterior.</p>
+      <p class="muted small">Puedes apagarlas cuando quieras en 🔔 Notificaciones.</p></div>
+      <div class="actions"><button class="btn" data-a="no">Ahora no</button><button class="btn gold" data-a="ok">🔔 Activar</button></div>`).onclick = async e => {
+      const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+      closeModal(); if (a === 'ok') await enableNotifications();
+    };
+  }, 2500);
+}
 function maybeForcePin() {
   if (S.forcePin && S.me && !S.me.mustChangePin) { S.forcePin = false; closeModal(); return; }
   if (!S.me || !S.me.mustChangePin || S.forcePin) return;
@@ -2485,7 +2505,9 @@ async function notifyUser(title, body = '', url = './', tag) {
     if (quietNow()) return; // horario de silencio
     try {
       const reg = swReg || await navigator.serviceWorker?.getRegistration();
-      const opt = { body, icon: 'icons/icon-192.png', badge: 'icons/favicon-64.png', tag, data: { url } };
+      // Una sola notificación del angelito: la nueva reemplaza a la anterior (y vuelve a sonar).
+      const opt = { body, icon: 'icons/icon-192.png', badge: 'icons/favicon-64.png', tag: 'angelito', renotify: true, data: { url } };
+      if (reg) { (await reg.getNotifications({ tag: 'angelito' })).forEach(n => n.close()); }
       if (reg) return reg.showNotification(title, opt); return new Notification(title, opt);
     } catch { }
   }
