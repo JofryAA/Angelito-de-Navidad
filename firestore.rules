@@ -25,6 +25,8 @@ service cloud.firestore {
       return ev('revealNow', false) == true || (ev('revealAt', null) != null && request.time >= ev('revealAt', null));
     }
     // Ids creados por la app: solo letras, números, _ y - (evita que alguien meta código en un id).
+    // 'at' siempre debe ser una fecha (evita textos gigantes que todos tendrían que descargar).
+    function tsOk(d) { return !('at' in d) || d.at is timestamp; }
     function okId(id) { return id.matches('^[A-Za-z0-9_-]{1,80}$'); }
     function str(v, max) { return v is string && v.size() <= max; }
     function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
@@ -58,10 +60,12 @@ service cloud.firestore {
 
     // ---------- participantes ----------
     function validPerson(d) {
-      return d.keys().hasOnly(['first', 'last', 'name', 'nameKey', 'email', 'emoji', 'at', 'mustChangePin'])
+      return d.keys().hasOnly(['first', 'last', 'name', 'nameKey', 'email', 'emoji', 'at', 'mustChangePin']) && tsOk(d)
         && d.keys().hasAll(['first', 'last', 'name', 'nameKey', 'email', 'emoji'])
         && str(d.first, 25) && d.first.size() > 0 && str(d.last, 25) && d.last.size() > 0
-        && str(d.name, 60) && str(d.nameKey, 60) && str(d.email, 120) && str(d.emoji, 16);
+        && str(d.name, 60) && str(d.nameKey, 60) && str(d.email, 120) && str(d.emoji, 16)
+        && d.name == d.first + ' ' + d.last
+        && (!('mustChangePin' in d) || d.mustChangePin is bool);
     }
     // Índice de nombres: impide que dos personas se registren con el mismo nombre.
     match /names/{nameKey} {
@@ -101,14 +105,14 @@ service cloud.firestore {
     match /assignments/{uid} {
       allow read: if isOwner() || (isParticipant() && me() == uid);
       allow create, delete: if isOwner();
-      allow update: if isOwner() || (isParticipant() && me() == uid && changed().hasOnly(['revealed', 'revealedAt']));
+      allow update: if isOwner() || (isParticipant() && me() == uid && changed().hasOnly(['revealed', 'revealedAt']) && request.resource.data.revealed == true && request.resource.data.revealedAt is timestamp);
     }
 
     // ---------- deseos ----------
     match /wishes/{id} {
       allow read: if member();
       allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
-        && request.resource.data.keys().hasOnly(['uid', 'text', 'link', 'price', 'at', 'hasImg'])
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'link', 'price', 'at', 'hasImg']) && tsOk(request.resource.data)
         && (!('hasImg' in request.resource.data) || (request.resource.data.hasImg == true
             && existsAfter(/databases/$(database)/documents/wishImg/$(id))))
         && str(request.resource.data.text, 200) && request.resource.data.text.size() > 0
@@ -116,6 +120,48 @@ service cloud.firestore {
       allow update: if isParticipant() && resource.data.uid == me() && changed().hasOnly(['top']) && request.resource.data.top is bool;
       allow delete: if can('moderar') || can('participantes') || (signedIn() && resource.data.uid == me());
     }
+    // ---------- 🎮 juegos ----------
+    // games/{id}: la mesa. Solo los inscritos. Para jugar hay que estar sentado en la mesa;
+    // para unirse solo se puede agregar uno mismo mientras está en espera.
+    function gameOk(d) {
+      return d.type in ['domino', 'ttt', 'ahorcado'] && d.players is list && d.players.size() <= 6
+        && d.status in ['lobby', 'playing', 'done'] && d.host is string && d.updatedAt is int && d.seq is int;
+    }
+    match /games/{gid} {
+      allow read: if member();
+      allow create: if isParticipant() && okId(gid) && gameOk(request.resource.data)
+        && request.resource.data.host == me() && request.resource.data.players == [me()]
+        && request.resource.data.status == 'lobby' && request.resource.data.seq == 0;
+      allow update: if isParticipant() && gameOk(request.resource.data)
+        && request.resource.data.host == resource.data.host && request.resource.data.type == resource.data.type
+        && request.resource.data.seq == resource.data.seq + 1
+        && (me() in resource.data.players
+            || (resource.data.status == 'lobby' && changed().hasOnly(['players', 'seq', 'updatedAt'])
+                && request.resource.data.players == resource.data.players.concat([me()])));
+      allow delete: if (signedIn() && resource.data.host == me()) || can('moderar');
+      // Fichas de cada asiento: solo las ve su dueño (las de los 🤖, quien creó la mesa).
+      match /hands/{seat} {
+        function g() { return get(/databases/$(database)/documents/games/$(gid)).data; }
+        allow read: if signedIn() && (seat == me() || (seat.matches('bot[1-3]') && g().host == me()));
+        allow create, update: if isParticipant() && request.resource.data.keys().hasOnly(['tiles'])
+          && request.resource.data.tiles is list && request.resource.data.tiles.size() <= 7
+          && (seat == me() || g().host == me())
+          && seat in getAfter(/databases/$(database)/documents/games/$(gid)).data.players;
+        allow delete: if signedIn() && (g().host == me() || can('moderar'));
+      }
+    }
+    // Tabla de campeones: cada ganador anota su victoria una sola vez y solo si la mesa terminó con él en winners.
+    match /gameWins/{id} {
+      allow read: if member();
+      allow create: if isParticipant() && id == request.resource.data.gid + '_' + me()
+        && request.resource.data.keys().hasOnly(['uid', 'gid', 'type', 'at'])
+        && request.resource.data.uid == me() && request.resource.data.at is int
+        && get(/databases/$(database)/documents/games/$(request.resource.data.gid)).data.status == 'done'
+        && me() in get(/databases/$(database)/documents/games/$(request.resource.data.gid)).data.winners
+        && request.resource.data.type == get(/databases/$(database)/documents/games/$(request.resource.data.gid)).data.type;
+      allow delete: if isOwner();
+    }
+
     // Foto de un deseo (aparte, para que la lista cargue rápido).
     match /wishImg/{id} {
       allow read: if member();
@@ -145,7 +191,7 @@ service cloud.firestore {
       allow read: if can('actividades') || (signedIn() && resource.data.uid == me());
       allow create, update: if isParticipant() && request.resource.data.uid == me()
         && id == request.resource.data.act + '__' + me()
-        && request.resource.data.keys().hasOnly(['act', 'uid', 'choice', 'at'])
+        && request.resource.data.keys().hasOnly(['act', 'uid', 'choice', 'at']) && tsOk(request.resource.data)
         && str(request.resource.data.choice, 120) && request.resource.data.choice != me()
         && get(/databases/$(database)/documents/activities/$(request.resource.data.act)).data.get('kind', '') == 'vote'
         && get(/databases/$(database)/documents/activities/$(request.resource.data.act)).data.get('resultsOpen', false) == false;
@@ -154,7 +200,7 @@ service cloud.firestore {
     match /activitySignups/{id} {
       allow read: if member();
       allow create: if isParticipant() && request.resource.data.uid == me()
-        && request.resource.data.keys().hasOnly(['act', 'idx', 'uid', 'at'])
+        && request.resource.data.keys().hasOnly(['act', 'idx', 'uid', 'at']) && tsOk(request.resource.data)
         && request.resource.data.idx is int && request.resource.data.idx >= 0
         && id == request.resource.data.act + '__' + string(request.resource.data.idx)
         && request.resource.data.idx < get(/databases/$(database)/documents/activities/$(request.resource.data.act)).data.get('items', []).size();
@@ -209,7 +255,7 @@ service cloud.firestore {
       allow read: if member();
       allow create: if isParticipant() && request.resource.data.uid == me()
         && id == request.resource.data.sug + '__' + me()
-        && request.resource.data.keys().hasOnly(['sug', 'uid', 'at'])
+        && request.resource.data.keys().hasOnly(['sug', 'uid', 'at']) && tsOk(request.resource.data)
         && exists(/databases/$(database)/documents/suggestions/$(request.resource.data.sug));
       allow delete: if can('moderar') || (signedIn() && resource.data.uid == me());
     }
@@ -229,10 +275,10 @@ service cloud.firestore {
       allow read: if member();
       allow create: if (can('aportes') && request.resource.data.keys().hasOnly(['uid', 'confirmed']))
         || (isParticipant() && me() == uid && request.resource.data.uid == uid
-            && request.resource.data.keys().hasOnly(['uid', 'status', 'paid', 'at'])
+            && request.resource.data.keys().hasOnly(['uid', 'status', 'paid', 'at']) && tsOk(request.resource.data)
             && request.resource.data.status in ['si', 'no'] && request.resource.data.paid is bool);
       allow update: if (can('aportes') && changed().hasOnly(['confirmed', 'uid']) && request.resource.data.confirmed is bool)
-        || (isParticipant() && me() == uid && changed().hasOnly(['status', 'paid', 'at', 'uid'])
+        || (isParticipant() && me() == uid && changed().hasOnly(['status', 'paid', 'at', 'uid']) && tsOk(request.resource.data)
             && request.resource.data.uid == uid && request.resource.data.status in ['si', 'no'] && request.resource.data.paid is bool);
       allow delete: if isOwner();
     }
@@ -242,7 +288,7 @@ service cloud.firestore {
     match /giftStatus/{uid} {
       allow read: if isOwner() || (signedIn() && me() == uid);
       allow create, update: if isParticipant() && me() == uid
-        && request.resource.data.keys().hasOnly(['status', 'at'])
+        && request.resource.data.keys().hasOnly(['status', 'at']) && tsOk(request.resource.data)
         && request.resource.data.status in ['pensando', 'ideas', 'comprado', 'envuelto'];
       allow delete: if isOwner();
     }
@@ -261,11 +307,11 @@ service cloud.firestore {
     match /guesses/{uid} {
       allow read: if isOwner() || (signedIn() && me() == uid) || (member() && ev('guessesOpen', false) == true);
       allow create: if isParticipant() && me() == uid && request.resource.data.uid == uid
-        && request.resource.data.keys().hasOnly(['uid', 'text', 'at']) && str(request.resource.data.text, 200)
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'at']) && tsOk(request.resource.data) && str(request.resource.data.text, 200)
         && ev('guessesLocked', false) == false && ev('guessesOpen', false) == false;
       allow update: if isParticipant() && me() == uid && request.resource.data.uid == uid
         && ((ev('guessesLocked', false) == false && ev('guessesOpen', false) == false
-              && changed().hasOnly(['text', 'at']) && str(request.resource.data.text, 200))
+              && changed().hasOnly(['text', 'at']) && tsOk(request.resource.data) && str(request.resource.data.text, 200))
             || (changed().hasOnly(['actual', 'actualAt']) && str(request.resource.data.actual, 200)));
       allow delete: if isOwner();
     }
@@ -304,7 +350,7 @@ service cloud.firestore {
     match /angelGuess/{uid} {
       allow read: if (signedIn() && me() == uid) || (member() && exists(/databases/$(database)/documents/reveal/main));
       allow create, update: if isParticipant() && me() == uid
-        && request.resource.data.keys().hasOnly(['guess', 'at']) && str(request.resource.data.guess, 128)
+        && request.resource.data.keys().hasOnly(['guess', 'at']) && tsOk(request.resource.data) && str(request.resource.data.guess, 128)
         && request.resource.data.guess != me()
         && !exists(/databases/$(database)/documents/reveal/main) && ev('angelLocked', false) == false;
     }
@@ -317,10 +363,12 @@ service cloud.firestore {
     match /chat/{id} {
       allow read: if member();
       allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
-        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'at', 'replyTo'])
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'at', 'replyTo']) && tsOk(request.resource.data)
         && !('r' in request.resource.data)
         && (!('replyTo' in request.resource.data) || (request.resource.data.replyTo is map
-            && request.resource.data.replyTo.keys().hasOnly(['id', 'uid', 'text']) && str(request.resource.data.replyTo.text, 120)))
+            && request.resource.data.replyTo.keys().hasOnly(['id', 'uid', 'text']) && str(request.resource.data.replyTo.text, 120)
+            && str(request.resource.data.replyTo.id, 80) && str(request.resource.data.replyTo.uid, 128)
+            && get(/databases/$(database)/documents/chat/$(request.resource.data.replyTo.id)).data.uid == request.resource.data.replyTo.uid))
         && str(request.resource.data.text, 500) && request.resource.data.text.size() > 0
         && request.resource.data.ts is int
         && request.resource.data.ts > request.time.toMillis() - 900000
@@ -348,7 +396,7 @@ service cloud.firestore {
       allow read: if (signedIn() && me() == uid)
         || (isParticipant() && get(/databases/$(database)/documents/assignments/$(me())).data.recipient == uid);
       allow create, update: if isParticipant() && me() == uid
-        && request.resource.data.keys().hasOnly(['received', 'note', 'at'])
+        && request.resource.data.keys().hasOnly(['received', 'note', 'at']) && tsOk(request.resource.data)
         && request.resource.data.received is bool && str(request.resource.data.note, 500);
     }
 
@@ -356,7 +404,7 @@ service cloud.firestore {
     match /photos/{id} {
       allow read: if member();
       allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
-        && request.resource.data.keys().hasOnly(['uid', 'thumb', 'caption', 'at'])
+        && request.resource.data.keys().hasOnly(['uid', 'thumb', 'caption', 'at']) && tsOk(request.resource.data)
         && str(request.resource.data.thumb, 80000) && request.resource.data.thumb.matches('^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
         && str(request.resource.data.caption, 120)
         && existsAfter(/databases/$(database)/documents/photosFull/$(id));
@@ -399,7 +447,7 @@ service cloud.firestore {
     match /notices/{id} {
       allow read: if member();
       allow create: if okId(id) && (can('evento') || (can('aportes') && request.resource.data.target in ['unpaid', 'pending']))
-        && request.resource.data.keys().hasOnly(['title', 'body', 'target', 'ts', 'at'])
+        && request.resource.data.keys().hasOnly(['title', 'body', 'target', 'ts', 'at']) && tsOk(request.resource.data)
         && str(request.resource.data.title, 80) && str(request.resource.data.body, 300)
         && request.resource.data.target in ['all', 'unpaid', 'pending'];
       allow delete: if can('evento') || can('aportes');
@@ -409,7 +457,7 @@ service cloud.firestore {
     match /fcmTokens/{uid} {
       allow read: if isOwner();
       allow create, update: if isParticipant() && me() == uid && request.resource.data.uid == uid
-        && request.resource.data.keys().hasOnly(['uid', 'token', 'at']) && str(request.resource.data.token, 4096);
+        && request.resource.data.keys().hasOnly(['uid', 'token', 'at']) && tsOk(request.resource.data) && str(request.resource.data.token, 4096);
       allow delete: if isOwner() || (signedIn() && me() == uid);
     }
   }
