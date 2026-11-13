@@ -741,7 +741,12 @@ const authErr = e => {
   if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found') || c.includes('invalid-login')) return 'PIN incorrecto.';
   if (c.includes('network')) return 'Sin conexión. Revisa tu internet.';
   if (c.includes('permission-denied')) return 'No tienes permiso para hacer esto.';
-  return 'Algo salió mal. Intenta otra vez.';
+  if (c.includes('operation-not-allowed')) return 'El registro con correo/contraseña no está activado en Firebase (avisa al organizador).';
+  if (c.includes('unauthorized-domain')) return 'Este dominio no está autorizado en Firebase Authentication (avisa al organizador).';
+  if (c.includes('app-check') || c.includes('appcheck')) return 'Falló la verificación anti-robots. Recarga la página e intenta otra vez.';
+  if (c.includes('api-key') || c.includes('configuration-not-found')) return 'La configuración de Firebase es incorrecta (avisa al organizador).';
+  if (c.includes('weak-password')) return 'Ese PIN es muy débil para Firebase. Prueba con otro.';
+  return 'Algo salió mal. Intenta otra vez.' + (c ? ` (${c})` : '');
 };
 
 /* ---------- setup check ---------- */
