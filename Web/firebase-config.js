@@ -8,16 +8,11 @@ export const firebaseConfig = {
   appId: "1:475904151458:web:6b0204a817b468bbb2acfb"
 };
 
-// 2) Correo del organizador. Debe ser EXACTAMENTE el mismo que pongas en
-//    Firebase → Authentication → Usuarios, y el mismo que está en firestore.rules.
-//    Nadie lo escribe: en la página solo se pide la contraseña.
+// 2) Correo del organizador. Debe ser EXACTAMENTE el mismo que pongas.
 export const ADMIN_EMAIL = "admin@angelito.app";
 
 // 3) (Opcional) Notificaciones push con la app cerrada.
-//    Firebase → ⚙️ Configuración del proyecto → Cloud Messaging → Certificados push web → Generar par de claves.
-//    Pega aquí la "clave pública". Si lo dejas vacío, igual hay avisos dentro de la app.
-export const VAPID_KEY = "";
+export const VAPID_KEY = "BAdQQyjWz4yD8H5D8GYP-dQj0H_8T3XqL81mY29zaD1VU8VPlAMk1q7ECrVdGm_SX_UX893a8lHOE8XLm1RszZU";
 
-// 4) (Recomendado) Protección contra robots y ataques (App Check con reCAPTCHA v3).
-//    Ver LEEME → "Protección extra". Si lo dejas vacío, la app funciona igual.
-export const RECAPTCHA_KEY = "";
+// (Recomendado) Protección contra robots y ataques (App Check con reCAPTCHA v3).
+export const RECAPTCHA_KEY = "6LfPxB4uAAAAAAnGGLOc2-EG3zmXWGtyRuwIH9fj";
