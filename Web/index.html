@@ -63,7 +63,7 @@ a{color:var(--gold)}
 @keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .sec-title{font-size:1.65rem;font-weight:700;margin:4px 0 6px}
 .sec-sub{color:var(--muted);margin-bottom:18px;line-height:1.5}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px}
 .stack>*+*{margin-top:12px}
 .muted{color:var(--muted)}
 .small{font-size:.85rem}
@@ -300,10 +300,10 @@ details.fold[open]{padding-bottom:14px}
 .hword{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:10px}
 .hw{width:26px;height:36px;border-bottom:3px solid var(--gold);display:grid;place-items:center;font-size:1.3rem;font-weight:800}
 .hw.sp{border:0;width:12px}
-.kb{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-.kb button{padding:12px 0;border-radius:12px;border:1px solid var(--line);background:var(--card);color:inherit;font:inherit;font-weight:800;font-size:1rem;cursor:pointer}
-.kb button.hit{background:#2f9461;opacity:.8}.kb button.miss{background:rgba(226,72,63,.35);opacity:.6}
-.kb button[disabled]:not(.hit):not(.miss){opacity:.45}
+.hkb{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.hkb button{padding:12px 0;border-radius:12px;border:1px solid var(--line);background:var(--card);color:inherit;font:inherit;font-weight:800;font-size:1rem;cursor:pointer}
+.hkb button.hit{background:#2f9461;opacity:.8}.hkb button.miss{background:rgba(226,72,63,.35);opacity:.6}
+.hkb button[disabled]:not(.hit):not(.miss){opacity:.45}
 /* chat como app: el cuadro de escribir queda fijo justo encima de la barra de pestañas */
 body.chat-on #c-dock{position:fixed;left:50%;transform:translateX(-50%);width:min(calc(100vw - 24px),748px);bottom:calc(88px + env(safe-area-inset-bottom));z-index:45;padding:8px 10px;border-radius:22px;background:rgba(10,25,18,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);box-shadow:0 -8px 24px rgba(0,0,0,.35)}
 body.chat-on #c-dock .composer{margin-top:6px}
@@ -312,6 +312,7 @@ body.chat-on .chatbox{max-height:none}
 body.kb .tabs{display:none}
 body.kb.chat-on #c-dock{bottom:calc(8px + env(safe-area-inset-bottom))}
 .spin-cta{position:sticky;bottom:calc(92px + env(safe-area-inset-bottom));z-index:6;padding:8px 0}
+#offline{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));z-index:120;padding:8px 14px;border-radius:999px;background:#5b3a1e;color:#fff4dc;font-size:.82rem;font-weight:700;box-shadow:var(--shadow);white-space:nowrap}
 /* modal + toast */
 .modal{position:fixed;inset:0;z-index:80;display:none;align-items:flex-end;justify-content:center;background:rgba(3,8,6,.7);backdrop-filter:blur(6px);padding:16px}
 .modal.on{display:flex;animation:fade .25s}
@@ -875,6 +876,7 @@ html.big .tab{font-size:.6rem}
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <div class="modal" id="csel" style="z-index:95"><div class="sheet" id="csel-s" style="padding:14px"></div></div>
 <div id="toast"></div>
+<div id="offline" hidden>📡 Sin conexión · lo que hagas se enviará al volver</div>
 <canvas id="fx"></canvas>
 
 <script type="module">
@@ -1008,6 +1010,14 @@ const wrapAll = root => root.querySelectorAll?.('select.in').forEach(wrapSelect)
 wrapAll(document);
 new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1) { if (n.matches?.('select.in')) wrapSelect(n); else wrapAll(n); } })
   .observe(document.body, { childList: true, subtree: true });
+
+/* ---------- doble toque: un formulario no se envía dos veces seguidas ---------- */
+const inFlight = new WeakSet();
+document.addEventListener('submit', e => {
+  const f = e.target;
+  if (inFlight.has(f)) { e.preventDefault(); e.stopImmediatePropagation(); return; }
+  inFlight.add(f); setTimeout(() => inFlight.delete(f), 1500);
+}, true);
 
 /* ---------- formularios: avisos propios, no los del navegador ---------- */
 const fieldMsg = el => {
@@ -1297,23 +1307,28 @@ function openAuth(tab = 'login', then) {
 /* ---------- PIN temporal: obligar a crear uno nuevo ---------- */
 // Invita a activar las notificaciones apenas la persona entra (el navegador exige que ella toque "Permitir").
 const ASK_KEY = 'angelito:askNotif';
+let askT = null;
 function maybeAskNotif() {
-  if (!S.me || S.forcePin || !canNotify() || Notification.permission !== 'default') return;
+  if (!S.me || S.forcePin || !canNotify() || Notification.permission !== 'default' || askT) return;
   if (isIOS() && !isStandalone()) return;
   let last = 0; try { last = +localStorage.getItem(ASK_KEY) || 0; } catch { }
   if (Date.now() - last < 3 * 864e5) return;
-  setTimeout(() => {
-    let l2 = 0; try { l2 = +localStorage.getItem(ASK_KEY) || 0; } catch { }
-    if (!S.me || S.forcePin || Notification.permission !== 'default' || $('#modal').classList.contains('on') || Date.now() - l2 < 3 * 864e5) return;
-    try { localStorage.setItem(ASK_KEY, String(Date.now())); } catch { }
+  const busyNow = () => S.spinning || (typeof PARTY !== 'undefined' && PARTY) || location.hash.startsWith('#juego-') || location.hash === '#ruleta'
+    || document.body.classList.contains('kb') || $('#modal').classList.contains('on') || $('#csel').classList.contains('on');
+  const tryAsk = () => {
+    askT = null;
+    if (!S.me || S.forcePin || Notification.permission !== 'default') return;
+    if (busyNow()) { askT = setTimeout(tryAsk, 8000); return; } // espera un momento tranquilo
     openModal(`<div style="text-align:center"><div style="font-size:46px">🔔</div><h3>¿Te avisamos?</h3>
       <p class="muted">Te llegará un aviso cuando haya mensajes, actividades, pistas de tu angelito o cambios del evento. Nunca varios seguidos: el nuevo reemplaza al anterior.</p>
       <p class="muted small">Puedes apagarlas cuando quieras en 🔔 Notificaciones.</p></div>
       <div class="actions"><button class="btn" data-a="no">Ahora no</button><button class="btn gold" data-a="ok">🔔 Activar</button></div>`).onclick = async e => {
       const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+      try { localStorage.setItem(ASK_KEY, String(Date.now())); } catch { } // se guarda solo cuando responde
       closeModal(); if (a === 'ok') await enableNotifications();
     };
-  }, 2500);
+  };
+  askT = setTimeout(tryAsk, 2500);
 }
 function maybeForcePin() {
   if (S.forcePin && S.me && !S.me.mustChangePin) { S.forcePin = false; closeModal(); return; }
@@ -1845,7 +1860,7 @@ $('#w-root').addEventListener('click', async e => {
 $('#w-root').addEventListener('submit', async e => {
   e.preventDefault(); if (e.target.id !== 'w-form') return;
   const text = $('#w-text').value.trim(); if (!text) return;
-  const btn = e.target.querySelector('button'); busy(btn, true);
+  const btn = e.target.querySelector('button[type=submit]') || e.target.querySelector('button'); busy(btn, true);
   try {
     const ref = doc(collection(db, 'wishes')), img = S.wishDraftImg, b = writeBatch(db);
     b.set(ref, { uid: S.uid, text, link: $('#w-link').value.trim(), price: $('#w-price').value.trim(), ...(img ? { hasImg: true } : {}), at: serverTimestamp() });
@@ -1893,7 +1908,7 @@ function renderQuestions() {
 $('#q-formbox').addEventListener('submit', async e => {
   e.preventDefault(); if (e.target.id !== 'q-form') return;
   const text = $('#q-text').value.trim(); if (!text) return;
-  const btn = e.target.querySelector('button'); busy(btn, true);
+  const btn = e.target.querySelector('button[type=submit]') || e.target.querySelector('button'); busy(btn, true);
   try {
     const b = writeBatch(db);
     const qref = doc(collection(db, 'questions'));
@@ -2514,7 +2529,7 @@ $('#mod-list').addEventListener('click', async e => {
 onlyDigits($('#pa-form'));
 $('#pa-form').addEventListener('submit', async e => {
   e.preventDefault();
-  const first = titleCase($('#pa-first').value), last = titleCase($('#pa-last').value), pin = $('#pa-pin').value, btn = e.target.querySelector('button');
+  const first = titleCase($('#pa-first').value), last = titleCase($('#pa-last').value), pin = $('#pa-pin').value, btn = e.target.querySelector('button[type=submit]');
   if (!first || !last) return toast('Escribe nombre y apellido');
   if (!/^\d{4}$/.test(pin)) return toast('El PIN debe tener 4 números');
   busy(btn, true);
@@ -2621,6 +2636,7 @@ $('#r-defaults').addEventListener('click', async () => {
 });
 $('#r-list').addEventListener('click', async e => {
   const b = e.target.closest('[data-rup],[data-rdown],[data-rdel]'); if (!b || b.disabled) return;
+  if (S.rBusy) return; S.rBusy = true; setTimeout(() => { S.rBusy = false; }, 900);
   const r = curRules();
   if (b.dataset.rdel != null) { if (!(await confirmBox('¿Borrar esta regla?', r[+b.dataset.rdel]?.text || '', 'Borrar'))) return; r.splice(+b.dataset.rdel, 1); }
   else { const i = +(b.dataset.rup ?? b.dataset.rdown), j = b.dataset.rup != null ? i - 1 : i + 1; [r[i], r[j]] = [r[j], r[i]]; }
@@ -3622,15 +3638,20 @@ function snow() {
   if (reduce) return;
   const cv = $('#snow'), ctx = cv.getContext('2d'); let W, H;
   const size = () => { W = cv.width = innerWidth; H = cv.height = innerHeight; }; size(); addEventListener('resize', size);
-  const fl = Array.from({ length: 45 }, () => ({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 2.2 + .6, s: Math.random() * .6 + .25, d: Math.random() * 6 }));
-  (function f() {
-    ctx.clearRect(0, 0, W, H); ctx.fillStyle = 'rgba(255,255,255,.75)';
-    fl.forEach(p => { p.y += p.s; p.d += .01; p.x += Math.sin(p.d) * .3; if (p.y > H) { p.y = -5; p.x = Math.random() * W; } ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); });
+  const fl = Array.from({ length: (navigator.hardwareConcurrency || 8) <= 4 ? 25 : 45 }, () => ({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 2.2 + .6, s: Math.random() * .6 + .25, d: Math.random() * 6 }));
+  let lastT = 0;
+  (function f(t = 0) {
     requestAnimationFrame(f);
+    if (document.hidden || S.spinning || t - lastT < 33) return; // ~30 cuadros por segundo y en pausa si no se ve
+    lastT = t;
+    ctx.clearRect(0, 0, W, H); ctx.fillStyle = 'rgba(255,255,255,.75)';
+    fl.forEach(p => { p.y += p.s * 2; p.d += .02; p.x += Math.sin(p.d) * .6; if (p.y > H) { p.y = -5; p.x = Math.random() * W; } ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); });
   })();
 }
 addEventListener('resize', () => { if (!S.spinning) drawWheel(); });
 
+const netState = () => { $('#offline').hidden = navigator.onLine !== false; };
+addEventListener('online', () => { netState(); toast('✅ De vuelta en línea'); }); addEventListener('offline', netState); netState();
 snow(); buildBulbs(); route(); renderAll(); tick();
 try { if (sessionStorage.getItem('angelito:afterLogout') === 'reg') { sessionStorage.removeItem('angelito:afterLogout'); setTimeout(() => openAuth('reg'), 1200); } } catch { }
 

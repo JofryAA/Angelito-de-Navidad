@@ -141,7 +141,7 @@ const BOT_NAMES = { bot1: '🤖 Robertico', bot2: '🤖 Chispita', bot3: '🤖 T
 export function initGames(X) {
   const { db, fs, S, esc, toast, $, openModal, closeModal, confirmBox, render, confetti } = X;
   const { doc, collection, onSnapshot, query, orderBy, limit, setDoc, getDoc, writeBatch, runTransaction } = fs;
-  const G = { list: [], wins: [], cur: null, hand: [], botHands: {}, sub: null, subHand: null, subBots: [], subList: null, subWins: null, botT: null, credited: new Set(), busy: false, seenTurn: '' };
+  const G = { list: [], wins: [], cur: null, hand: [], botHands: {}, sub: null, subHand: null, subBots: {}, subList: null, subWins: null, botT: null, credited: new Set(), busy: false, seenTurn: '' };
   const seatName = s => isBot(s) ? BOT_NAMES[s] : (X.P(s) ? X.shortName(X.P(s)) : 'Alguien');
   const seatEmoji = s => isBot(s) ? '🤖' : X.pEmoji(s);
   const me = () => S.uid;
@@ -151,7 +151,7 @@ export function initGames(X) {
     if (!G.subList) G.subList = onSnapshot(query(collection(db, 'games'), orderBy('updatedAt', 'desc'), limit(40)), s => { G.list = s.docs.map(d => ({ id: d.id, ...d.data() })); creditWins(); render(); }, e => { console.warn('games', e); G.subList = null; });
     if (!G.subWins) G.subWins = onSnapshot(query(collection(db, 'gameWins'), limit(1000)), s => { G.wins = s.docs.map(d => d.data()); render(); }, e => { console.warn('gameWins', e); G.subWins = null; });
   }
-  function stop() { [G.subList, G.subWins, G.sub, G.subHand, ...G.subBots].forEach(u => u && u()); Object.assign(G, { subList: null, subWins: null, sub: null, subHand: null, subBots: [], cur: null, list: [], wins: [], hand: [], botHands: {} }); }
+  function stop() { clearTimeout(G.botT); [G.subList, G.subWins, G.sub, G.subHand, ...Object.values(G.subBots)].forEach(u => u && u()); Object.assign(G, { subList: null, subWins: null, sub: null, subHand: null, subBots: {}, cur: null, list: [], wins: [], hand: [], botHands: {} }); }
   // Cada ganador anota su propia victoria (las reglas verifican que la mesa terminó y que está en winners).
   function creditWins() {
     for (const g of G.list) {
@@ -173,14 +173,14 @@ export function initGames(X) {
     }, () => { G.cur = { id, gone: true }; render(); });
   }
   function closeGame() {
-    [G.sub, G.subHand, ...G.subBots].forEach(u => u && u()); clearTimeout(G.botT);
-    Object.assign(G, { sub: null, subHand: null, subBots: [], cur: null, hand: [], botHands: {} });
+    [G.sub, G.subHand, ...Object.values(G.subBots)].forEach(u => u && u()); clearTimeout(G.botT);
+    Object.assign(G, { sub: null, subHand: null, subBots: {}, cur: null, hand: [], botHands: {} });
   }
   function onGameChange(prev) {
     const g = G.cur; if (!g || g.type !== 'domino') { maybeBot(); return; }
     const mine = g.players?.includes(me());
     if (mine && !G.subHand) G.subHand = onSnapshot(doc(db, 'games', g.id, 'hands', me()), s => { G.hand = s.exists() ? (s.data().tiles || []) : []; render(); }, () => { });
-    if (g.host === me() && !G.subBots.length) g.players.filter(isBot).forEach(b => G.subBots.push(onSnapshot(doc(db, 'games', g.id, 'hands', b), s => { G.botHands[b] = s.exists() ? (s.data().tiles || []) : []; maybeBot(); }, () => { })));
+    if (g.host === me()) g.players.filter(isBot).forEach(b => { if (G.subBots[b]) return; G.subBots[b] = onSnapshot(doc(db, 'games', g.id, 'hands', b), s => { G.botHands[b] = s.exists() ? (s.data().tiles || []) : []; maybeBot(); }, () => { }); });
     if (prev && prev.result !== g.result && g.handOver && g.result) { if (g.result.team >= 0 && teamOfSeat(g, me()) === g.result.team) confetti(80); }
     if (g.status === 'done' && prev?.status !== 'done' && (g.winners || []).includes(me())) confetti(160);
     const key = `${g.id}:${g.hand}:${g.turn}:${g.handOver}`;
@@ -191,6 +191,7 @@ export function initGames(X) {
 
   /* ----- crear / unirse ----- */
   async function create(type, mode) {
+    if (G.busy) return; G.busy = true; setTimeout(() => { G.busy = false; }, 1500);
     const id = doc(collection(db, 'games')).id, now = Date.now();
     const base = { type, host: me(), players: [me()], status: 'lobby', createdAt: now, updatedAt: now, seq: 0, title: '' };
     if (type === 'domino') Object.assign(base, { mode, max: mode === 'parejas' ? 4 : 4, target: mode === 'parejas' ? 200 : 100, scores: mode === 'parejas' ? [0, 0] : [], title: mode === 'parejas' ? 'Dominó en parejas' : 'Dominó, cada quien solo' });
@@ -212,7 +213,7 @@ export function initGames(X) {
   const swapSeats = () => tx((t, g) => { if (g.host !== me() || g.players.length < 3) return; const p = g.players.slice(); p.splice(1, 0, p.pop()); upd(t, g, { players: p }); });
 
   async function start() {
-    const g = G.cur; if (g.host !== me()) return;
+    const g = G.cur; if (g.host !== me() || G.starting) return; G.starting = true; setTimeout(() => { G.starting = false; }, 2000);
     if (g.type === 'domino') {
       let players = g.players.slice();
       if (g.mode === 'parejas') { while (players.length < 4) players.push(['bot1', 'bot2', 'bot3'].find(x => !players.includes(x))); }
@@ -235,7 +236,7 @@ export function initGames(X) {
     }
   }
   async function nextHand() {
-    const g = G.cur; if (g.host !== me() || !g.handOver || g.status !== 'playing') return;
+    const g = G.cur; if (g.host !== me() || !g.handOver || g.status !== 'playing' || G.starting) return; G.starting = true; setTimeout(() => { G.starting = false; }, 2000);
     const { hands, patch } = dealHand(g);
     const b = writeBatch(db);
     g.players.forEach(s => b.set(doc(db, 'games', g.id, 'hands', s), { tiles: hands[s] }));
@@ -303,8 +304,7 @@ export function initGames(X) {
       if (ok) { const missing = [...new Set([...g.word].map(letterKey).filter(c => /[A-ZÑ]/.test(c) && !(g.guessed || '').includes(c)))].length; scores[i] += 30 + missing * 10; Object.assign(p, { scores, guessed: g.guessed + [...new Set([...g.word].map(letterKey))].join('') }, hangEnd(g, scores, 'adivinada')); }
       else { p.errors = (g.errors || 0) + 1; p.turn = (i + 1) % g.players.length; if (p.errors >= g.maxErrors) Object.assign(p, hangEnd(g, scores, 'ahorcado')); }
       upd(t, g, p);
-      if (!ok) setTimeout(() => toast('❌ Esa no era'), 50);
-    });
+    }).then(() => { const g = G.cur; if (g && g.status === 'playing' && !hangSolved(g.word, g.guessed || '')) toast('❌ Esa no era'); });
   }
   function hangEnd(g, scores, why) {
     const top = Math.max(...scores), winners = top > 0 ? g.players.filter((s, k) => scores[k] === top) : [];
@@ -397,7 +397,7 @@ export function initGames(X) {
     return `${seatsHTML(g)}<div class="card center"><div class="muted small">Errores ${g.errors || 0} de ${g.maxErrors}</div><div style="font-size:26px;min-height:36px;letter-spacing:4px">${parts}</div><div class="hword">${shown}</div></div>
       ${g.status === 'done' ? `<p class="glog">${g.result?.why === 'ahorcado' ? '💀 ¡Ahorcados!' : '🎉 ¡Resuelta!'} ${(g.winners || []).length ? '🏆 ' + g.winners.map(s => esc(seatName(s))).join(' y ') : ''}</p>${g.host === me() ? '<div class="qa" style="justify-content:center"><button class="btn gold" data-gact="again">🔁 Otra palabra</button></div>' : ''}`
       : `<p class="glog">${myTurn ? '👉 ¡Te toca! Elige una letra' : `Turno de ${esc(seatName(g.players[g.turn]))}`}</p>
-        <div class="kb">${'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ'.split('').map(L => `<button data-hl="${L}" ${!myTurn || gs.includes(L) ? 'disabled' : ''} class="${gs.includes(L) ? (hangCount(g.word, L) ? 'hit' : 'miss') : ''}">${L}</button>`).join('')}</div>
+        <div class="hkb">${'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ'.split('').map(L => `<button data-hl="${L}" ${!myTurn || gs.includes(L) ? 'disabled' : ''} class="${gs.includes(L) ? (hangCount(g.word, L) ? 'hit' : 'miss') : ''}">${L}</button>`).join('')}</div>
         ${myTurn ? '<button class="btn sm" data-gact="word" style="width:100%;margin-top:10px">💡 Ya sé la palabra</button>' : ''}`}`;
   }
   function renderGame(g) {
