@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "sitio",
+    "public": "Web",
     "ignore": ["**/.*", "**/node_modules/**", "_headers"],
     "cleanUrls": false,
     "headers": [

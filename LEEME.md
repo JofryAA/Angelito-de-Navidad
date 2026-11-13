@@ -3,11 +3,11 @@
 Archivos:
 - `firebase.json` y `.firebaserc`: configuración para publicar con Firebase Hosting.
 - `.github/workflows/deploy.yml`: publicación automática si usas GitHub (opcional).
-- `sitio/`: **la página** (esto es lo que se publica). Adentro están:
+- `Web/`: **la página** (esto es lo que se publica). Adentro están:
 - `index.html`: la página.
 - `firebase-config.js`: aquí pegas los datos de tu Firebase.
-- `firestore.rules` (fuera de `sitio/`): las reglas de seguridad. `firebase deploy` las publica solas.
-- `LEEME.md` (fuera de `sitio/`): estas instrucciones.
+- `firestore.rules` (fuera de `Web/`): las reglas de seguridad. `firebase deploy` las publica solas.
+- `LEEME.md` (fuera de `Web/`): estas instrucciones.
 - `manifest.webmanifest`, `sw.js`, `icons/`: hacen que funcione como app instalable.
 - `version.json`: le dice a los teléfonos que hay una versión nueva para que se actualicen solos.
 
@@ -66,7 +66,7 @@ Se hace una sola vez la preparación y luego cada publicación es un comando.
 
 Este comando sube **la página y las reglas de seguridad juntas**, así que ya no hace falta pegar `firestore.rules` a mano.
 
-> Los teléfonos detectan la versión nueva y se actualizan solos. Si publicas desde tu computadora, el archivo `sitio/version.json` ya viene marcado en cada zip nuevo que te paso.
+> Los teléfonos detectan la versión nueva y se actualizan solos. Si publicas desde tu computadora, el archivo `Web/version.json` ya viene marcado en cada zip nuevo que te paso.
 
 ### Publicar con GitHub (opcional, automático)
 Si subes esta carpeta a un repositorio de GitHub, cada cambio en la rama `main` se publica solo:

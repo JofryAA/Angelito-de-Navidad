@@ -13,8 +13,9 @@ jobs:
       - name: Marcar versión (para que los teléfonos se actualicen solos)
         run: |
           V=$(date -u +%Y.%m.%d-%H%M%S)
-          sed -i "s/__APP_VERSION__/$V/g" sitio/index.html sitio/sw.js
-          echo "{\"version\": \"$V\"}" > sitio/version.json
+          sed -i -E "s/const APP_VERSION = '[^']*'/const APP_VERSION = '$V'/" Web/index.html
+          sed -i -E "s/const VERSION = 'angelito-[^']*'/const VERSION = 'angelito-$V'/" Web/sw.js
+          echo "{\"version\": \"$V\"}" > Web/version.json
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
