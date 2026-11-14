@@ -188,6 +188,7 @@ function startCoreSubs() {
     if (fromServer(s)) { SYNC.people = true; SYNC.tries = 0; }
     S.participants = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at));
     S.me = S.uid ? P(S.uid) || null : null; maybeForcePin(); maybeAskNotif(); syncAdminMode();
+    ensureUserSubs(); checkGone();
     if (S.me && userSubDenied) retryUserSubs();
     render();
   }, coreRetry('participants')));
@@ -240,7 +241,23 @@ const ufail = what => e => {
   console.warn(what, e);
   userSubDenied = true; if (S.me) retryUserSubs(); // cualquier fallo se reintenta (antes solo el de permisos)
 };
+// Las colecciones del grupo (deseos, chat, ideas…) solo se piden cuando la cuenta YA tiene su ficha de participante.
+// Antes se pedían apenas había sesión, y Firestore respondía "Missing or insufficient permissions" mientras
+// se terminaba de inscribir, o para siempre si a esa cuenta la quitaron del grupo o le dieron un PIN temporal.
+let subsFor = null;
+function ensureUserSubs() {
+  const u = auth.currentUser; if (!u || subsFor === u.uid || !P(u.uid)) return;
+  startUserSubs(u); syncQuestions(true); syncGuesses(true); render();
+}
+// Cuenta que ya no está en el grupo (la quitaron o se le dio un PIN temporal y se creó otra): se cierra con un aviso.
+function checkGone() {
+  const u = auth.currentUser; if (!u || !SYNC.people || P(u.uid)) return;
+  const age = Date.now() - Date.parse(u.metadata?.creationTime || 0);
+  if (!(age > 120000)) return; // recién creada: su ficha está por llegar
+  signOut(auth).then(() => { toast('Tu acceso cambió. Entra de nuevo con tu nombre y tu PIN.'); setTimeout(() => openAuth('login'), 600); }).catch(() => { });
+}
 function startUserSubs(user) {
+  subsFor = user.uid;
   unsubUser.forEach(u => u()); unsubUser = []; userSubDenied = false; SYNC.wishes = false; SYNC.wishesT0 = Date.now();
     unsubUser.push(onSnapshot(collection(db, 'wishes'), { includeMetadataChanges: true }, s => {
       if (fromServer(s)) SYNC.wishes = true;
@@ -289,7 +306,7 @@ onAuthStateChanged(auth, user => {
   S.authReady = true; setTimeout(maybeForcePin, 0);
   subRetries = 0;
   if (!user) { S.myStaff = null; syncAdminMode(); if (!adminAuth.currentUser) { S.att = {}; S.suggestions = []; } }
-  if (user) startUserSubs(user);
+  subsFor = null; if (user) { ensureUserSubs(); checkGone(); }
   syncQuestions(true); syncGuesses(true); render();
   if (user && canNotify() && Notification.permission === 'granted') setTimeout(() => registerPush(), 1500);
 });
@@ -2527,7 +2544,14 @@ async function registerPush() {
     if (token && S.uid) { pushToken = token; await syncPushPrefs(); }
     // con la app abierta los avisos ya salen desde aquí; el servidor solo cuenta cuando está cerrada
     m.onMessage(messaging, () => { });
-  } catch (e) { console.warn('push', e); pushDone = false; }
+  } catch (e) {
+    // "Registration failed - push service error" (AbortError): el navegador no alcanzó el servicio de avisos
+    // (Brave con push de Google apagado, incógnito, VPN o red que bloquea fcmregistrations.googleapis.com, o una
+    // suscripción vieja trabada). Se reintenta un par de veces; la app sigue funcionando igual.
+    console.warn('push', e); pushDone = false; S.pushFail = (S.pushFail || 0) + 1;
+    if (e?.name === 'AbortError' && S.pushFail === 1) { try { const sub = await swReg?.pushManager?.getSubscription(); await sub?.unsubscribe(); } catch { } }
+    if (S.pushFail <= 3) setTimeout(registerPush, 20000 * S.pushFail);
+  }
 }
 async function enableNotifications() {
   if (!canNotify()) {
