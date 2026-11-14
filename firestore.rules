@@ -81,9 +81,9 @@ service cloud.firestore {
               && request.resource.data.revealAt > request.time);
       }
       allow create: if id == 'event' && can('evento') && eventOk(request.resource.data)
-        && !request.resource.data.keys().hasAny(['revealNow', 'revealAt', 'revealDate', 'guessesOpen', 'guessesLocked', 'angelLocked', 'guessWinner']);
+        && !request.resource.data.keys().hasAny(['revealNow', 'revealAt', 'revealDate', 'revealTime', 'guessesOpen', 'guessesLocked', 'angelLocked', 'guessWinner']);
       allow update: if id == 'event' && eventOk(request.resource.data) && (
-        (can('evento') && !changed().hasAny(['revealNow', 'revealDate', 'guessesOpen', 'guessesLocked', 'registrationOpen', 'angelLocked', 'guessWinner'])
+        (can('evento') && !changed().hasAny(['revealNow', 'revealDate', 'revealTime', 'guessesOpen', 'guessesLocked', 'registrationOpen', 'angelLocked', 'guessWinner'])
           && revealFollowsDate())
         || (can('participantes') && changed().hasOnly(['registrationOpen'])
             && (request.resource.data.registrationOpen == false || !drawn())));

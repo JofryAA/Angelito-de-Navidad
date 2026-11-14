@@ -14,5 +14,4 @@ export const ADMIN_EMAIL = "admin@angelito.app";
 // 3) (Opcional) Notificaciones push con la app cerrada.
 export const VAPID_KEY = "BAdQQyjWz4yD8H5D8GYP-dQj0H_8T3XqL81mY29zaD1VU8VPlAMk1q7ECrVdGm_SX_UX893a8lHOE8XLm1RszZU";
 
-// (Recomendado) Protección contra robots y ataques (App Check con reCAPTCHA v3).
-export const RECAPTCHA_KEY = "6LfPxB4uAAAAAAnGGLOc2-EG3zmXWGtyRuwIH9fj";
+// (App Check / reCAPTCHA se quitó: causaba errores y lentitud. La seguridad la dan las reglas de Firestore.)
