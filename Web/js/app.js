@@ -2479,15 +2479,29 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   const cfgQ = encodeURIComponent(JSON.stringify({ apiKey: firebaseConfig.apiKey, projectId: firebaseConfig.projectId, messagingSenderId: firebaseConfig.messagingSenderId, appId: firebaseConfig.appId }));
   navigator.serviceWorker.register('sw.js?cfg=' + cfgQ).then(r => { swReg = r; if (canNotify() && Notification.permission === 'granted') registerPush(); }).catch(() => {});
 }
+// Una sola notificación que se va llenando: cada novedad nueva se agrega arriba (máx. 5 a la vista)
+// y el título cuenta cuántas hay. Al abrir la app se limpia.
+async function stackNotify(reg, title, body, url) {
+  const old = await reg.getNotifications({ tag: 'angelito' });
+  const d = (old[0] && old[0].data) || {}, prev = Array.isArray(d.items) ? d.items : [];
+  const n = (d.n || prev.length) + 1;
+  const items = [{ t: title, b: body || '' }, ...prev.filter(x => !(x.t === title && x.b === (body || '')))].slice(0, 5);
+  old.forEach(x => x.close());
+  const one = items.length === 1;
+  return reg.showNotification(one ? title : `🎁 Angelito · ${n} novedades`, {
+    body: one ? (body || '') : items.map(x => x.b ? `${x.t} — ${x.b}` : x.t).join('\n') + (n > items.length ? `\n…y ${n - items.length} más` : ''),
+    icon: 'icons/icon-192.png', badge: 'icons/favicon-64.png', tag: 'angelito', renotify: true, data: { url: url || './', items, n }
+  });
+}
+// al volver a la app, la notificación acumulada ya no hace falta
+document.addEventListener('visibilitychange', async () => { if (document.hidden) return; try { const reg = swReg || await navigator.serviceWorker?.getRegistration(); (await reg?.getNotifications({ tag: 'angelito' }) || []).forEach(n => n.close()); } catch { } });
 async function notifyUser(title, body = '', url = './', tag) {
   if (canNotify() && Notification.permission === 'granted' && document.hidden) {
     if (quietNow()) return; // horario de silencio
     try {
       const reg = swReg || await navigator.serviceWorker?.getRegistration();
-      // Una sola notificación del angelito: la nueva reemplaza a la anterior (y vuelve a sonar).
-      const opt = { body, icon: 'icons/icon-192.png', badge: 'icons/favicon-64.png', tag: 'angelito', renotify: true, data: { url } };
-      if (reg) { (await reg.getNotifications({ tag: 'angelito' })).forEach(n => n.close()); }
-      if (reg) return reg.showNotification(title, opt); return new Notification(title, opt);
+      if (reg) return stackNotify(reg, title, body, url);
+      return new Notification(title, { body, icon: 'icons/icon-192.png', tag: 'angelito', renotify: true });
     } catch { }
   }
   toast(body ? `${title} · ${body}` : title);

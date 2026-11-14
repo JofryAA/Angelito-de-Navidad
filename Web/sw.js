@@ -40,6 +40,21 @@ self.addEventListener('fetch', e => {
   }
 });
 
+// Una sola notificación que se va llenando: cada novedad nueva se agrega arriba (máx. 5 a la vista)
+// y el título cuenta cuántas hay. Al abrir la app se limpia.
+async function stackNotify(reg, title, body, url) {
+  const old = await reg.getNotifications({ tag: 'angelito' });
+  const d = (old[0] && old[0].data) || {}, prev = Array.isArray(d.items) ? d.items : [];
+  const n = (d.n || prev.length) + 1;
+  const items = [{ t: title, b: body || '' }, ...prev.filter(x => !(x.t === title && x.b === (body || '')))].slice(0, 5);
+  old.forEach(x => x.close());
+  const one = items.length === 1;
+  return reg.showNotification(one ? title : `🎁 Angelito · ${n} novedades`, {
+    body: one ? (body || '') : items.map(x => x.b ? `${x.t} — ${x.b}` : x.t).join('\n') + (n > items.length ? `\n…y ${n - items.length} más` : ''),
+    icon: 'icons/icon-192.png', badge: 'icons/favicon-64.png', tag: 'angelito', renotify: true, data: { url: url || './', items, n }
+  });
+}
+
 // Notificaciones push enviadas desde la consola de Firebase (Messaging).
 try {
   const cfg = JSON.parse(new URL(self.location).searchParams.get('cfg') || 'null');
@@ -53,7 +68,7 @@ try {
       // si la app está abierta y a la vista, ella misma avisa: no repetir
       const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       if (open.some(c => c.visibilityState === 'visible')) return;
-      return self.registration.showNotification(d.title || 'Angelito 🎁', { body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/favicon-64.png', tag: 'angelito', renotify: true, data: { url: d.url || './' } });
+      return stackNotify(self.registration, d.title || 'Angelito 🎁', d.body || '', d.url || './');
     });
   }
 } catch (e) { /* sin push */ }
