@@ -254,6 +254,7 @@ details.fold[open]{padding-bottom:14px}
 /* 🎮 juegos */
 .gopt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:14px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:inherit;font:inherit;cursor:pointer}
 .gopt:active{transform:scale(.98)}.gopt .go-e{font-size:28px;width:36px;text-align:center}.gopt b{display:block}
+.hhint{font-size:34px;line-height:1.15;letter-spacing:6px;margin:2px 0 8px}.hhint small{display:block;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:2px}
 .hcat{display:inline-block;margin-bottom:6px;padding:4px 10px;border-radius:999px;background:rgba(236,188,92,.16);color:var(--gold);font-weight:700;font-size:.82rem}
 .c4{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:8px;border-radius:18px;background:#1d4fa8;box-shadow:inset 0 -6px 0 rgba(0,0,0,.25);max-width:420px;margin:6px auto}
 .c4c{display:grid;grid-template-rows:repeat(6,1fr);gap:4px;border:0;background:none;padding:2px;border-radius:12px;cursor:pointer}
@@ -342,6 +343,7 @@ body.chat-on .chatbox{max-height:none}
 body.kb .tabs{display:none}
 body.kb.chat-on #c-dock{bottom:calc(8px + env(safe-area-inset-bottom))}
 .spin-cta{position:sticky;bottom:calc(92px + env(safe-area-inset-bottom));z-index:6;padding:8px 0}
+#datafail{position:fixed;left:12px;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:121;padding:10px 14px;border-radius:14px;background:#5b1e1e;color:#fff4dc;font-size:.88rem;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
 #offline{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));z-index:120;padding:8px 14px;border-radius:999px;background:#5b3a1e;color:#fff4dc;font-size:.82rem;font-weight:700;box-shadow:var(--shadow);white-space:nowrap}
 #inst-btn{position:relative;color:var(--gold);border-color:rgba(236,188,92,.45)}
 [hidden]{display:none!important}
@@ -441,6 +443,18 @@ a.btn{text-decoration:none}
 #toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translateX(-50%) translateY(-20px);z-index:130;background:var(--cream);color:#2a140f;padding:12px 18px;border-radius:14px;font-weight:600;font-size:.9rem;
   box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.3s;max-width:90vw;text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%)}
+.admbar{border-radius:18px;margin-bottom:14px;background:linear-gradient(150deg,rgba(236,188,92,.2),rgba(236,188,92,.06));border:1px solid rgba(236,188,92,.4);overflow:hidden}
+.ab-id{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.ab-ic{width:42px;height:42px;flex:none;border-radius:13px;display:grid;place-items:center;font-size:22px;background:rgba(0,0,0,.25);border:1px solid rgba(236,188,92,.35)}
+.ab-t{flex:1;min-width:0;line-height:1.2}.ab-t small{display:block;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.ab-t b{display:block;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ab-acts{display:flex;border-top:1px solid rgba(236,188,92,.22);background:rgba(0,0,0,.16)}
+.ab-link{flex:1;min-height:42px;padding:8px 6px;background:none;border:0;color:var(--cream);font:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
+.ab-link+.ab-link{border-left:1px solid rgba(236,188,92,.22)}.ab-link.out{color:#ffb4ab}.ab-link:active{background:rgba(255,255,255,.06)}
+.faq{border:1px solid var(--line);border-radius:14px;background:rgba(0,0,0,.16);overflow:hidden}
+.faq summary{list-style:none;cursor:pointer;padding:12px 14px;font-weight:700;font-size:.92rem;display:flex;justify-content:space-between;gap:10px;min-height:44px;align-items:center}
+.faq summary::-webkit-details-marker{display:none}.faq summary::after{content:'＋';color:var(--gold);flex:none}.faq[open] summary::after{content:'－'}
+.faq>div{padding:0 14px 13px;font-size:.88rem;line-height:1.5;color:var(--muted)}.faq>div b{color:var(--cream)}
 .banner{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:18px;background:rgba(236,188,92,.12);border:1px solid rgba(236,188,92,.35);margin-bottom:16px;line-height:1.45;font-size:.9rem}
 .empty{text-align:center;padding:26px 16px;color:var(--muted)}
 .empty .e{font-size:40px;display:block;margin-bottom:6px}
@@ -641,6 +655,37 @@ html.big .tab{font-size:.6rem}
 .ptv{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:3vh;width:min(92vw,1000px)}
 .ptv div{padding:18px 20px;border-radius:18px;background:rgba(255,255,255,.07);font-size:min(3.6vw,30px);text-align:left}
 .ptv div.ok{background:rgba(47,148,97,.5)}
+
+/* ---------- retoques finales (revisión en 360, 390 y 412 px) ---------- */
+body.chat-on .chatbox{max-height:none;min-height:0}
+body.kb.chat-on .top,body.kb.chat-on #v-buzon>.sec-title,body.kb.chat-on #buz-seg,body.kb.chat-on #buz-c>div:first-child{display:none}
+.act-hero h1,body.logged .act-hero h1{margin:6px 0 4px}
+.hero:not(.act-hero) .eyebrow{margin-right:64px}
+@media(max-width:420px){.hero:not(.act-hero) .eyebrow{letter-spacing:.1em;font-size:.68rem}}
+.sheet{max-height:min(88vh,calc(100dvh - 96px))}
+.sheet>.actions{position:sticky;bottom:-24px;margin:18px -24px -24px;padding:12px 24px 24px;background:linear-gradient(180deg,rgba(14,32,24,0),#0e2018 28%);z-index:2}
+.actions .btn{white-space:nowrap}
+.tab[data-v=actividades]{flex:1.35}
+.back{display:inline-flex;align-items:center;min-height:44px;padding:0 10px 0 0;margin-bottom:4px}
+.h2row a.small{display:inline-flex;align-items:center;min-height:44px;padding:0 4px}
+.btn.sm,.signchip,.userchip{min-height:40px}
+.seg button{min-height:42px}
+.x{width:40px;height:40px}
+#c-dice{flex:0 0 40px}
+.switch{cursor:pointer;min-height:44px}
+.info>:last-child:nth-child(odd){grid-column:1/-1}
+#v-ruleta.locked.on{display:flex;flex-direction:column}
+#v-ruleta.locked .sec-title,#v-ruleta.locked .sec-sub{order:-3}
+#v-ruleta.locked #r-top{order:-2}
+#v-ruleta.locked .spin-cta{order:-1;margin:0 0 4px}
+@media(max-height:700px){#v-ruleta.locked .wheel-wrap{--wsz:min(50vw,200px)}}
+@media(max-width:380px){.join{flex-wrap:wrap}.join #join-other{flex:1 0 100%;min-height:44px}}
+@media(max-width:719px){.anav{position:static!important;background:none!important}}
+#a-list{scroll-margin-top:12px}
+@media(max-width:480px){#r-list .rule{flex-wrap:wrap}#r-list .rule .rt{flex:1 1 calc(100% - 60px)!important}#r-list .rule>div:last-child{margin-left:auto;gap:8px}}
+#sheet .stack>.btn{width:100%;justify-content:center}
+.pfil{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+#cfg-form>button[type=submit]{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.45)}
 </style>
 </head>
 <body>
@@ -737,7 +782,7 @@ html.big .tab{font-size:.6rem}
     <h2 class="sec-title">Grupo</h2>
     <div class="seg" id="buz-seg"><button data-b="c" class="on">💬 Chat</button><button data-b="s">💡 Ideas</button><button data-b="f">📸 Fotos</button></div>
     <div id="buz-c">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><p class="muted small" style="margin:0 0 8px">Ocurrencias del grupo · usa @ para mencionar</p><span style="display:flex;gap:8px;align-items:center"><span class="muted small" id="c-count" style="white-space:nowrap"></span><button class="iconbtn" id="c-mute" style="width:34px;height:34px;font-size:16px" title="Silenciar notificaciones del chat" aria-label="Silenciar chat">🔔</button></span></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><p class="muted small" style="margin:0 0 8px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Usa @ para mencionar</p><span style="display:flex;gap:8px;align-items:center"><span class="muted small" id="c-count" style="white-space:nowrap"></span><button class="iconbtn" id="c-mute" style="width:40px;height:40px;font-size:16px" title="Silenciar notificaciones del chat" aria-label="Silenciar chat">🔔</button></span></div>
       <div id="c-gate"></div>
       <div id="c-wrap" style="display:none">
         <div class="chatbox" id="c-list"></div>
@@ -747,7 +792,7 @@ html.big .tab{font-size:.6rem}
         <div class="dicehint" id="c-dicehint" hidden></div>
         <form class="composer" id="c-form">
           <button type="button" class="iconbtn" id="c-dice" title="Ocurrencia random" aria-label="Ocurrencia random">🎲</button>
-          <input class="in" id="c-text" maxlength="500" placeholder="Escribe o toca 🎲 para una idea" autocomplete="off">
+          <input class="in" id="c-text" maxlength="500" placeholder="Escribe un mensaje…" autocomplete="off">
           <button class="btn primary" type="submit" style="border-radius:999px;padding:12px 16px">➤</button>
         </form></div>
       </div>
@@ -768,10 +813,12 @@ html.big .tab{font-size:.6rem}
   </section>
 
   <section class="view" id="v-admin">
-    <h2 class="sec-title">Panel del organizador</h2>
     <div id="adm-login"></div>
     <div id="adm-panel" style="display:none">
-      <div class="banner" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><a class="btn sm" href="#inicio" style="text-decoration:none">🏠 App</a><span id="adm-who" style="flex:1;min-width:120px">🔓 Modo organizador activo</span><div style="display:flex;gap:6px"><button class="btn sm" id="adm-pw">🔑 Contraseña</button><button class="btn sm" id="adm-out">Salir</button></div></div>
+      <div class="admbar">
+        <div class="ab-id"><span class="ab-ic" id="adm-ic">🛡️</span><div class="ab-t"><small id="adm-role">Panel de control</small><b id="adm-who">Organizador</b></div><a class="btn sm gold" href="#inicio" style="text-decoration:none">‹ Volver a la app</a></div>
+        <div class="ab-acts" id="adm-acts"><button class="ab-link" id="adm-pw" type="button">🔑 Cambiar contraseña</button><button class="ab-link out" id="adm-out" type="button">🚪 Salir del modo organizador</button></div>
+      </div>
       <nav class="anav" id="adm-nav"></nav>
       <div class="admin-sec" id="adm-dash" data-grp="resumen" data-ord="1"></div>
 
@@ -812,13 +859,12 @@ html.big .tab{font-size:.6rem}
 
       <div class="card admin-sec" data-grp="ajustes" data-ord="2" data-perm="owner">
         <h3>👮 Equipo organizador</h3>
-        <p class="muted small" style="margin-top:6px">Crea cuentas para quienes te ayuden. Solo pueden hacer lo que les marques. <b>Nunca</b> ven las parejas del sorteo ni quién escribió los anónimos o las sugerencias, y no pueden crear otros organizadores.</p>
+        <p class="muted small" style="margin-top:6px">Elige a una persona inscrita y dale permisos: entra con <b>su misma cuenta</b> (su nombre y su PIN) y le aparece el panel. Solo puede hacer lo que le marques. <b>Nunca</b> ve las parejas del sorteo ni quién escribió los anónimos o las sugerencias, y no puede nombrar a otros administradores.</p>
         <form class="stack" id="st-form" style="margin-top:12px">
-          <div class="row"><input class="in" id="st-name" maxlength="40" placeholder="Nombre (ej. Tía Carmen)"><input class="in" id="st-user" maxlength="20" autocapitalize="off" autocomplete="off" placeholder="Usuario (ej. carmen)"></div>
-          <input class="in" id="st-pass" maxlength="40" autocomplete="off" placeholder="Contraseña (mínimo 6)">
+          <label class="field"><span>Persona</span><select class="in" id="st-person" required></select></label>
           <div class="muted small">¿Qué puede manejar?</div>
           <div class="chips" id="st-perms"></div>
-          <button class="btn gold" type="submit">➕ Crear organizador</button>
+          <button class="btn gold" type="submit">➕ Hacer administrador</button>
         </form>
         <div class="stack" id="st-list" style="margin-top:14px"></div>
       </div>
@@ -876,10 +922,10 @@ html.big .tab{font-size:.6rem}
         <form class="stack" id="pa-form">
           <p class="muted small">Para quien no tiene teléfono o necesita ayuda. Dale su PIN para que pueda entrar.</p>
           <div class="row"><input class="in" id="pa-first" maxlength="25" placeholder="Nombre"><input class="in" id="pa-last" maxlength="25" placeholder="Apellido"></div>
-          <input class="in pinin" id="pa-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="PIN ••••">
+          <input class="in pinin" id="pa-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••">
           <button class="btn gold" type="submit">Inscribir</button>
         </form></details>
-        <p class="muted small" style="margin-bottom:10px">💡 Si alguien olvidó su PIN, toca 🔑: la app le genera un PIN temporal para que se lo copies. Conserva su sorteo y todo lo suyo, y al entrar creará su propio PIN.</p>
+        <p class="muted small" style="margin-bottom:10px">💡 ¿Olvidó su PIN? Toca ⋯ junto a su nombre → 🔑 PIN temporal. Conserva todo lo suyo.</p>
         <div id="p-tools"></div>
         <div class="stack" id="p-list"></div>
       </div>
@@ -991,6 +1037,7 @@ html.big .tab{font-size:.6rem}
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <div class="modal" id="csel" style="z-index:95"><div class="sheet" id="csel-s" style="padding:14px"></div></div>
 <div id="toast"></div>
+<div id="datafail" hidden>⚠️ No pudimos cargar los datos <button type="button" class="btn sm gold" id="datafail-btn">Reintentar</button></div>
 <div id="offline" hidden>📡 Sin conexión · lo que hagas se enviará al volver</div>
 <canvas id="fx"></canvas>
 
@@ -1002,7 +1049,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, deleteUser, updatePassword, reauthenticateWithCredential, EmailAuthProvider, setPersistence, browserSessionPersistence, inMemoryPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { initializeAppCheck, ReCaptchaV3Provider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js';
 import { initGames } from './juegos.js';
-import { runTransaction, deleteField, terminate, clearIndexedDbPersistence, getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, writeBatch, increment, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { runTransaction, deleteField, terminate, clearIndexedDbPersistence, getFirestore, getDocsFromServer, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, writeBatch, increment, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 /* ---------- helpers ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -1014,7 +1061,9 @@ const cap = t => t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
 const fmtDate = (s, opts = { weekday: 'long', day: 'numeric', month: 'long' }) => {
   if (!s) return ''; const d = new Date(s.length <= 10 ? s + 'T12:00' : s); return isNaN(d) ? '' : cap(d.toLocaleDateString('es', opts));
 };
-const fmtTime = t => { if (!t) return ''; const [h, m] = t.split(':').map(Number); const d = new Date(); d.setHours(h, m); return d.toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' }); };
+// Hora siempre en formato de 12 horas: 7:30 p. m.
+const hm = d => { let h = d.getHours(); const m = String(d.getMinutes()).padStart(2, '0'), ap = h < 12 ? 'a. m.' : 'p. m.'; h = h % 12 || 12; return `${h}:${m} ${ap}`; };
+const fmtTime = t => { if (!t) return ''; const [h, m] = t.split(':').map(Number); const d = new Date(); d.setHours(h, m); return hm(d); };
 const normName = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9ñ ]/g, ' ').replace(/\s+/g, ' ').trim();
 const titleCase = s => s.trim().replace(/\s+/g, ' ').toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
 const pinPass = pin => `ang#${pin}#elito`; // Firebase pide 6+ caracteres
@@ -1050,7 +1099,8 @@ let db; try { db = initializeFirestore(app, { localCache: persistentLocalCache({
 const adminApp = initializeApp(firebaseConfig, 'organizador'); // sesión separada para el admin
 const adminAuth = getAuth(adminApp);
 setPersistence(adminAuth, browserSessionPersistence).catch(() => { }); // el modo organizador se cierra al cerrar la app (teléfonos prestados)
-const adb = getFirestore(adminApp);
+const adbOwn = getFirestore(adminApp);
+let adb = adbOwn; // el panel usa la sesión de organizador; si quien entra es una persona inscrita con permisos, usa su propia sesión
 const regApp = initializeApp(firebaseConfig, 'registro'); // para que el admin inscriba a otros sin cerrar sesiones
 const regAuth = getAuth(regApp);
 setPersistence(regAuth, inMemoryPersistence).catch(() => { });
@@ -1163,17 +1213,53 @@ document.addEventListener('change', e => { const el = e.target; if (el.classList
 
 /* ---------- live data ---------- */
 const fail = what => e => { console.warn(what, e); };
-onSnapshot(doc(db, 'config', 'event'), s => { S.event = s.exists() ? s.data() : {}; syncQuestions(); syncGuesses(); render(); }, fail('event'));
-onSnapshot(doc(db, 'config', 'draw'), s => { S.drawMeta = s.exists() ? s.data() : null; render(); }, fail('draw'));
-onSnapshot(collection(db, 'participants'), s => {
-  S.participants = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at));
-  S.me = S.uid ? P(S.uid) || null : null; maybeForcePin(); maybeAskNotif();
-  if (S.me && userSubDenied) retryUserSubs();
-  render();
-}, fail('participants'));
-onSnapshot(collection(db, 'activities'), s => {
-  S.activities = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ((a.date || '') + (a.time || '')).localeCompare((b.date || '') + (b.time || ''))); render();
-}, fail('activities'));
+// Datos base (evento, sorteo, personas, actividades). Si una suscripción falla, se vuelve a intentar sola:
+// antes se quedaba muerta hasta recargar y la lista de amigos no aparecía.
+const SYNC = { t0: Date.now(), people: false, wishes: false, tries: 0 };
+const fromServer = s => !s.metadata || s.metadata.fromCache === false;
+let unsubCore = [], coreT = null;
+function coreRetry(what) { return e => { console.warn(what, e); if (SYNC.tries >= 6) { SYNC.people = false; return; } if (coreT) return; /* agotado: el vigilante lo retoma y avisa */ coreT = setTimeout(() => { coreT = null; SYNC.tries++; startCoreSubs(); }, 1500 * (SYNC.tries + 1)); }; }
+function startCoreSubs() {
+  unsubCore.forEach(u => { try { u(); } catch { } }); unsubCore = [];
+  unsubCore.push(onSnapshot(doc(db, 'config', 'event'), s => { S.event = s.exists() ? s.data() : {}; syncQuestions(); syncGuesses(); render(); }, coreRetry('event')));
+  unsubCore.push(onSnapshot(doc(db, 'config', 'draw'), s => { S.drawMeta = s.exists() ? s.data() : null; render(); }, coreRetry('draw')));
+  unsubCore.push(onSnapshot(collection(db, 'participants'), { includeMetadataChanges: true }, s => { // avisa también cuando el servidor confirma
+    if (fromServer(s)) { SYNC.people = true; SYNC.tries = 0; }
+    S.participants = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at));
+    S.me = S.uid ? P(S.uid) || null : null; maybeForcePin(); maybeAskNotif();
+    if (S.me && userSubDenied) retryUserSubs();
+    render();
+  }, coreRetry('participants')));
+  unsubCore.push(onSnapshot(collection(db, 'activities'), s => {
+    S.activities = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ((a.date || '') + (a.time || '')).localeCompare((b.date || '') + (b.time || ''))); render();
+  }, coreRetry('activities')));
+}
+startCoreSubs();
+// Reparación: borra la copia guardada en este teléfono y vuelve a bajar todo (no borra nada del grupo ni cierra tu sesión).
+async function repairData(auto) {
+  try { sessionStorage.setItem('angelito:repaired', String(Date.now())); } catch { }
+  if (!auto) toast('🔄 Recargando los datos…');
+  try { await terminate(db); await clearIndexedDbPersistence(db); } catch (e) { console.warn('repair', e); }
+  try { localStorage.removeItem('angelito:boot:v1'); } catch { }
+  location.reload();
+}
+// Vigilante: si hay internet y el servidor responde pero la lista en vivo no llega, la copia local está trabada → se repara sola (una vez).
+async function healthCheck() {
+  if (navigator.onLine === false || document.hidden || typeof getDocsFromServer !== 'function') return;
+  const stuckPeople = !SYNC.people, stuckWishes = !!S.me && !SYNC.wishes && Date.now() - SYNC.wishesT0 > 9000;
+  if (!stuckPeople && !stuckWishes) { $('#datafail').hidden = true; return; }
+  let ok = false;
+  try { const r = await getDocsFromServer(collection(db, 'participants')); ok = true; if (stuckPeople && !SYNC.people) { S.participants = r.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at)); S.me = S.uid ? P(S.uid) || null : null; render(); } } catch (e) { console.warn('health', e); }
+  if (SYNC.people && (!S.me || SYNC.wishes)) return;
+  let done = 0; try { done = +sessionStorage.getItem('angelito:repaired') || 0; } catch { done = 1; } // sin sessionStorage no se arriesga un bucle de recargas
+  if (ok && !done) return repairData(true);
+  if (ok && stuckWishes && auth.currentUser) { subRetries = 0; startUserSubs(auth.currentUser); }
+  if (ok && stuckPeople) { SYNC.tries = 0; startCoreSubs(); }
+  $('#datafail').hidden = false;
+}
+setTimeout(healthCheck, 9000); setInterval(healthCheck, 20000);
+addEventListener('online', () => setTimeout(healthCheck, 3000));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(healthCheck, 4000); });
 
 
 let unsubUser = [];
@@ -1182,23 +1268,24 @@ let unsubUser = [];
 let userSubDenied = false;
 let subRetryT = null, subRetries = 0;
 const retryUserSubs = () => {
-  if (subRetryT || subRetries >= 4) return;
+  if (subRetryT || subRetries >= 8) return;
   subRetryT = setTimeout(() => {
     subRetryT = null;
     if (!userSubDenied || !S.me || auth.currentUser?.uid !== S.uid) return;
     subRetries++; startUserSubs(auth.currentUser); syncQuestions(true); syncGuesses(true); render();
-  }, 1200);
+  }, 1200 + subRetries * 800);
 };
 const ufail = what => e => {
   console.warn(what, e);
-  if (e?.code !== 'permission-denied') return;
-  userSubDenied = true; if (S.me) retryUserSubs();
+  userSubDenied = true; if (S.me) retryUserSubs(); // cualquier fallo se reintenta (antes solo el de permisos)
 };
 function startUserSubs(user) {
-  unsubUser.forEach(u => u()); unsubUser = []; userSubDenied = false;
-    unsubUser.push(onSnapshot(collection(db, 'wishes'), s => {
+  unsubUser.forEach(u => u()); unsubUser = []; userSubDenied = false; SYNC.wishes = false; SYNC.wishesT0 = Date.now();
+    unsubUser.push(onSnapshot(collection(db, 'wishes'), { includeMetadataChanges: true }, s => {
+      if (fromServer(s)) SYNC.wishes = true;
       S.wishes = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at)); render();
     }, ufail('wishes')));
+    unsubUser.push(onSnapshot(doc(db, 'staff', user.uid), s => { S.myStaff = s.exists() ? s.data() : null; syncAdminMode(); }, () => { S.myStaff = null; syncAdminMode(); }));
     unsubUser.push(onSnapshot(doc(db, 'assignments', user.uid), s => { S.assignment = s.exists() ? s.data() : null; render(); }, ufail('assignment')));
     const rows = s => s.docs.map(d => ({ id: d.id, ...d.data() }));
     unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('uid', '==', user.uid)), s => { S.myPicks = rows(s); render(); }, ufail('myPicks')));
@@ -1233,6 +1320,7 @@ onAuthStateChanged(auth, user => {
   S.giftStatus = {}; S.incoming = null; S.myGuess = null; S.chat = []; if (!S.isAdmin) S.att = {};
   S.authReady = true; setTimeout(maybeForcePin, 0);
   subRetries = 0;
+  if (!user) { S.myStaff = null; syncAdminMode(); }
   if (user) startUserSubs(user);
   syncQuestions(true); syncGuesses(true); render();
   if (user && canNotify() && Notification.permission === 'granted') setTimeout(() => registerPush(), 1500);
@@ -1294,8 +1382,24 @@ function startAdminSubs() {
 
   sub(query(collection(adb, 'chat'), orderBy('ts', 'desc'), limit(120)), s => { if (!S.uid) S.chat = rows(s).reverse(); render(); }, 'chat-adm');
 }
+// Una persona inscrita con permisos administra con su misma cuenta (sin segunda cuenta ni contraseña aparte).
+function syncAdminMode() {
+  if (adminAuth.currentUser) return;            // hay una sesión de organizador aparte: esa manda
+  const had = !!S.staffSelf;
+  if (S.myStaff && S.uid) {
+    const prev = JSON.stringify(S.staff?.perms || null);
+    adb = db; S.staff = S.myStaff; S.isAdmin = true; S.isOwner = false; S.staffSelf = true;
+    if (!had || prev !== JSON.stringify(S.staff.perms || null)) startAdminSubs();
+    if (!had) { let seen = ''; try { seen = localStorage.getItem('angelito:staffHi') || ''; } catch { } if (seen !== S.uid) { try { localStorage.setItem('angelito:staffHi', S.uid); } catch { } toast('🛡️ Ya eres administrador: toca el engranaje de arriba'); } }
+  } else if (had) {
+    S.staffSelf = false; S.staff = null; S.isAdmin = false; adb = adbOwn; startAdminSubs();
+    if (location.hash === '#admin') location.hash = 'inicio';
+  } else return;
+  syncGuesses(true); render();
+}
 onAuthStateChanged(adminAuth, user => {
   if (unsubStaff) { unsubStaff(); unsubStaff = null; }
+  adb = adbOwn; S.staffSelf = false;
   S.isOwner = !!user && (user.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase();
   S.staff = null; S.isAdmin = S.isOwner;
   if (user && !S.isOwner) {
@@ -1307,6 +1411,7 @@ onAuthStateChanged(adminAuth, user => {
     }, () => { S.isAdmin = false; signOut(adminAuth); render(); });
   }
   startAdminSubs(); syncGuesses(true); render();
+  if (!user) syncAdminMode();
 });
 
 /* ---------- toast / modal ---------- */
@@ -1342,7 +1447,7 @@ function openAuth(tab = 'login', then) {
     $$('.seg button', s).forEach(b => b.classList.toggle('on', b.dataset.t === t));
     const body = $('#auth-body', s);
     if (t === 'org') {
-      body.innerHTML = `<div class="stack"><p class="muted small">Para el organizador y su equipo.</p>
+      body.innerHTML = `<div class="stack"><p class="muted small">Solo para el <b>organizador principal</b>. Si te dieron permisos de administrador, entra normal con tu nombre y tu PIN: el panel te aparece solo.</p>
         <label class="field"><span>Usuario</span><input class="in" id="o-user" autocapitalize="off" autocomplete="username" placeholder="admin"></label>
         <label class="field"><span>Contraseña</span><input class="in" id="o-pass" type="password" autocomplete="current-password"></label></div>
         <div class="err" id="o-err"></div>
@@ -1514,6 +1619,15 @@ async function resetPin(pid, tempPin) {
   if (S.drawMeta?.ids?.includes(pid)) put(R('config', 'draw'), { ...S.drawMeta, ids: S.drawMeta.ids.map(x => x === pid ? nid : x) });
   S.activities.filter(a => Array.isArray(a.results) && a.results.some(r => r.key === pid))
     .forEach(a => put(R('activities', a.id), { results: a.results.map(r => r.key === pid ? { ...r, key: nid } : r) }));
+  // permisos de administrador, puntos de los juegos y mesas en las que está sentada
+  { const st = await getDoc(R('staff', pid)).catch(() => null); if (st && st.exists()) { put(R('staff', nid), { ...st.data(), pid: nid }); del(R('staff', pid)); } }
+  (await q('gameWins', 'uid', pid)).forEach(d => { put(R('gameWins', d.id.endsWith('_' + pid) ? d.id.slice(0, -pid.length) + nid : `${d.data().gid}_${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
+  for (const d of (await getDocs(query(collection(adb, 'games'), where('players', 'array-contains', pid)))).docs) {
+    const g = d.data(), sw = x => x === pid ? nid : x;
+    put(d.ref, { ...g, players: g.players.map(sw), host: sw(g.host), winners: (g.winners || []).map(sw) });
+    const h = await getDoc(doc(adb, 'games', d.id, 'hands', pid)).catch(() => null);
+    if (h && h.exists()) { put(doc(adb, 'games', d.id, 'hands', nid), h.data()); del(h.ref); }
+  }
   // escribir en tandas (los set primero para no perder nada si se corta)
   ops.sort((a, b) => (a[0] === 'del') - (b[0] === 'del'));
   for (let i = 0; i < ops.length; i += 400) {
@@ -1636,11 +1750,11 @@ function userMenu() {
   const s = openModal(`<div class="who-card"><button class="av" data-a="icon" title="Cambiar mi ícono" style="position:relative">${esc(S.me.emoji)}<span style="position:absolute;right:-4px;bottom:-4px;font-size:12px;background:var(--gold);border-radius:50%;width:20px;height:20px;display:grid;place-items:center">✏️</span></button><div><h3 style="margin:0">${esc(S.me.name)}</h3><div class="muted small">Participante del angelito</div></div></div>
     <div class="mlist">
       ${mod('perfil') ? row('prof', '👕', 'Mi perfil de gustos', 'Tallas, colores y lo que te gusta', `<span class="cnt ${pd < PROF.length ? 'no' : 'ok'}">${pd}/${PROF.length}</span>`) : ''}
-      ${row('icon', '😀', 'Cambiar mi ícono', '')}
+      ${S.isAdmin ? row('admin', '🛡️', 'Panel de control', S.isOwner ? 'Organizador principal' : 'Tienes permisos de administrador') : ''}
       ${row('notif', '🔔', 'Notificaciones', 'Elige qué avisos recibir')}
       ${isInstalled() ? '' : row('install', '📲', 'Instalar la app', 'Ábrela desde tu pantalla de inicio')}
-      ${row('tour', '📘', 'Guía rápida', 'Cómo funciona todo')}
-      ${S.isAdmin ? '' : row('org', '🛡️', 'Soy organizador', '')}
+      ${row('help', '❓', 'Ayuda', 'Guía, preguntas frecuentes y soluciones')}
+      ${S.isAdmin ? '' : row('org', '🔐', 'Entrar como organizador principal', '')}
     </div>
     <div class="actions"><button class="btn ghost" data-a="out">Cerrar sesión</button><button class="btn gold" data-a="close">Listo</button></div>`);
   s.onclick = async e => {
@@ -1648,12 +1762,45 @@ function userMenu() {
     if (a === 'org') return openAuth('org');
     if (a === 'icon') return openIconPicker();
     if (a === 'prof') return openProfile();
-    if (a === 'tour') return openTour(true);
+    if (a === 'help') return openHelp();
+    if (a === 'admin') { location.hash = 'admin'; return; }
     if (a === 'notif') return openNotifPrefs();
     if (a === 'install') return installApp();
     if (a === 'out') return fullLogout();
   };
 }
+
+/* ---------- ❓ ayuda ---------- */
+function openHelp() {
+  const qa = (q, a) => `<details class="faq"><summary>${q}</summary><div>${a}</div></details>`;
+  const s = openModal(`<h3>❓ Ayuda</h3><p class="muted small">Toca una pregunta para ver la respuesta.</p>
+    <div class="stack" style="gap:8px;margin-top:12px">
+      ${qa('🎡 ¿Cómo sé quién me tocó?', 'Cuando el organizador haga el sorteo, entra a <b>Ruleta</b> y gírala. Solo tú ves tu resultado: guarda el secreto 🤫.')}
+      ${qa('🎁 ¿Para qué es la lista de deseos?', 'En <b>Deseos</b> escribe ideas de lo que te gustaría recibir (puedes poner foto, enlace y precio). Tu angelito la verá. También llena <b>Mi perfil de gustos</b> con tus tallas y colores.')}
+      ${qa('🔐 Olvidé mi PIN', 'Pídele al organizador un <b>PIN temporal</b>. Entras con ese y la app te pide crear uno nuevo. No pierdes nada de lo tuyo.')}
+      ${qa('👻 No me aparecen las personas o los datos', 'Revisa que tengas internet y toca <b>Recargar datos</b> aquí abajo. Eso vuelve a bajar todo; no borra nada ni cierra tu sesión.')}
+      ${qa('🔔 No me llegan las notificaciones', 'Entra a tu menú → <b>Notificaciones</b> y actívalas. En iPhone primero hay que <b>instalar la app</b> en la pantalla de inicio. Si las bloqueaste, actívalas en los ajustes del teléfono.')}
+      ${qa('📲 ¿Cómo instalo la app?', 'Toca el ícono de descarga arriba, o en el menú del navegador elige <b>Instalar app</b> / <b>Agregar a pantalla de inicio</b>.')}
+      ${qa('🎮 ¿Cómo se juega?', 'En <b>Juegos</b> elige un juego, crea la mesa e invita con el enlace (o juega contra 🤖). Cada turno tiene tiempo: 1 minuto en dominó y 30 segundos en los demás; si se acaba, la app juega por ti. En la siguiente partida sale quien ganó.')}
+      ${qa('💌 ¿Qué es el buzón anónimo?', 'Está en <b>Actividades</b>. Escribes mensajes sin que se sepa quién fuiste; se abren todos juntos el día que diga el organizador.')}
+      ${qa('🛡️ Soy administrador, ¿dónde está el panel?', 'Si el organizador te dio permisos, toca el <b>engranaje</b> de arriba o tu menú → <b>Panel de control</b>. Entras con tu misma cuenta.')}
+    </div>
+    <div class="mlist" style="margin-top:14px">
+      <button class="mrow" data-a="tour"><span class="me-e">📘</span><span class="grow"><b>Ver la guía paso a paso</b></span><span class="chev">›</span></button>
+      <button class="mrow" data-a="reload"><span class="me-e">🔄</span><span class="grow"><b>Recargar datos</b><span class="muted small">Si algo no aparece o se ve viejo</span></span><span class="chev">›</span></button>
+      ${S.me && mod('chat') ? '<button class="mrow" data-a="chat"><span class="me-e">💬</span><span class="grow"><b>Preguntar en el chat del grupo</b></span><span class="chev">›</span></button>' : ''}
+    </div>
+    <div class="actions"><button class="btn gold" data-a="close">Listo</button></div>`);
+  s.onclick = e => {
+    const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return; closeModal();
+    if (a === 'tour') return openTour(true);
+    if (a === 'reload') return repairData();
+    if (a === 'chat') { location.hash = 'chat'; }
+  };
+}
+// Toda la fila del interruptor es táctil, no solo la bolita.
+document.addEventListener('click', e => { const sw = e.target.closest('.switch'); if (!sw || e.target.closest('button,a,input,select,label')) return; sw.querySelector('.tg')?.click(); });
+document.addEventListener('click', e => { if (e.target.closest('[data-help]')) { e.preventDefault(); openHelp(); } });
 
 /* ---------- routing ---------- */
 const VIEWS = ['inicio', 'ruleta', 'deseos', 'actividades', 'anonimos', 'buzon', 'juegos', 'admin'];
@@ -1676,7 +1823,7 @@ function route() {
   document.body.classList.toggle('adm-view', v === 'admin');
   $('#gear').style.background = v === 'admin' ? 'var(--cream)' : '';
   if (v === 'ruleta') requestAnimationFrame(drawWheel);
-  if (v === 'juegos') { try { GAMES.render(); } catch (e) { console.error(e); } }
+  if (v === 'juegos') { try { GAMES.render(); } catch (e) { console.error(e); } } else { try { GAMES.leaveView(); } catch { } }
   const same = curView === v; curView = v;
   document.body.classList.toggle('chat-on', v === 'buzon' && S.buz === 'c');
   if (!same) requestAnimationFrame(() => { scrollTo({ top: v === 'actividad' || (v === 'buzon' && S.buz === 'c') || (v === 'juegos' && location.hash.includes('juego-')) ? 0 : (tabScroll[v] || 0) }); fitChat(); });
@@ -1735,7 +1882,7 @@ function renderHome() {
   $('#h-eyebrow').textContent = c.eventDate ? 'Intercambio · ' + fmtDate(c.eventDate, { day: 'numeric', month: 'long', year: 'numeric' }) : 'Angelito de Navidad';
   const info = [
     ['📅', 'Fecha', c.eventDate ? fmtDate(c.eventDate) : 'Por definir'],
-    ['⏰', 'Hora', c.eventDate ? new Date(c.eventDate).toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' }) : 'Por definir'],
+    ['⏰', 'Hora', c.eventDate ? hm(new Date(c.eventDate)) : 'Por definir'],
     ['📍', 'Lugar', c.place || 'Por definir'],
     ['💰', 'Presupuesto', c.budget || 'Por definir'],
   ];
@@ -1818,7 +1965,7 @@ function renderNext() {
   const c = S.event, today = todayStr(), evDay = (c.eventDate || '').slice(0, 10);
   const A = S.assignment, ready = mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid);
   let h = '';
-  if (evDay && evDay === today) h = `<div class="card nextc"><div class="nx-e">🎉</div><div class="grow"><b>¡Hoy es el angelito!</b><div class="muted small">${c.place ? '📍 ' + esc(c.place) + ' · ' : ''}${esc(new Date(c.eventDate).toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' }))}</div></div><a class="btn sm gold" href="#actividades">Ver agenda</a></div>`;
+  if (evDay && evDay === today) h = `<div class="card nextc"><div class="nx-e">🎉</div><div class="grow"><b>¡Hoy es el angelito!</b><div class="muted small">${c.place ? '📍 ' + esc(c.place) + ' · ' : ''}${esc(hm(new Date(c.eventDate)))}</div></div><a class="btn sm gold" href="#actividades">Ver agenda</a></div>`;
   else if (ready && !A?.revealed) h = `<a class="card nextc hot" href="#ruleta"><div class="nx-e spin">🎡</div><div class="grow"><b>¡Ya puedes girar la ruleta!</b><div class="muted small">Descubre a quién le vas a regalar.</div></div><span class="btn sm gold">Girar ahora</span></a>`;
   else if (ready && A?.revealed && A.recipient && P(A.recipient)) {
     const R = P(A.recipient);
@@ -1990,10 +2137,10 @@ function renderWishes() {
       <div class="t">${esc(w.text)}</div>
       ${w.hasImg ? (S.wishImgs[w.id] ? `<button class="wimg" data-wimg="${esc(w.id)}" style="background:url('${S.wishImgs[w.id]}') center/cover" aria-label="Ver foto"></button>` : '<div class="wimg ld"></div>') : ''}
       ${w.price ? `<span class="badge">≈ ${esc(w.price)}</span>` : ''}
-      ${mine ? `<div><button class="btn sm ghost" data-wtop="${esc(w.id)}" style="padding:6px 0;margin-top:4px">${w.top ? '☆ Quitar favorito' : '⭐ Es el que más quiero'}</button></div>` : ''}
+      ${mine ? `<div><button class="btn sm ghost" data-wtop="${esc(w.id)}" style="padding:10px 0;margin-top:4px">${w.top ? '☆ Quitar favorito' : '⭐ Es el que más quiero'}</button></div>` : ''}
       ${isRec ? `<div><button class="btn sm ${S.wishPick?.wishId === w.id ? 'gold' : ''}" data-wpick="${esc(w.id)}" style="margin-top:8px">${S.wishPick?.wishId === w.id ? '🛒 Apartado por ti (solo tú lo ves)' : '🛒 Este lo compro yo'}</button></div>` : ''}
       ${/^https?:\/\//i.test(w.link || '') ? `<div><a class="link" href="${esc(w.link)}" target="_blank" rel="noopener">🔗 Ver referencia</a></div>` : ''}
-    </div>${(w.uid === S.uid || can('moderar') || can('participantes')) ? `<button class="x" data-del="${esc(w.id)}" data-own="${w.uid === S.uid ? 1 : ''}" aria-label="Borrar">✕</button>` : ''}</div>`).join('')
+    </div>${w.uid === S.uid ? `<button class="x" data-del="${esc(w.id)}" data-own="1" aria-label="Borrar">✕</button>` : ''}</div>`).join('')
     : `<div class="card empty"><span class="e">🌟</span>${mine ? 'Tu lista está vacía. ¡Agrega lo que te gustaría!' : esc(pName(S.wishPid)) + ' todavía no ha pedido nada.'}</div>`}</div>
   ${mine ? `<form class="card stack" id="w-form" style="margin-top:16px">
     <b>Agregar un deseo</b>
@@ -2304,7 +2451,7 @@ function fitChat() {
   if (!document.body.classList.contains('chat-on')) return;
   const l = $('#c-list'), d = $('#c-dock'); if (!l || !d || !l.offsetParent) return;
   const vh = visualViewport?.height || innerHeight, top = l.getBoundingClientRect().top + scrollY;
-  const h = Math.max(170, Math.round(vh - d.getBoundingClientRect().height - (document.body.classList.contains('kb') ? 16 : 100) - top - 8));
+  const h = Math.max(96, Math.round(vh - d.getBoundingClientRect().height - (document.body.classList.contains('kb') ? 16 : 100) - top - 8));
   l.style.height = h + 'px';
 }
 addEventListener('resize', () => requestAnimationFrame(fitChat));
@@ -2329,7 +2476,7 @@ function renderChat() {
     const sep = day !== last ? `<div class="daysep">${esc(cap(day))}</div>` : ''; last = day;
     const me = m.uid === S.uid;
     const tagMe = (m.mentions || []).includes(S.uid);
-    return `${sep}<div class="msg ${me ? 'me' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}<div class="mt">${mentionHTML(m)}</div>${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${d.toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' })}</div></div></div>`;
+    return `${sep}<div class="msg ${me ? 'me' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}<div class="mt">${mentionHTML(m)}</div>${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${hm(d)}</div></div></div>`;
   }).join('') : `<div class="empty" style="margin:auto"><span class="e">💬</span>Nadie ha escrito todavía.<br>¡Rompe el hielo! Toca 🎲 para una idea.</div>`;
   if (near || S.chatStick) { S.chatStick = false; l.scrollTop = l.scrollHeight; }
 }
@@ -2388,7 +2535,7 @@ function diceHint() {
   const show = n < 3 && !!S.me; $('#c-dicehint').hidden = true; $('#c-dice').classList.toggle('glow', n < 3);
 }
 $('#c-text').addEventListener('input', () => diceHint());
-setInterval(() => { const i = $('#c-text'); if (i && !i.value && document.activeElement !== i) { const l = prompts(); i.placeholder = 'Escribe o toca 🎲 para una idea'; } }, 7000);
+// (el texto de ayuda del chat es fijo: "Escribe un mensaje…")
 $('#c-form').addEventListener('submit', async e => {
   e.preventDefault(); const i = $('#c-text'), text = i.value.trim(); if (!text || !S.me) return;
   i.value = '';
@@ -2419,7 +2566,7 @@ $('#c-clear').addEventListener('click', async () => {
 });
 
 /* ---------- perfil de gustos ---------- */
-const PROF = [['shirt', '👕', 'Talla de camisa/blusa', 'M'], ['pants', '👖', 'Talla de pantalón', '32 / 8'], ['shoe', '👟', 'Talla de zapatos', '9'],
+const PROF = [['shirt', '👕', 'Talla de camisa/blusa', 'M'], ['pants', '👗', 'Talla de pantalón/falda', '32 / 8'], ['shoe', '👟', 'Talla de zapatos', '9'],
   ['colors', '🎨', 'Colores favoritos', 'Azul, verde'], ['likes', '💛', 'Me gusta', 'Café, libros, el béisbol…'],
   ['allergy', '⚠️', 'Alergias o cosas que no puedo usar', 'Perfumes fuertes, nueces…'], ['nogift', '🙅', 'Por favor no me regales', 'Tazas, medias…']];
 const profDone = (uid = S.uid) => { const pr = S.profiles?.[uid] || {}; return PROF.filter(([k]) => String(pr[k] || '').trim()).length; };
@@ -2694,6 +2841,7 @@ function applyAdmGroups() {
   secs.forEach(el => el.classList.toggle('gh', el.dataset.grp !== S.admGrp));
 }
 function admGo(g) {
+  if (cfgDirty && S.admGrp === 'evento' && g !== 'evento') toast('⚠️ Tienes cambios del evento sin guardar');
   S.admGrp = g; try { sessionStorage.setItem('angelito:admGrp', g); } catch { }
   applyAdmGroups(); renderAdmDash();
   $('#adm-nav [data-ag].on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
@@ -2711,7 +2859,7 @@ function renderAdmDash() {
     [(c.rules || []).length > 0, '📜 Escribe las reglas', 'evento', can('evento') && mod('reglas')],
     [S.activities.length > 0, '📅 Crea las actividades', 'actividades', can('actividades')],
     [ps.length >= 3, '👥 Que se inscriban al menos 3 personas', 'personas', can('participantes')],
-    [drawn, '🎡 Genera el sorteo', 'personas', S.isOwner],
+    [drawn, S.drawMeta && !drawReady() ? '🎡 Vuelve a generar el sorteo (cambió la lista)' : '🎡 Genera el sorteo', 'personas', S.isOwner],
     [!c.contribAmount || (sm.going > 0 && sm.paid >= sm.going), '💵 Recibe los aportes', 'personas', can('aportes') && !!c.contribAmount],
   ].filter(x => x[3]);
   const done = steps.filter(x => x[0]).length;
@@ -2740,7 +2888,7 @@ function renderAdmin() {
   if (S.isAdmin) { lg.innerHTML = ''; }
   else if (!$('#adm-form')) {
     lg.innerHTML = `<form class="card stack" id="adm-form" style="max-width:420px">
-      <div class="lockcard" style="padding:6px 0 0"><span class="e">🛡️</span><b>Área del organizador</b><p class="muted small">Entra con tu usuario y contraseña de organizador.</p></div>
+      <div class="lockcard" style="padding:6px 0 0"><span class="e">🛡️</span><b>Área del organizador</b><p class="muted small">Entra con el usuario y la contraseña del organizador principal. Los administradores entran con su nombre y su PIN, como siempre.</p></div>
       <label class="field"><span>Usuario</span><input class="in" id="adm-user" autocapitalize="off" autocomplete="username" placeholder="admin"></label>
       <label class="field"><span>Contraseña</span><input class="in" id="adm-pass" type="password" autocomplete="current-password" required></label>
       <div class="err" id="adm-err"></div>
@@ -2749,9 +2897,12 @@ function renderAdmin() {
   if (!S.isAdmin) return;
   $$('#adm-panel [data-perm]').forEach(el => { el.style.display = (el.dataset.perm === 'owner' ? S.isOwner : can(el.dataset.perm)) ? '' : 'none'; });
   const rr = $('#d-reveal-row'); if (rr) rr.style.display = S.drawMeta ? '' : 'none';
-  { const sec = $('#d-gen')?.closest('.admin-sec'), want = S.drawMeta ? '3' : '0'; if (sec && sec.dataset.ord !== want) { sec.dataset.ord = want; sortAdm(); } } // sin sorteo, 'Generar sorteo' va primero
+  { const sec = $('#d-gen')?.closest('.admin-sec'), want = (S.drawMeta && drawReady()) ? '3' : '0'; if (sec && sec.dataset.ord !== want) { sec.dataset.ord = want; sortAdm(); } } // sin sorteo, 'Generar sorteo' va primero
   applyAdmGroups(); renderAdmDash();
-  $('#adm-who').textContent = S.isOwner ? '🔓 Modo organizador principal' : `🛡️ ${S.staff?.name || 'Organizador'} · ayudante`;
+  $('#adm-who').textContent = S.isOwner ? 'Organizador principal' : S.staffSelf && S.me ? S.me.name : S.staff?.name || 'Organizador';
+  $('#adm-role').textContent = S.isOwner ? 'Panel de control · acceso total' : 'Panel de control · administrador';
+  $('#adm-ic').textContent = S.isOwner ? '👑' : S.staffSelf && S.me ? (S.me.emoji || '🛡️') : '🛡️';
+  $('#adm-acts').hidden = !!S.staffSelf; // quien administra con su propia cuenta no tiene otra contraseña ni otra sesión que cerrar
   renderStaff();
   const f = $('#cfg-form');
   if (!cfgDirty) for (const k of ['eventName', 'subtitle', 'eventDate', 'place', 'mapsUrl', 'budget', 'dress', 'revealDate', 'notes', 'contribAmount', 'contribInfo', 'rsvpDeadline']) f.elements[k].value = S.event[k] || '';
@@ -2821,6 +2972,10 @@ $('#cfg-form').addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target, o = {};
   for (const k of ['eventName', 'subtitle', 'eventDate', 'place', 'mapsUrl', 'budget', 'dress', 'revealDate', 'notes', 'contribAmount', 'contribInfo', 'rsvpDeadline']) o[k] = f.elements[k].value.trim();
   o.eventAt = o.eventDate ? Timestamp.fromDate(new Date(o.eventDate)) : null;
+  if (!o.eventName) return toast('Ponle nombre al evento');
+  if (o.mapsUrl && !/^https:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(o.mapsUrl)) return toast('El enlace debe ser de Google Maps (https://maps.app.goo.gl/…)');
+  if (o.rsvpDeadline && o.eventDate && o.rsvpDeadline > o.eventDate.slice(0, 10)) return toast('La fecha para confirmar debe ser antes del evento');
+  if (o.eventDate && new Date(o.eventDate) < new Date() && !(await confirmBox('Esa fecha ya pasó', '¿Guardar de todos modos?', 'Guardar'))) return;
   if (S.isOwner) o.revealAt = o.revealDate ? Timestamp.fromDate(new Date(o.revealDate + 'T00:00')) : (o.eventDate ? Timestamp.fromDate(new Date(o.eventDate.slice(0, 10) + 'T00:00')) : null);
   else delete o.revealDate;
   if (await saveEvent(o)) { cfgDirty = false; toast('Evento guardado 🎄'); }
@@ -2840,6 +2995,7 @@ $('#pa-form').addEventListener('submit', async e => {
   const first = titleCase($('#pa-first').value), last = titleCase($('#pa-last').value), pin = $('#pa-pin').value, btn = e.target.querySelector('button[type=submit]');
   if (!first || !last) return toast('Escribe nombre y apellido');
   if (!/^\d{4}$/.test(pin)) return toast('El PIN debe tener 4 números');
+  if (S.drawMeta && !(await confirmBox('El sorteo ya está hecho', 'Si inscribes a alguien ahora habrá que volver a sortear y todos tendrán que girar de nuevo.', 'Inscribir igual'))) return;
   busy(btn, true);
   try {
     const r = await registerPerson(first, last, pin, true);
@@ -2891,34 +3047,34 @@ let stPerms = { evento: true, actividades: true };
 function renderStaff() {
   if (!S.isOwner) return;
   $('#st-perms').innerHTML = Object.entries(PERMS).map(([k, [e, l]]) => `<button type="button" class="chip perm ${stPerms[k] ? 'on' : ''}" data-np="${k}">${e} ${l}</button>`).join('');
-  $('#st-list').innerHTML = (S.staffList || []).length ? S.staffList.map(st => `<div class="staff">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><b>🛡️ ${esc(st.name)}</b> <span class="muted small">usuario: <b>${esc(st.username)}</b></span></div><button class="x" data-stdel="${esc(st.id)}" aria-label="Quitar">✕</button></div>
-      <div class="chips" style="margin-top:10px">${Object.entries(PERMS).map(([k, [e, l]]) => `<button type="button" class="chip perm ${st.perms?.[k] ? 'on' : ''}" data-sp="${k}" data-sid="${esc(st.id)}">${e} ${l}</button>`).join('')}</div></div>`).join('')
-    : '<p class="muted small">Todavía no hay ayudantes.</p>';
+  const sel = $('#st-person'), taken = new Set((S.staffList || []).map(x => x.id));
+  const opts = '<option value="">Elige a alguien…</option>' + S.participants.filter(p => !taken.has(p.id)).sort((a, b) => a.name.localeCompare(b.name)).map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  if (sel.dataset.sig !== opts) { const v = sel.value; sel.innerHTML = opts; sel.dataset.sig = opts; if (v && !taken.has(v)) sel.value = v; }
+  $('#st-list').innerHTML = (S.staffList || []).length ? S.staffList.map(st => { const p = P(st.id); return `<div class="staff">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="min-width:0"><b>${p ? esc(p.emoji || '🙂') : '🛡️'} ${esc(p ? p.name : st.name)}</b><div class="muted small">${p ? 'Entra con su cuenta de siempre' : st.username ? `Cuenta aparte · usuario: <b>${esc(st.username)}</b>` : '⚠️ Ya no está inscrita'}</div></div><button class="x" data-stdel="${esc(st.id)}" aria-label="Quitar">✕</button></div>
+      <div class="chips" style="margin-top:10px">${Object.entries(PERMS).map(([k, [e, l]]) => `<button type="button" class="chip perm ${st.perms?.[k] ? 'on' : ''}" data-sp="${k}" data-sid="${esc(st.id)}">${e} ${l}</button>`).join('')}</div></div>`; }).join('')
+    : '<p class="muted small">Todavía no hay administradores. El único es el organizador principal.</p>';
 }
 $('#st-perms').addEventListener('click', e => { const b = e.target.closest('[data-np]'); if (!b) return; stPerms[b.dataset.np] = !stPerms[b.dataset.np]; renderStaff(); });
 $('#st-form').addEventListener('submit', async e => {
   e.preventDefault();
-  const name = $('#st-name').value.trim(), user = $('#st-user').value.trim().toLowerCase(), pass = $('#st-pass').value, btn = e.target.querySelector('button[type=submit]');
-  if (!name) return toast('Escribe el nombre');
-  if (!/^[a-z0-9._-]{3,20}$/.test(user) || user === 'admin') return toast('Usuario: 3 a 20 letras o números, sin espacios');
-  if (pass.length < 6) return toast('La contraseña debe tener al menos 6 caracteres');
+  const pid = $('#st-person').value, p = P(pid), btn = e.target.querySelector('button[type=submit]');
+  if (!p) return toast('Elige a la persona');
   if (!Object.values(stPerms).some(Boolean)) return toast('Marca al menos una responsabilidad');
+  if (!(await confirmBox(`¿Hacer administrador a ${p.name}?`, 'Podrá manejar lo que marcaste entrando con su propio PIN. Puedes quitarle el acceso cuando quieras.', 'Sí, darle acceso'))) return;
   busy(btn, true);
   try {
-    const cred = await createUserWithEmailAndPassword(regAuth, staffEmail(user), pass);
-    try { await setDoc(doc(adb, 'staff', cred.user.uid), { name, username: user, email: staffEmail(user), perms: { ...stPerms }, at: serverTimestamp() }); }
-    finally { try { await signOut(regAuth); } catch { } }
-    $('#st-name').value = $('#st-user').value = $('#st-pass').value = '';
-    toast(`✅ ${name} ya puede entrar con usuario "${user}"`);
-  } catch (err) { toast(err?.code?.includes('email-already-in-use') ? 'Ese usuario ya existe, elige otro' : authErr(err)); }
-  busy(btn, false, '➕ Crear organizador');
+    await setDoc(doc(adb, 'staff', pid), { name: p.name, pid, perms: { ...stPerms }, at: serverTimestamp() });
+    $('#st-person').value = '';
+    toast(`✅ ${shortName(p)} ya es administrador: le aparece el panel en su app`);
+  } catch (err) { toast(authErr(err)); }
+  busy(btn, false, '➕ Hacer administrador');
 });
 $('#st-list').addEventListener('click', async e => {
   const t = e.target.closest('[data-sp]'), d = e.target.closest('[data-stdel]');
   try {
-    if (t) { const st = S.staffList.find(x => x.id === t.dataset.sid); const perms = { ...(st.perms || {}) }; perms[t.dataset.sp] = !perms[t.dataset.sp]; await setDoc(doc(adb, 'staff', st.id), { perms }, { merge: true }); }
-    if (d) { const st = S.staffList.find(x => x.id === d.dataset.stdel); if (!(await confirmBox(`¿Quitar a ${st?.name}?`, 'Ya no podrá entrar como organizador.', 'Quitar'))) return; const w = writeBatch(adb); w.delete(doc(adb, 'staff', d.dataset.stdel)); await w.commit(); toast('Acceso retirado'); }
+    if (t) { const st = S.staffList.find(x => x.id === t.dataset.sid); const perms = { ...(st.perms || {}) }; perms[t.dataset.sp] = !perms[t.dataset.sp]; await setDoc(doc(adb, 'staff', st.id), { perms }, { merge: true }); toast(perms[t.dataset.sp] ? '✅ Permiso dado' : 'Permiso quitado'); }
+    if (d) { const st = S.staffList.find(x => x.id === d.dataset.stdel); if (!(await confirmBox(`¿Quitar a ${P(st?.id)?.name || st?.name}?`, 'Ya no podrá entrar al panel. Sigue siendo participante.', 'Quitar'))) return; const w = writeBatch(adb); w.delete(doc(adb, 'staff', d.dataset.stdel)); await w.commit(); toast('Acceso retirado'); }
   } catch (err) { toast(authErr(err)); }
 });
 const DEFAULT_RULES = [
@@ -2951,15 +3107,15 @@ $('#r-list').addEventListener('click', async e => {
   await saveEvent({ rules: r });
 });
 $('#reg-tg').addEventListener('click', async () => { const v = !regOpen(); if (await saveEvent({ registrationOpen: v })) toast(v ? 'Inscripciones abiertas' : 'Inscripciones cerradas 🔒'); });
-$('#q-now').addEventListener('click', async () => { const v = !S.event.revealNow; if (await saveEvent({ revealNow: v })) toast(v ? 'Buzón abierto 🎉' : 'Buzón cerrado de nuevo 🔒'); });
+$('#q-now').addEventListener('click', async () => { const v = !S.event.revealNow; if (v && !(await confirmBox('¿Abrir el buzón ahora?', `Todos verán los ${S.qCount || 0} anónimos antes de la fecha. Aunque lo cierres después, ya los habrán visto.`, 'Abrir ahora'))) return; if (await saveEvent({ revealNow: v })) toast(v ? 'Buzón abierto 🎉' : 'Buzón cerrado de nuevo 🔒'); });
 $('#p-list').addEventListener('click', async e => {
   const b = e.target.closest('[data-rm]'); if (!b) return; const id = b.dataset.rm;
-  const msg = S.drawMeta ? 'Se borrarán su registro y su lista. El sorteo quedará inválido y habrá que volver a sortear.' : 'Se borrarán su registro, su lista de deseos y su asistencia. Si solo olvidó su PIN, mejor usa 🔑 (conserva todo lo suyo).';
+  const msg = S.drawMeta ? 'Se borrarán su registro y su lista. El sorteo quedará inválido y habrá que volver a sortear.' : 'Se borrarán su registro, su lista de deseos y su asistencia. Si solo olvidó su PIN, mejor toca ⋯ → 🔑 PIN temporal (conserva todo lo suyo).';
   if (!(await confirmBox(`¿Quitar a ${pName(id)}?`, msg, 'Quitar'))) return;
   try {
     const b2 = writeBatch(adb);
     const pp = P(id);
-    b2.delete(doc(adb, 'participants', id)); if (S.isOwner) b2.delete(doc(adb, 'assignments', id));
+    b2.delete(doc(adb, 'participants', id)); if (S.isOwner) { b2.delete(doc(adb, 'assignments', id)); b2.delete(doc(adb, 'staff', id)); }
     if (pp?.nameKey) b2.delete(doc(adb, 'names', pp.nameKey));
     b2.set(doc(adb, 'banned', id), { at: serverTimestamp() });
     (await getDocs(query(collection(adb, 'wishes'), where('uid', '==', id)))).forEach(d => b2.delete(d.ref));
@@ -3047,7 +3203,8 @@ aForm.addEventListener('submit', async e => {
         (await getDocs(query(collection(adb, 'activityPicks'), where('act', '==', id)))).forEach(d => b.set(d.ref, { public: !o.secret }, { merge: true }));
       await b.commit(); toast('Actividad actualizada ✏️');
     } else { await setDoc(doc(collection(adb, 'activities')), { ...o, at: serverTimestamp() }); toast('Actividad agregada 📅'); }
-    fillActForm({}, false);
+    fillActForm({}, false); $('#a-fold').open = false;
+    setTimeout(() => $('#a-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   } catch (err) { toast(authErr(err)); }
 });
 async function assignAct(a) {
@@ -3402,7 +3559,7 @@ $('#n-form').addEventListener('submit', async e => {
 $('#n-list').addEventListener('click', async e => {
   const b = e.target.closest('[data-ndel]'); if (!b) return;
   if (!(await confirmBox('¿Borrar este aviso?', 'Desaparece para todos.', 'Borrar'))) return;
-  try { const w = writeBatch(adb); w.delete(doc(adb, 'notices', b.dataset.ndel)); await w.commit(); } catch (err) { toast(authErr(err)); }
+  try { const w = writeBatch(adb); w.delete(doc(adb, 'notices', b.dataset.ndel)); await w.commit(); toast('Aviso borrado'); } catch (err) { toast(authErr(err)); }
 });
 $('#att-remind').addEventListener('click', async () => {
   const c = S.event; const n = attSummary(); const pend = n.going - n.paid;
@@ -3497,7 +3654,15 @@ async function openParty() {
   try { ag = (await getDocs(collection(adb, 'angelGuess'))).docs.map(d => ({ id: d.id, ...d.data() })); } catch { }
   let authors = {}; try { (await getDocs(collection(adb, 'questionAuthors'))).forEach(d => { authors[d.id] = d.data().uid; }); } catch { }
   const T = await loadTrivia();
-  const fresh = await confirmBox('📺 ¿Empezar el modo fiesta desde cero?', 'Sí: borra respuestas de trivia y votos de anónimos de ensayos anteriores. No: continúa donde quedaste (por ejemplo, si se cerró el navegador).', 'Sí, desde cero');
+  const choice = await new Promise(res => {
+    const s2 = openModal(`<h3>📺 Abrir el modo fiesta</h3><p class="muted">Al abrirlo ya nadie podrá mandar pistas ni cambiar su sospecha.</p>
+      <div class="stack" style="margin-top:14px"><button class="btn gold" data-a="cont">▶️ Continuar donde quedé</button>
+      <button class="btn" data-a="fresh">🧹 Empezar desde cero <span class="muted small" style="display:block;font-weight:400">Borra trivia y votos de ensayos</span></button>
+      <button class="btn ghost" data-a="no">Cancelar</button></div>`);
+    s2.onclick = ev => { const a = ev.target.closest('[data-a]')?.dataset.a; if (a) { closeModal(); res(a); } };
+  });
+  if (choice === 'no') return;
+  const fresh = choice === 'fresh';
   try {
     const ops = [];
     if (fresh) for (const c of ['triviaAns', 'anonVotes']) (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
@@ -3709,7 +3874,7 @@ async function makeInvite() {
   let y = 560 + Math.min(lines.length, 3) * (fs + 6) + 40;
   x.font = '600 44px "DM Sans", sans-serif'; x.fillStyle = '#fff';
   const start = c.eventAt ? new Date(ms(c.eventAt)) : c.eventDate ? new Date(c.eventDate) : null;
-  if (start && !isNaN(start)) { x.fillText('📅 ' + cap(start.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })), W / 2 - 40, y); y += 70; x.fillText('⏰ ' + start.toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' }), W / 2 - 40, y); y += 70; }
+  if (start && !isNaN(start)) { x.fillText('📅 ' + cap(start.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })), W / 2 - 40, y); y += 70; x.fillText('⏰ ' + hm(start), W / 2 - 40, y); y += 70; }
   if (c.place) { x.fillText('📍 ' + c.place.slice(0, 40), W / 2 - 40, y); y += 70; }
   if (c.budget) { x.fillText('💰 ' + c.budget, W / 2 - 40, y); y += 70; }
   if (start) { const d = Math.ceil((start - Date.now()) / 864e5); if (d > 0) { x.fillStyle = 'rgba(0,0,0,.28)'; x.beginPath(); x.roundRect(W / 2 - 340, y + 10, 600, 150, 36); x.fill(); x.fillStyle = '#ecbc5c'; x.font = '900 80px Fraunces, serif'; x.fillText(`¡Faltan ${d} días!`, W / 2 - 40, y + 115); y += 190; } }
@@ -3944,10 +4109,10 @@ async function checkUpdate() {
     if (!checkUpdate.base) { checkUpdate.base = APP_VERSION.startsWith('__') ? v : APP_VERSION; }
     let tried = ''; try { tried = sessionStorage.getItem('angelito:reloadedFor') || ''; } catch { }
     if (v !== checkUpdate.base && tried !== v) {
+      const busyNow = S.spinning || ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) && document.activeElement.value;
+      if (busyNow) { if (checkUpdate.warned !== v) { checkUpdate.warned = v; toast('🎁 Hay una versión nueva. Se actualizará al terminar.'); } return; }
       try { sessionStorage.setItem('angelito:reloadedFor', v); } catch { }
       updating = true;
-      const busyNow = S.spinning || ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) && document.activeElement.value;
-      if (busyNow) { toast('🎁 Hay una versión nueva. Se actualizará al terminar.'); updating = false; return; }
       toast('🎁 Nueva versión, actualizando…');
       try { await swReg?.update(); } catch { }
       setTimeout(() => location.reload(), 1200);
@@ -3992,6 +4157,7 @@ function snow() {
 }
 addEventListener('resize', () => { if (!S.spinning) drawWheel(); });
 
+$('#datafail-btn').addEventListener('click', () => repairData());
 const netState = () => { $('#offline').hidden = navigator.onLine !== false; };
 addEventListener('online', () => { netState(); toast('✅ De vuelta en línea'); }); addEventListener('offline', netState); netState();
 snow(); buildBulbs(); route(); renderAll(); tick(); maybeAskInstall();

@@ -3,8 +3,12 @@ const VERSION = 'angelito-2026.11.13-114418';
 const SHELL = ['./', './index.html', './firebase-config.js', './juegos.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon-64.png'];
 
+const LIBS = ['app', 'auth', 'app-check', 'firestore'].map(n => `https://www.gstatic.com/firebasejs/10.12.2/firebase-${n}.js`);
+
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // 'reload' evita guardar una copia vieja del navegador; las librerías de Firebase se guardan también para abrir sin internet.
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))
+    .then(() => Promise.allSettled(LIBS.map(u => c.add(u))))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -23,7 +27,7 @@ self.addEventListener('fetch', e => {
   }
   // Configuración: siempre la más reciente (si cambias firebase-config.js se nota de inmediato).
   if (url.origin === location.origin && /(firebase-config|juegos)\.js$/.test(url.pathname)) {
-    e.respondWith(fetch(req).then(r => { if (r.ok) { const c = r.clone(); caches.open(VERSION).then(x => x.put(req, c)); } return r; }).catch(() => caches.match(req)));
+    e.respondWith(fetch(req).then(r => { if (r.ok) { const c = r.clone(); caches.open(VERSION).then(x => x.put(req, c)); } return r; }).catch(() => caches.match(req, { ignoreSearch: true }))); // juegos.js?v=… también vale sin internet
     return;
   }
   // Librerías, fuentes e íconos: la copia guardada y se actualiza por detrás.
