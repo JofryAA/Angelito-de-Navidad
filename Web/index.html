@@ -80,6 +80,8 @@ a{color:var(--gold)}
 .eyebrow{text-transform:uppercase;letter-spacing:.18em;font-size:.72rem;font-weight:700;color:#ffd99a}
 .hero h1{font-size:clamp(2rem,7vw,3rem);font-weight:900;line-height:1.02;margin:8px 70px 8px 0}
 .hero p{color:#f5d9cf;max-width:30ch;margin-right:70px}
+body.logged .hero{padding:18px 18px 16px}body.logged .hero h1{font-size:clamp(1.5rem,5.5vw,2.1rem);margin:4px 70px 4px 0}body.logged .hero p{display:none}
+body.logged .count{margin-top:10px;gap:6px}body.logged .count div{padding:6px 2px}body.logged .count b{font-size:1.2rem}body.logged .count span{font-size:.58rem}
 .count{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:20px;margin-right:64px;max-width:360px}
 .count div{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:10px 4px;text-align:center}
 .count b{display:block;font-family:"Fraunces";font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums}
@@ -214,7 +216,8 @@ input[type=date].in,input[type=datetime-local].in,input[type=time].in{color-sche
 .anav{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 16px;padding:10px 16px;background:linear-gradient(180deg,var(--bg) 70%,transparent)}
 .anav::-webkit-scrollbar{display:none}
 .anav button{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:inherit;font:inherit;font-weight:700;font-size:.9rem;cursor:pointer;white-space:nowrap}
-.anav{flex-wrap:nowrap}@media(min-width:720px){.anav{flex-wrap:wrap;overflow:visible}}
+.anav{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(98px,1fr));overflow:visible!important;margin-left:0!important;margin-right:0!important;padding-left:0!important;padding-right:0!important}.anav button{justify-content:center;min-width:0;padding:9px 4px!important;font-size:.8rem!important;gap:4px!important}@media(min-width:720px){.anav{grid-template-columns:repeat(7,1fr)}}
+body.adm-view .tabs,body.adm-view #userbox,body.adm-view #inst-btn{display:none!important}body.adm-view .app{padding-bottom:calc(30px + env(safe-area-inset-bottom))}
 .anav button.on{background:var(--cream);color:#2a140f;border-color:var(--cream)}
 .anav .bd{position:static;margin-left:2px}
 .gh{display:none!important}
@@ -340,7 +343,8 @@ body.kb .tabs{display:none}
 body.kb.chat-on #c-dock{bottom:calc(8px + env(safe-area-inset-bottom))}
 .spin-cta{position:sticky;bottom:calc(92px + env(safe-area-inset-bottom));z-index:6;padding:8px 0}
 #offline{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));z-index:120;padding:8px 14px;border-radius:999px;background:#5b3a1e;color:#fff4dc;font-size:.82rem;font-weight:700;box-shadow:var(--shadow);white-space:nowrap}
-#inst-btn{position:relative}
+#inst-btn{position:relative;color:var(--gold);border-color:rgba(236,188,92,.45)}
+[hidden]{display:none!important}
 .idot{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 0 rgba(236,188,92,.6);animation:idot 1.8s infinite}
 @keyframes idot{70%{box-shadow:0 0 0 8px rgba(236,188,92,0)}100%{box-shadow:0 0 0 0 rgba(236,188,92,0)}}
 .inst-pts{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px 0 6px}.inst-pts span{padding:6px 10px;border-radius:999px;background:var(--card2);font-size:.85rem;font-weight:600}
@@ -361,6 +365,24 @@ body.kb.chat-on #c-dock{bottom:calc(8px + env(safe-area-inset-bottom))}
 @keyframes roll{40%{transform:rotate(200deg) scale(1.25)}100%{transform:rotate(360deg)}}
 .tour-e{font-size:64px;text-align:center;margin:6px 0 4px;animation:drop .4s ease}
 .tour-dots{display:flex;justify-content:center;gap:6px;margin-top:14px}.tour-dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.tour-dots i.on{background:var(--gold);width:22px;border-radius:5px}
+.nextc{display:flex;align-items:center;gap:12px;margin-bottom:14px;text-decoration:none;color:inherit;border:1.5px solid rgba(236,188,92,.55);background:linear-gradient(135deg,rgba(236,188,92,.18),rgba(47,148,97,.12))}
+.nextc.hot{background:linear-gradient(135deg,rgba(226,72,63,.35),rgba(236,188,92,.22));animation:abpulse 2.2s ease-in-out infinite}
+.nx-e{font-size:34px}.nx-e.spin{animation:roll 3s linear infinite}
+.peek{background:rgba(0,0,0,.25);border:1px dashed var(--gold);color:var(--gold);border-radius:10px;padding:2px 8px;font:inherit;font-weight:800;cursor:pointer}
+.cnts{display:flex;gap:6px;flex-wrap:wrap}
+.cnt{font-size:.78rem;font-weight:800;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.08);white-space:nowrap}
+.cnt.ok{background:rgba(47,148,97,.28);color:#bff0d3}.cnt.no{background:rgba(226,72,63,.22);color:#ffc2bc}.cnt.wait{color:var(--muted)}
+.paybox{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}.paybox>div{flex:1;min-width:110px;padding:10px 12px;border-radius:14px;background:rgba(0,0,0,.2);display:flex;flex-direction:column}.paybox b{font-size:1.15rem}
+.pfil{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:8px 0 10px}.pfil::-webkit-scrollbar{display:none}
+.pfil button{flex:0 0 auto;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:inherit;font:inherit;font-size:.8rem;font-weight:700}
+.pfil button.on{background:var(--cream);color:#2a140f;border-color:var(--cream)}.pfil button span{opacity:.65;margin-left:2px}
+.prow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:rgba(0,0,0,.16);border:1px solid var(--line)}
+.prow .pe{font-size:24px}.prow .t{font-weight:700}.prow .grow{flex:1;min-width:0}
+.bdgs{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.bdg{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.08)}
+.bdg.ok{background:rgba(47,148,97,.28);color:#bff0d3}.bdg.no{background:rgba(226,72,63,.22);color:#ffc2bc}.bdg.wait{color:var(--muted)}
+.bdg.paid{background:rgba(236,188,92,.25);color:#ffe2a8}.bdg.said{background:rgba(236,188,92,.12);color:#ffd99a}.bdg.due{background:rgba(226,72,63,.14);color:#ffb3aa}
+.pact{display:flex;align-items:center;gap:4px}.btn.xs{padding:7px 11px;font-size:.78rem;border-radius:12px}.x.more{font-size:20px;font-weight:800;letter-spacing:1px}
 /* modal + toast */
 .modal{position:fixed;inset:0;z-index:80;display:none;align-items:flex-end;justify-content:center;background:rgba(3,8,6,.7);backdrop-filter:blur(6px);padding:16px}
 .modal.on{display:flex;animation:fade .25s}
@@ -586,7 +608,7 @@ html.big .tab{font-size:.6rem}
 <div class="app" id="app">
   <header class="top">
     <div class="brand"><div class="logo">🎁</div><span>Angelito</span></div>
-    <div class="topr"><button class="iconbtn" id="inst-btn" aria-label="Instalar la app" title="Instalar la app" hidden>📲<span class="idot"></span></button><button class="iconbtn" id="gear" aria-label="Organizador">⚙️</button><div id="userbox"></div></div>
+    <div class="topr"><button class="iconbtn" id="inst-btn" aria-label="Instalar la app" title="Instalar la app" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 7.5v7m-3-3 3 3 3-3"/><path d="M10 18.5h4"/></svg></button><button class="iconbtn" id="gear" aria-label="Organizador">⚙️</button><div id="userbox"></div></div>
   </header>
 
   <!-- INICIO -->
@@ -603,6 +625,7 @@ html.big .tab{font-size:.6rem}
         <div><b data-c="s">–</b><span>seg</span></div>
       </div>
     </div>
+    <div id="h-next"></div>
     <div id="h-notices"></div>
     <div id="h-app"></div>
     <div id="h-join"></div>
@@ -661,7 +684,8 @@ html.big .tab{font-size:.6rem}
 
   <!-- ANÓNIMOS -->
   <section class="view" id="v-anonimos">
-    <h2 class="sec-title">Buzón anónimo</h2>
+    <h2 class="sec-title">Grupo</h2>
+    <div class="seg" id="anon-seg"><button data-go="chat">💬 Chat</button><button class="on">💌 Anónimos</button><button data-go="sugerencias" class="seg-s">💡 Ideas</button><button data-go="fotos" class="seg-f">📸 Fotos</button></div>
     <p class="sec-sub">Escribe preguntas o mensajes que se mostrarán sin tu nombre. Quedan bajo llave y se abren el día indicado.</p>
     <div id="q-formbox"></div>
     <div id="q-board" style="margin-top:18px"></div>
@@ -669,8 +693,8 @@ html.big .tab{font-size:.6rem}
 
   <!-- BUZÓN: sugerencias + chat -->
   <section class="view" id="v-buzon">
-    <h2 class="sec-title">Buzón</h2>
-    <div class="seg" id="buz-seg"><button data-b="c" class="on">💬 Chat</button><button data-b="s">💡 Sugerencias</button><button data-b="f">📸 Fotos</button></div>
+    <h2 class="sec-title">Grupo</h2>
+    <div class="seg" id="buz-seg"><button data-b="c" class="on">💬 Chat</button><button data-go="anonimos" class="seg-anon">💌 Anónimos</button><button data-b="s">💡 Ideas</button><button data-b="f">📸 Fotos</button></div>
     <div id="buz-c">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><p class="sec-sub" style="margin-bottom:12px">Chistes, indirectas navideñas y ocurrencias 😂</p><span style="display:flex;gap:8px;align-items:center"><span class="muted small" id="c-count" style="white-space:nowrap"></span><button class="iconbtn" id="c-mute" style="width:34px;height:34px;font-size:16px" title="Silenciar notificaciones del chat" aria-label="Silenciar chat">🔔</button></span></div>
       <div id="c-gate"></div>
@@ -706,7 +730,7 @@ html.big .tab{font-size:.6rem}
     <h2 class="sec-title">Panel del organizador</h2>
     <div id="adm-login"></div>
     <div id="adm-panel" style="display:none">
-      <div class="banner" style="justify-content:space-between;align-items:center"><span id="adm-who">🔓 Modo organizador activo</span><div style="display:flex;gap:6px"><button class="btn sm" id="adm-pw">🔑 Contraseña</button><button class="btn sm" id="adm-out">Salir</button></div></div>
+      <div class="banner" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><a class="btn sm" href="#inicio" style="text-decoration:none">🏠 App</a><span id="adm-who" style="flex:1;min-width:120px">🔓 Modo organizador activo</span><div style="display:flex;gap:6px"><button class="btn sm" id="adm-pw">🔑 Contraseña</button><button class="btn sm" id="adm-out">Salir</button></div></div>
       <nav class="anav" id="adm-nav"></nav>
       <div class="admin-sec" id="adm-dash" data-grp="resumen" data-ord="1"></div>
 
@@ -815,6 +839,7 @@ html.big .tab{font-size:.6rem}
           <button class="btn gold" type="submit">Inscribir</button>
         </form></details>
         <p class="muted small" style="margin-bottom:10px">💡 Si alguien olvidó su PIN, toca 🔑: la app le genera un PIN temporal para que se lo copies. Conserva su sorteo y todo lo suyo, y al entrar creará su propio PIN.</p>
+        <div id="p-tools"></div>
         <div class="stack" id="p-list"></div>
       </div>
 
@@ -916,9 +941,8 @@ html.big .tab{font-size:.6rem}
   <button class="tab" data-v="ruleta"><span class="i">🎡</span>Ruleta</button>
   <button class="tab" data-v="deseos"><span class="i">🎁</span>Deseos</button>
   <button class="tab" data-v="actividades"><span class="i">📅</span>Agenda</button>
-  <button class="tab" data-v="anonimos"><span class="i">💌</span>Anónimos</button>
   <button class="tab" data-v="juegos"><span class="i">🎮</span>Juegos</button>
-  <button class="tab" data-v="buzon"><span class="i">💬</span>Buzón</button>
+  <button class="tab" data-v="buzon"><span class="i">💬</span>Grupo</button>
 </nav>
 
 <div id="live"></div>
@@ -1015,9 +1039,9 @@ const MODS = { ruleta: ['🎡', 'Ruleta'], deseos: ['🎁', 'Lista de deseos'], 
 const mod = k => (S.event.modules || {})[k] !== false;
 const TAB_MOD = { ruleta: 'ruleta', deseos: 'deseos', actividades: 'agenda', actividad: 'agenda', anonimos: 'anonimos', juegos: 'juegos' };
 const BUZ_MOD = { s: 'buzon', c: 'chat', f: 'fotos' };
-const viewOn = v => v === 'buzon' ? (mod('buzon') || mod('chat') || mod('fotos')) : !(TAB_MOD[v] && !mod(TAB_MOD[v]));
+const viewOn = v => v === 'buzon' ? (mod('buzon') || mod('chat') || mod('fotos') || mod('anonimos')) : !(TAB_MOD[v] && !mod(TAB_MOD[v]));
 function setBuz(b) {
-  if (!mod(BUZ_MOD[b])) b = ['c', 's', 'f'].find(x => mod(BUZ_MOD[x])) || 'c';
+  if (!mod(BUZ_MOD[b])) { b = ['c', 's', 'f'].find(x => mod(BUZ_MOD[x])); if (!b) { if (mod('anonimos')) { location.hash = 'anonimos'; return; } b = 'c'; } }
   S.buz = b;
   $$('#buz-seg button').forEach(x => { x.classList.toggle('on', x.dataset.b === b); x.style.display = mod(BUZ_MOD[x.dataset.b]) ? '' : 'none'; });
   $('#buz-s').style.display = b === 's' ? '' : 'none'; $('#buz-c').style.display = b === 'c' ? '' : 'none'; $('#buz-f').style.display = b === 'f' ? '' : 'none';
@@ -1569,7 +1593,7 @@ function userMenu() {
   const s = openModal(`<div class="who-card"><button class="av" data-a="icon" title="Cambiar mi ícono" style="position:relative">${esc(S.me.emoji)}<span style="position:absolute;right:-4px;bottom:-4px;font-size:12px;background:var(--gold);border-radius:50%;width:20px;height:20px;display:grid;place-items:center">✏️</span></button><div><h3 style="margin:0">${esc(S.me.name)}</h3><div class="muted small">Participante del angelito</div></div></div>
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${mod('perfil') ? `<button class="btn sm gold" data-a="prof">👕 Mi perfil ${profDone() < PROF.length ? `· ${profDone()}/${PROF.length}` : '✓'}</button>` : ''}<button class="btn sm" data-a="icon">😀 Cambiar mi ícono</button><button class="btn sm" data-a="tour">📘 Guía rápida</button></div>
     <p class="muted small" style="margin-top:14px">Si estás en un teléfono prestado, cierra sesión al terminar.</p>
-    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm" data-a="notif">🔔 Notificaciones</button>${isStandalone() ? '' : '<button class="btn sm" data-a="install">📲 Instalar app</button>'}</div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm" data-a="notif">🔔 Notificaciones</button>${isInstalled() ? '' : '<button class="btn sm" data-a="install">📲 Instalar app</button>'}</div>
     ${S.isAdmin ? '' : '<button class="btn sm ghost" data-a="org" style="margin-top:10px;width:100%">🛡️ Entrar como organizador</button>'}
     <div class="actions"><button class="btn ghost" data-a="out">Cerrar sesión</button><button class="btn gold" data-a="close">Listo</button></div>`);
   s.onclick = async e => {
@@ -1600,7 +1624,9 @@ function route() {
   if (!viewOn(v)) v = 'inicio';
   if (v === 'buzon') setBuz(S.buz);
   $$('.view').forEach(el => el.classList.toggle('on', el.id === 'v-' + v));
-  $$('.tab').forEach(el => el.classList.toggle('on', el.dataset.v === (v === 'actividad' ? 'actividades' : v)));
+  $$('.tab').forEach(el => el.classList.toggle('on', el.dataset.v === (v === 'actividad' ? 'actividades' : v === 'anonimos' ? 'buzon' : v)));
+  document.body.classList.toggle('adm-view', v === 'admin');
+  $$('.seg-anon').forEach(b => { b.style.display = mod('anonimos') ? '' : 'none'; }); const as = $('#anon-seg'); if (as) { as.querySelector('[data-go=chat]').style.display = mod('chat') ? '' : 'none'; as.querySelector('.seg-s').style.display = mod('buzon') ? '' : 'none'; as.querySelector('.seg-f').style.display = mod('fotos') ? '' : 'none'; }
   $('#gear').style.background = v === 'admin' ? 'var(--cream)' : '';
   if (v === 'ruleta') requestAnimationFrame(drawWheel);
   if (v === 'juegos') { try { GAMES.render(); } catch (e) { console.error(e); } }
@@ -1608,6 +1634,7 @@ function route() {
   document.body.classList.toggle('chat-on', v === 'buzon' && S.buz === 'c');
   if (!same) requestAnimationFrame(() => { scrollTo({ top: v === 'actividad' || (v === 'buzon' && S.buz === 'c') || (v === 'juegos' && location.hash.includes('juego-')) ? 0 : (tabScroll[v] || 0) }); fitChat(); });
 }
+document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) location.hash = g.dataset.go; });
 $$('.tab').forEach(t => t.addEventListener('click', () => { if (t.dataset.v === 'buzon') S.buz = 'c'; if (location.hash === '#' + t.dataset.v) route(); else location.hash = t.dataset.v; }));
 $('#gear').addEventListener('click', () => { location.hash = 'admin'; });
 $('#h-sug').addEventListener('click', e => { if (location.hash === '#sugerencias') { e.preventDefault(); route(); } });
@@ -1631,7 +1658,7 @@ function applyMods() {
 }
 function renderGames() { if ($('#v-juegos').classList.contains('on')) GAMES.render(); }
 function renderAll() {
-  for (const f of [applyMods, renderUser, renderHome, renderWheel, renderWishes, renderActs, renderActDetail, renderQuestions, renderSuggestions, renderMyAngel, renderProgress, renderAttendance, renderAppCard, renderNotices, renderBadges, renderHints, renderThanks, renderPhotos, renderLive, renderMemCard, renderPartyLive, saveBoot, renderQuick, renderRevealBtn, renderNoticeAdmin, checkEvents, renderChat, renderGames, renderProfCard, renderUserDot, renderAdmin]) { try { f(); } catch (e) { console.error('render', f.name, e); } }
+  for (const f of [applyMods, renderUser, renderHome, renderWheel, renderWishes, renderActs, renderActDetail, renderQuestions, renderSuggestions, renderMyAngel, renderProgress, renderAttendance, renderAppCard, renderNotices, renderBadges, renderHints, renderThanks, renderPhotos, renderLive, renderMemCard, renderPartyLive, saveBoot, renderQuick, renderRevealBtn, renderNoticeAdmin, checkEvents, renderChat, renderGames, renderProfCard, renderUserDot, renderNext, renderAdmin]) { try { f(); } catch (e) { console.error('render', f.name, e); } }
 }
 const GAMES = initGames({ db, fs: { doc, collection, onSnapshot, query, orderBy, limit, setDoc, getDoc, writeBatch, runTransaction }, S, esc, toast, $, openModal, closeModal, confirmBox, render, confetti,
   P, pName, pEmoji, shortName, authErr, can, needLogin: t => needLogin(t), notify: (t, b, u) => notifyCat('juegos', t, b, u) });
@@ -1644,7 +1671,7 @@ document.addEventListener('click', async e => {
   try { sessionStorage.setItem('angelito:afterLogout', 'reg'); } catch { } return fullLogout();
 });
 
-function renderUserDot() { const u = $('#ubtn'); if (!u) return; const need = S.me && mod('perfil') && profDone() < 4; let d = u.querySelector('.rdot'); if (need && !d) { d = document.createElement('span'); d.className = 'rdot'; u.appendChild(d); } else if (!need && d) d.remove(); }
+function renderUserDot() { document.body.classList.toggle('logged', !!S.me); const u = $('#ubtn'); if (!u) return; const need = S.me && mod('perfil') && profDone() < 4; let d = u.querySelector('.rdot'); if (need && !d) { d = document.createElement('span'); d.className = 'rdot'; u.appendChild(d); } else if (!need && d) d.remove(); }
 function renderUser() {
   const box = $('#userbox');
   $('#gear').style.display = S.isAdmin ? '' : 'none';
@@ -1734,6 +1761,26 @@ function maybeTour() {
   try { if (localStorage.getItem('angelito:tour:' + S.uid)) return; } catch { }
   tourT = setTimeout(function go() { tourT = null; if (!S.me) return; if ($('#modal').classList.contains('on') || S.spinning) { tourT = setTimeout(go, 3000); return; } openTour(); }, 1200);
 }
+/* ---------- lo que te toca ahora (cambia según el momento) ---------- */
+function renderNext() {
+  const box = $('#h-next'); if (!box) return;
+  if (!S.me) { box.innerHTML = ''; return; }
+  const c = S.event, today = todayStr(), evDay = (c.eventDate || '').slice(0, 10);
+  const A = S.assignment, ready = mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid);
+  let h = '';
+  if (evDay && evDay === today) h = `<div class="card nextc"><div class="nx-e">🎉</div><div class="grow"><b>¡Hoy es el angelito!</b><div class="muted small">${c.place ? '📍 ' + esc(c.place) + ' · ' : ''}${esc(new Date(c.eventDate).toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' }))}</div></div><a class="btn sm gold" href="#actividades">Ver agenda</a></div>`;
+  else if (ready && !A?.revealed) h = `<a class="card nextc hot" href="#ruleta"><div class="nx-e spin">🎡</div><div class="grow"><b>¡Ya puedes girar la ruleta!</b><div class="muted small">Descubre a quién le vas a regalar.</div></div><span class="btn sm gold">Girar ahora</span></a>`;
+  else if (ready && A?.revealed && A.recipient && P(A.recipient)) {
+    const R = P(A.recipient);
+    h = `<div class="card nextc"><div class="nx-e">🤫</div><div class="grow"><b>Le regalas a <button class="peek" id="nx-peek">${S.peek ? esc(R.emoji + ' ' + R.name) : '•••• 👁️'}</button></b><div class="muted small">Es secreto. Toca para ver.</div>
+      <div class="qa" style="margin-top:8px"><button class="btn sm gold" id="nx-list">🎁 Ver su lista</button>${mod('pistas') ? '<a class="btn sm" href="#ruleta">💌 Mandar una pista</a>' : ''}</div></div></div>`;
+  }
+  box.innerHTML = h;
+}
+document.addEventListener('click', e => {
+  if (e.target.closest('#nx-peek')) { S.peek = !S.peek; renderNext(); if (S.peek) setTimeout(() => { S.peek = false; renderNext(); }, 4000); }
+  if (e.target.closest('#nx-list') && S.assignment?.recipient) { S.wishPid = S.assignment.recipient; location.hash = 'deseos'; render(); }
+});
 function renderTodo() {
   const box = $('#h-todo'); if (!box) return;
   if (!S.me) { box.innerHTML = ''; return; }
@@ -1741,8 +1788,10 @@ function renderTodo() {
   if (mod('asistencia')) items.push([!!a.status, a.status === 'no' ? 'Dijiste que no puedes ir' : 'Confirma si vas', 'att']);
   if (mod('asistencia') && c.contribAmount && a.status === 'si') items.push([!!(a.paid || a.confirmed), `Da tu aporte de ${c.contribAmount}`, 'att']);
   if (mod('deseos')) items.push([S.wishes.some(w => w.uid === S.uid), 'Escribe tu lista de deseos', '#deseos']);
-  if (mod('perfil')) items.unshift([profDone() >= 4, 'Llena tu perfil (tallas, colores, lo que te gusta)', 'perfil']);
-  if (mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid)) items.push([!!S.assignment?.revealed, 'Gira la ruleta y descubre a quién le regalas', '#ruleta']);
+
+  if (mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid)) items.unshift([!!S.assignment?.revealed, '🎡 Gira la ruleta y descubre a quién le regalas', '#ruleta']);
+  if (canNotify() && Notification.permission !== 'denied' && !(isIOS() && !isStandalone())) items.push([Notification.permission === 'granted', '🔔 Activa los avisos para enterarte de todo', 'notif']);
+  if (!isInstalled()) items.push([false, '📲 Pon el angelito en tu pantalla de inicio', 'install']);
   if (!items.length) { box.innerHTML = ''; return; }
   const done = items.filter(x => x[0]).length;
   if (done === items.length) { box.innerHTML = `<div class="card todo-ok">🎉 <b>¡Tienes todo listo!</b> <span class="muted small">Solo falta disfrutar el angelito.</span></div>`; return; }
@@ -1754,7 +1803,7 @@ document.addEventListener('click', e => {
   if (e.target.closest('#rules-more')) { S.rulesOpen = !S.rulesOpen; renderHome(); return; }
   const t = e.target.closest('[data-todo]'); if (!t) return;
   const go = t.dataset.todo;
-  if (go === 'att') $('#h-att')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); else if (go === 'perfil') openProfile(); else location.hash = go.slice(1);
+  if (go === 'att') $('#h-att')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); else if (go === 'perfil') openProfile(); else if (go === 'notif') enableNotifications(); else if (go === 'install') installApp(); else location.hash = go.slice(1);
 });
 function tick() {
   const t = S.event.eventAt ? new Date(ms(S.event.eventAt)) : S.event.eventDate ? new Date(S.event.eventDate) : null;
@@ -1914,7 +1963,7 @@ function wishStrip() {
   const fc = {}; S.participants.forEach(p => { const k = normName(p.first); fc[k] = (fc[k] || 0) + 1; });
   const label = p => fc[normName(p.first)] > 1 ? shortName(p) : p.first;
   return list.map(p => { const n = cnt(p.id);
-    return `<button class="pav ${S.wishPid === p.id ? 'on' : ''}" data-p="${esc(p.id)}" title="${esc(p.name)}"><span class="ci">${esc(p.emoji)}${n ? `<span class="n">${n}</span>` : ''}</span><span class="nm">${esc(p.id === S.uid ? 'Mi lista' : p.id === rec ? '🎁 ' + label(p) : label(p))}</span></button>`; }).join('');
+    return `<button class="pav ${S.wishPid === p.id ? 'on' : ''}" data-p="${esc(p.id)}" title="${esc(p.name)}"><span class="ci">${esc(p.emoji)}${n ? `<span class="n">${n}</span>` : ''}</span><span class="nm">${esc(p.id === S.uid ? 'Mi lista' : p.id === rec ? '🎯 ' + label(p) : label(p))}</span></button>`; }).join('');
 }
 // Las fotos de los deseos se bajan solo cuando alguien abre esa lista (así la app sigue rápida).
 S.wishImgs = {}; const wishImgLoading = new Set();
@@ -2110,7 +2159,7 @@ function renderAttendance() {
   if (!S.me || !mod('asistencia')) { box.innerHTML = ''; } else {
     const c = S.event, me = S.att[S.uid] || {}, sm = attSummary();
     const late = c.rsvpDeadline && todayStr() > c.rsvpDeadline;
-    let h = `<div class="card" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:1.1rem">🎉 ¿Vas al angelito?</b><span class="muted small">✅ ${sm.going} van · ❌ ${sm.notGoing} no</span></div>
+    let h = `<div class="card" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:1.1rem">🎉 ¿Vas al angelito?</b><span class="cnts"><span class="cnt ok">${sm.going} van</span>${sm.notGoing ? `<span class="cnt no">${sm.notGoing} no</span>` : ''}</span></div>
       ${c.rsvpDeadline ? `<p class="muted small" style="margin-top:4px">${late ? '⚠️ La fecha para confirmar ya pasó' : 'Confirma antes del ' + esc(fmtDate(c.rsvpDeadline))}</p>` : ''}
       <div class="rsvp" style="grid-template-columns:1fr 1fr;margin-top:12px"><button class="${me.status === 'si' ? 'on' : ''}" data-att="si"><span>✅</span>Sí, voy</button><button class="${me.status === 'no' ? 'on' : ''}" data-att="no"><span>❌</span>No puedo</button></div>`;
     if (me.status === 'si' && c.contribAmount) {
@@ -2121,21 +2170,24 @@ function renderAttendance() {
     if (c.contribAmount && sm.going) {
       const going = S.participants.filter(p => (S.att[p.id] || {}).status === 'si');
       const paidL = going.filter(p => S.att[p.id].confirmed), pendL = going.filter(p => !S.att[p.id].confirmed);
-      h += `<div style="margin-top:14px"><div class="muted small"><b>💵 Ya aportaron (${paidL.length})</b></div><div class="going">${paidL.map(p => `<span>${esc(p.emoji)} ${esc(shortName(p))}</span>`).join('') || '<span>Nadie todavía</span>'}</div>
-        <div class="muted small" style="margin-top:10px"><b>⏳ Falta su aporte (${pendL.length})</b></div><div class="going">${pendL.map(p => `<span>${esc(p.emoji)} ${esc(shortName(p))}${S.att[p.id].paid ? ' · dice que ya' : ''}</span>`).join('') || '<span>¡Nadie! 🎉</span>'}</div></div>`;
+      h += `<details class="fold" style="margin:14px 0 0"><summary><span class="cnts"><span class="cnt ok">💵 ${paidL.length} ya aportaron</span><span class="cnt wait">⏳ ${pendL.length} faltan</span></span></summary>
+        <div class="muted small"><b>Ya aportaron</b></div><div class="going">${paidL.map(p => `<span>${esc(p.emoji)} ${esc(shortName(p))}</span>`).join('') || '<span>Nadie todavía</span>'}</div>
+        <div class="muted small" style="margin-top:10px"><b>Falta su aporte</b></div><div class="going">${pendL.map(p => `<span>${esc(p.emoji)} ${esc(shortName(p))}${S.att[p.id].paid ? ' · dice que ya' : ''}</span>`).join('') || '<span>¡Nadie! 🎉</span>'}</div></details>`;
     }
     box.innerHTML = h + '</div>';
   }
   if (!S.isAdmin) return;
   const sm = attSummary(), amt = S.event.contribAmount;
   const num = parseFloat(String(amt || '').replace(/[^\d.]/g, '')), pre = String(amt || '').match(/^[^\d]*/)?.[0].trim() || '';
-  $('#att-sum').innerHTML = `✅ <b>${sm.going}</b> van · ❌ ${sm.notGoing} no van · ⏳ ${sm.pending} sin responder<br>💵 Aportes recibidos: <b>${sm.paid}</b> de ${sm.going}${sm.said ? ` · ${sm.said} dicen que ya pagaron` : ''}${num ? ` · Total: <b>${esc(pre)}${(num * sm.paid).toLocaleString('es')}</b>` : ''}`;
-  $('#att-list').innerHTML = S.participants.map(p => {
+  $('#att-sum').innerHTML = `<div class="cnts" style="margin:8px 0 6px"><span class="cnt ok">${sm.going} van</span><span class="cnt no">${sm.notGoing} no van</span><span class="cnt wait">${sm.pending} sin responder</span></div>
+    ${amt ? `<div class="paybox"><div><span class="muted small">Aportes pagados</span><b>${sm.paid} de ${sm.going}</b></div>${num ? `<div><span class="muted small">Total recogido</span><b>${esc(pre)}${(num * sm.paid).toLocaleString('es')}</b></div>` : ''}${sm.said ? `<div><span class="muted small">Dicen que pagaron</span><b>${sm.said}</b></div>` : ''}</div>` : ''}
+    ${can('participantes') ? '<p class="muted small" style="margin-top:8px">👇 Marca quién pagó en la lista de participantes (arriba en esta misma sección).</p>' : ''}`;
+  $('#att-list').innerHTML = can('participantes') ? '' : S.participants.map(p => {
     const a = S.att[p.id] || {};
     const st = a.status === 'si' ? '<span class="badge">✅ Va</span>' : a.status === 'no' ? '<span class="badge" style="background:rgba(226,72,63,.22);color:#ffc2bc">❌ No va</span>' : '<span class="badge" style="background:rgba(255,255,255,.08);color:var(--muted)">⏳ Sin responder</span>';
-    const pay = a.confirmed ? '<span class="badge">💵 Recibido</span>' : a.paid ? '<span class="badge" style="background:rgba(236,188,92,.2);color:#ffd99a">💵 Dice que pagó</span>' : '';
+    const pay = a.confirmed ? '<span class="badge">💵 Pagó</span>' : a.paid ? '<span class="badge" style="background:rgba(236,188,92,.2);color:#ffd99a">💵 Dice que pagó</span>' : '';
     return `<div class="item" style="align-items:center"><span style="font-size:22px">${esc(p.emoji)}</span><div class="grow"><div class="t">${esc(p.name)}</div>${st} ${pay}</div>
-      ${a.status === 'si' || a.confirmed ? `<button class="btn sm ${a.confirmed ? '' : 'gold'}" data-conf="${esc(p.id)}" data-v="${a.confirmed ? 0 : 1}">${a.confirmed ? 'Quitar' : '✓ Recibido'}</button>` : ''}</div>`;
+      ${a.status === 'si' || a.confirmed ? `<button class="btn sm ${a.confirmed ? '' : 'gold'}" data-conf="${esc(p.id)}" data-v="${a.confirmed ? 0 : 1}">${a.confirmed ? 'Quitar pago' : '✓ Pagó'}</button>` : ''}</div>`;
   }).join('') || '<p class="muted small">Nadie se ha registrado todavía.</p>';
 }
 $('#h-att').addEventListener('click', async e => {
@@ -2144,6 +2196,30 @@ $('#h-att').addEventListener('click', async e => {
   const o = { uid: S.uid, status: b.dataset.att || cur.status || 'si', paid: b.dataset.paid != null ? b.dataset.paid === '1' : !!cur.paid, at: serverTimestamp() };
   if (o.status === 'no') o.paid = !!cur.paid;
   try { await setDoc(doc(db, 'attendance', S.uid), o, { merge: true }); if (b.dataset.att === 'si') { toast('¡Genial, te esperamos! 🎉'); confetti(60); } else if (b.dataset.paid === '1') toast('Anotado 💵 El organizador lo confirmará'); }
+  catch (err) { toast(authErr(err)); }
+});
+// Menú ⋯ de cada persona: reusa las mismas acciones de la lista (PIN, editar, quitar, quitar pago).
+document.addEventListener('click', e => {
+  const m = e.target.closest('[data-pmore]'); if (!m) return;
+  const id = m.dataset.pmore, p = P(id), a = S.att[id] || {}; if (!p) return;
+  const s2 = openModal(`<div class="who-card"><span class="av">${esc(p.emoji)}</span><div><h3 style="margin:0">${esc(p.name)}</h3></div></div>
+    <div class="stack" style="margin-top:14px">
+      ${a.confirmed && can('aportes') ? '<button class="btn" data-k="conf" data-v="0">↩️ Quitar el pago</button>' : ''}
+      ${S.isOwner ? '<button class="btn" data-k="presetPin">🔑 Darle un PIN temporal</button>' : ''}
+      <button class="btn" data-k="pedit">✏️ Editar nombre o ícono</button>
+      <button class="btn" data-k="rm" style="color:#ffb3aa">✕ Quitar del angelito</button></div>
+    <div class="actions"><button class="btn gold" data-k="x">Cerrar</button></div>`);
+  s2.onclick = ev => {
+    const b = ev.target.closest('[data-k]'); if (!b) return; closeModal(); if (b.dataset.k === 'x') return;
+    const t = document.createElement('button'); t.hidden = true; t.dataset[b.dataset.k] = id; if (b.dataset.v) t.dataset.v = b.dataset.v;
+    $('#p-list').appendChild(t); setTimeout(() => { t.click(); t.remove(); }, 60);
+  };
+});
+document.addEventListener('click', e => { const f = e.target.closest('[data-pf2]'); if (f) { S.pFilter = f.dataset.pf2; renderAdmin(); } });
+document.addEventListener('input', e => { if (e.target.id === 'p-q') { S.pQuery = e.target.value; renderAdmin(); } });
+$('#p-list').addEventListener('click', async e => {
+  const b = e.target.closest('[data-conf]'); if (!b) return;
+  try { await setDoc(doc(adb, 'attendance', b.dataset.conf), { uid: b.dataset.conf, confirmed: b.dataset.v === '1' }, { merge: true }); toast(b.dataset.v === '1' ? '💵 Marcado como pagó' : 'Pago quitado'); }
   catch (err) { toast(authErr(err)); }
 });
 $('#att-list').addEventListener('click', async e => {
@@ -2544,11 +2620,11 @@ $('#cfg-form').addEventListener('input', () => { cfgDirty = true; });
 
 /* ---------- panel del organizador: secciones ---------- */
 const ADM_GROUPS = [['resumen', '🏠', 'Resumen'], ['evento', '🎄', 'Evento'], ['personas', '👥', 'Personas'], ['actividades', '📅', 'Actividades'], ['mensajes', '💬', 'Mensajes'], ['fiesta', '🎉', 'Fiesta'], ['ajustes', '⚙️', 'Ajustes']];
-(() => { // ordena las tarjetas por sección
+function sortAdm() { // ordena las tarjetas por sección
   const panel = $('#adm-panel'), ord = g => ADM_GROUPS.findIndex(x => x[0] === g);
   [...panel.querySelectorAll(':scope > .admin-sec')].sort((a, b) => ord(a.dataset.grp) - ord(b.dataset.grp) || (+a.dataset.ord - +b.dataset.ord)).forEach(el => panel.appendChild(el));
-  $('[data-grp="ajustes"][data-ord="3"]')?.classList.add('danger');
-})();
+}
+sortAdm(); $('[data-grp="ajustes"][data-ord="3"]')?.classList.add('danger');
 try { S.admGrp = sessionStorage.getItem('angelito:admGrp') || 'resumen'; } catch { S.admGrp = 'resumen'; }
 function applyAdmGroups() {
   const secs = $$('#adm-panel > .admin-sec');
@@ -2564,7 +2640,7 @@ function admGo(g) {
   $('#adm-nav [data-ag].on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   const top = $('#adm-nav').getBoundingClientRect().top + scrollY - 8; if (scrollY > top) scrollTo({ top, behavior: 'smooth' });
 }
-document.addEventListener('click', e => { const b = e.target.closest('[data-ag]'); if (b) admGo(b.dataset.ag); });
+document.addEventListener('click', e => { const b = e.target.closest('[data-ag]'); if (b) { admGo(b.dataset.ag); const t = b.dataset.nextgo; if (t) setTimeout(() => $('#' + t)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 250); } });
 function renderAdmDash() {
   const box = $('#adm-dash'); if (!box || S.admGrp !== 'resumen') return;
   const c = S.event, ps = S.participants, sm = attSummary();
@@ -2580,7 +2656,9 @@ function renderAdmDash() {
     [!c.contribAmount || (sm.going > 0 && sm.paid >= sm.going), '💵 Recibe los aportes', 'personas', can('aportes') && !!c.contribAmount],
   ].filter(x => x[3]);
   const done = steps.filter(x => x[0]).length;
-  box.innerHTML = `<div class="dgrid">
+  const nextStep = steps.find(x => !x[0]);
+  const cta = nextStep ? `<button class="card nextc hot" data-ag="${nextStep[2]}" data-nextgo="${nextStep[1].includes('sorteo') ? 'd-gen' : ''}" style="width:100%;text-align:left;margin-bottom:14px"><div class="nx-e">👉</div><div class="grow"><span class="muted small">Siguiente paso</span><b style="display:block">${nextStep[1]}</b></div><span class="btn sm gold">Hacerlo ahora</span></button>` : `<div class="card nextc" style="margin-bottom:14px"><div class="nx-e">✅</div><div class="grow"><b>¡Todo listo!</b><div class="muted small">Solo falta disfrutar la fiesta.</div></div></div>`;
+  box.innerHTML = cta + `<div class="dgrid">
       ${tile('👥 Inscritos', ps.length, regOpen() ? 'Inscripciones abiertas' : '🔒 Inscripciones cerradas', 'personas')}
       ${tile('✅ Van', sm.going, sm.pending ? `${sm.pending} sin responder` : 'Todos respondieron', 'personas')}
       ${c.contribAmount ? tile('💵 Aportes', `${sm.paid}/${sm.going}`, sm.said ? `${sm.said} dicen que ya` : 'recibidos', 'personas') : tile('📅 Actividades', S.activities.length, 'programadas', 'actividades')}
@@ -2612,6 +2690,7 @@ function renderAdmin() {
   if (!S.isAdmin) return;
   $$('#adm-panel [data-perm]').forEach(el => { el.style.display = (el.dataset.perm === 'owner' ? S.isOwner : can(el.dataset.perm)) ? '' : 'none'; });
   const rr = $('#d-reveal-row'); if (rr) rr.style.display = S.drawMeta ? '' : 'none';
+  { const sec = $('#d-gen')?.closest('.admin-sec'), want = S.drawMeta ? '3' : '0'; if (sec && sec.dataset.ord !== want) { sec.dataset.ord = want; sortAdm(); } } // sin sorteo, 'Generar sorteo' va primero
   applyAdmGroups(); renderAdmDash();
   $('#adm-who').textContent = S.isOwner ? '🔓 Modo organizador principal' : `🛡️ ${S.staff?.name || 'Organizador'} · ayudante`;
   renderStaff();
@@ -2632,11 +2711,27 @@ function renderAdmin() {
     : '<p class="muted small">Todavía no hay reglas.</p>';
   $('#q-now').classList.toggle('on', !!S.event.revealNow);
   const hasDraw = !!S.drawMeta;
-  $('#p-list').innerHTML = S.participants.length ? S.participants.map(p => {
-    const st = hasDraw && S.assignments[p.id] ? (S.assignments[p.id].revealed ? '<span class="badge">✓ ya giró</span>' : '<span class="badge" style="background:rgba(255,255,255,.1);color:var(--muted)">pendiente</span>') : '';
+  // Una sola lista: asistencia, pago, ruleta y acciones en la misma fila (sin listas repetidas).
+  const attOf = id => S.att[id] || {}, payOn = mod('asistencia') && !!S.event.contribAmount;
+  const F = S.pFilter || 'todos', PQ = normName(S.pQuery || '');
+  const flt = { todos: () => true, van: id => attOf(id).status === 'si', sin: id => !attOf(id).status, no: id => attOf(id).status === 'no', debe: id => attOf(id).status === 'si' && !attOf(id).confirmed };
+  const cntF = k => S.participants.filter(p => flt[k](p.id)).length;
+  const chips = [['todos', 'Todos'], ['van', 'Van'], ['sin', 'Sin responder'], ['no', 'No van'], ...(payOn ? [['debe', 'Falta pagar']] : [])];
+  if (!$('#p-q')) $('#p-tools').innerHTML = `<input class="in" id="p-q" type="search" placeholder="🔍 Buscar persona…" autocomplete="off"><div class="pfil" id="p-fil"></div>`;
+  $('#p-tools').style.display = S.participants.length > 5 ? '' : 'none'; // con pocas personas no hace falta
+  $('#p-fil').innerHTML = chips.map(([k, l]) => `<button class="${F === k ? 'on' : ''}" data-pf2="${k}">${l} <span>${cntF(k)}</span></button>`).join('');
+  const list = S.participants.filter(p => flt[F](p.id) && (!PQ || normName(p.name).includes(PQ)));
+  $('#p-list').innerHTML = !S.participants.length ? `<p class="muted small">Nadie se ha registrado todavía. Comparte el enlace de la página.</p>`
+    : !list.length ? '<p class="muted small center">Nadie en este filtro.</p>' : list.map(p => {
+    const a = attOf(p.id);
+    const att = mod('asistencia') ? (a.status === 'si' ? '<span class="bdg ok">Va</span>' : a.status === 'no' ? '<span class="bdg no">No va</span>' : '<span class="bdg wait">Sin responder</span>') : '';
+    const pay = payOn && a.status === 'si' ? (a.confirmed ? '<span class="bdg paid">💵 Pagó</span>' : a.paid ? '<span class="bdg said">Dice que pagó</span>' : '<span class="bdg due">Falta pagar</span>') : '';
+    const spin = hasDraw && S.assignments[p.id] ? (S.assignments[p.id].revealed ? '<span class="bdg">🎡 Giró</span>' : '<span class="bdg wait">🎡 No ha girado</span>') : '';
     const gs = GS[S.giftStatus[p.id]];
-    return `<div class="item" style="align-items:center"><span style="font-size:22px">${esc(p.emoji)}</span><div class="grow"><div class="t">${esc(p.name)}</div>${st}${gs ? ` <span class="badge" style="background:rgba(255,255,255,.08);color:var(--text)">${gs[0]} ${gs[1]}</span>` : ''}</div>${S.isOwner ? `<button class="x" data-preset-pin="${esc(p.id)}" aria-label="Restablecer PIN" title="Restablecer PIN">🔑</button>` : ''}<button class="x" data-pedit="${esc(p.id)}" aria-label="Editar">✏️</button><button class="x" data-rm="${esc(p.id)}" aria-label="Quitar">✕</button></div>`;
-  }).join('') : `<p class="muted small">Nadie se ha registrado todavía. Comparte el enlace de la página.</p>`;
+    const payBtn = payOn && can('aportes') && a.status === 'si' && !a.confirmed ? `<button class="btn xs gold" data-conf="${esc(p.id)}" data-v="1">✓ Pagó</button>` : '';
+    return `<div class="prow"><span class="pe">${esc(p.emoji)}</span><div class="grow"><div class="t">${esc(p.name)}</div><div class="bdgs">${att}${pay}${spin}${gs ? `<span class="bdg">${gs[0]} ${gs[1]}</span>` : ''}</div></div>
+      <div class="pact">${payBtn}<button class="x more" data-pmore="${esc(p.id)}" aria-label="Más opciones">⋯</button></div></div>`;
+  }).join('');
   const spun = Object.values(S.assignments).filter(a => a.revealed).length;
   $('#d-status').innerHTML = !hasDraw ? `Hay ${S.participants.length} inscritos. Cuando estén todos, genera el sorteo (mínimo 3).`
     : drawReady() ? `✅ Sorteo listo · <b>${spun} de ${S.participants.length}</b> ya giraron. Las parejas no se muestran aquí.`
@@ -3064,7 +3159,7 @@ const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.
 const canNotify = () => 'Notification' in window;
 let installEvt = null, swReg = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; render(); });
-addEventListener('appinstalled', () => { installEvt = null; toast('¡App instalada! 🎉'); try { localStorage.setItem(INST_KEY, String(Date.now() + 3650 * 864e5)); } catch { } render(); });
+addEventListener('appinstalled', () => { installEvt = null; toast('¡App instalada! 🎉'); try { localStorage.setItem(INST_KEY, String(Date.now() + 3650 * 864e5)); localStorage.setItem(INSTALLED_KEY, '1'); } catch { } render(); });
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   const cfgQ = encodeURIComponent(JSON.stringify({ apiKey: firebaseConfig.apiKey, projectId: firebaseConfig.projectId, messagingSenderId: firebaseConfig.messagingSenderId, appId: firebaseConfig.appId }));
   navigator.serviceWorker.register('sw.js?cfg=' + cfgQ).then(r => { swReg = r; if (canNotify() && Notification.permission === 'granted') registerPush(); }).catch(() => {});
@@ -3113,21 +3208,27 @@ function installApp() {
 }
 const hideKey = 'angelito:hideAppCard';
 // Ya no hay tarjetas en Inicio: solo el ícono 📲 arriba (para quien no la ha instalado) y una ventana que lo invita.
+// ¿Ya está instalada? En la app abierta se sabe por el modo standalone; en el navegador, por una marca que
+// guardamos al instalarla o al abrirla instalada, y en Chrome Android también preguntándole al sistema.
+const INSTALLED_KEY = 'angelito:installed';
+let relatedInstalled = false;
+const isInstalled = () => { if (isStandalone()) { try { localStorage.setItem(INSTALLED_KEY, '1'); } catch { } return true; } try { if (localStorage.getItem(INSTALLED_KEY) === '1') return true; } catch { } return relatedInstalled; };
+try { navigator.getInstalledRelatedApps?.().then(l => { if (l && l.length) { relatedInstalled = true; try { localStorage.setItem(INSTALLED_KEY, '1'); } catch { } render(); } }).catch(() => { }); } catch { }
 function renderAppCard() {
   const box = $('#h-app'); if (box) box.innerHTML = '';
-  const ib = $('#inst-btn'); if (ib) ib.hidden = isStandalone();
+  const ib = $('#inst-btn'); if (ib) ib.hidden = isInstalled();
   maybeTour(); maybeAskNotif(); // también al entrar, no solo al registrarse
 }
 const INST_KEY = 'angelito:askInstall';
 let instT = null;
 function maybeAskInstall() {
-  if (isStandalone() || instT) return;
+  if (isInstalled() || instT) return;
   let last = 0; try { last = +localStorage.getItem(INST_KEY) || 0; } catch { }
   if (Date.now() - last < 2 * 864e5) return; // "Ahora no" vuelve a preguntar en 2 días
   const busyNow = () => S.spinning || S.forcePin || (typeof PARTY !== 'undefined' && PARTY) || location.hash.startsWith('#juego-') || location.hash === '#ruleta'
     || location.hash === '#admin' || document.body.classList.contains('kb') || $('#modal').classList.contains('on') || $('#csel').classList.contains('on') || !!tourT;
   const tryAsk = () => {
-    instT = null; if (isStandalone()) return;
+    instT = null; if (isInstalled()) return;
     if (busyNow()) { instT = setTimeout(tryAsk, 8000); return; }
     openModal(`<div style="text-align:center"><div class="ab-ic" style="margin:0 auto 10px">🎁</div><h3>Instala la app del angelito</h3>
       <p class="muted">Ábrela con un toque desde tu pantalla de inicio, como cualquier otra app.</p>
@@ -3288,6 +3389,9 @@ function renderBadges() {
   const c = mod('chat') ? chatUnread() : 0, g = mod('buzon') ? sugUnread() : 0;
   const put = (el, n) => { if (!el) return; let b = el.querySelector('.bd'); if (!n) { b?.remove(); return; } if (!b) { b = document.createElement('span'); b.className = 'bd'; el.appendChild(b); } b.textContent = n > 99 ? '99+' : n; };
   put($('.tab[data-v=buzon]'), c + g); put($('#buz-seg [data-b=c]'), c); put($('#buz-seg [data-b=s]'), g);
+  const spinNow = !!(S.me && mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid) && !S.assignment?.revealed);
+  put($('.tab[data-v=ruleta]'), spinNow ? '!' : 0);
+  let myTurn = 0; try { myTurn = S.me ? GAMES.active() : 0; } catch { } put($('.tab[data-v=juegos]'), myTurn);
   const mb = $('#c-mute'); if (mb) mb.textContent = nprefs().chat === false ? '🔕' : '🔔';
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
