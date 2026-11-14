@@ -195,7 +195,7 @@ export function c4Bot(b, me) {
 
 /* ================= pantalla ================= */
 const GINFO = {
-  domino: { e: '🁫', name: 'Dominó', pts: 3 },
+  domino: { e: '🎲', name: 'Dominó', pts: 3 },
   ttt: { e: '❌', name: 'X y O', pts: 1 },
   ahorcado: { e: '🔤', name: 'Ahorcado', pts: 2 },
   c4: { e: '🔴', name: '4 en línea', pts: 2 },
@@ -271,7 +271,7 @@ export function initGames(X) {
     if (prev && prev.result !== g.result && g.handOver && g.result) { if (g.result.team >= 0 && teamOfSeat(g, me()) === g.result.team) confetti(80); }
     if (g.status === 'done' && prev?.status !== 'done' && (g.winners || []).includes(me())) confetti(160);
     const key = `${g.id}:${g.hand}:${g.turn}:${g.handOver}`;
-    if (g.status === 'playing' && !g.handOver && g.players[g.turn] === me() && G.seenTurn !== key) { G.seenTurn = key; if (navigator.vibrate) try { navigator.vibrate(60); } catch { } if (document.hidden) X.notify?.('🁫 ¡Te toca jugar!', g.title || 'Dominó', '#juegos'); }
+    if (g.status === 'playing' && !g.handOver && g.players[g.turn] === me() && G.seenTurn !== key) { G.seenTurn = key; if (navigator.vibrate) try { navigator.vibrate(60); } catch { } if (document.hidden) X.notify?.('🎲 ¡Te toca jugar!', g.title || 'Dominó', '#juegos'); }
     maybeBot();
   }
   const teamOfSeat = (g, s) => { const i = g.players.indexOf(s); return i < 0 ? -1 : g.mode === 'parejas' ? i % 2 : i; };
@@ -430,7 +430,7 @@ export function initGames(X) {
         <div class="muted small">${g.players.map(s => esc(seatEmoji(s))).join(' ')} · ${g.players.length}/${g.max} ${g.status === 'lobby' ? (full ? '· llena' : '· esperando') : '· jugando'}</div></div>
         <span class="btn sm ${inIt ? '' : 'gold'}">${inIt ? (g.status === 'playing' ? 'Seguir' : 'Ver') : g.status === 'lobby' && !full ? 'Unirme' : 'Mirar'}</span></a>`; };
     return `<div class="gcreate">
-        <button class="gc" data-gpick="domino"><span class="gc-e">🁫</span><b>Dominó</b><span>En parejas o cada quien</span></button>
+        <button class="gc" data-gpick="domino"><span class="gc-e">${tileHTML('63')}</span><b>Dominó</b><span>En parejas o cada quien</span></button>
         <button class="gc" data-gpick="ahorcado"><span class="gc-e">🔤</span><b>Ahorcado</b><span>Cultura, Biblia y más</span></button>
         <button class="gc" data-gpick="c4"><span class="gc-e">🔴🟡</span><b>4 en línea</b><span>1 contra 1</span></button>
         <button class="gc" data-gpick="ttt"><span class="gc-e">❌⭕</span><b>X y O</b><span>1 contra 1</span></button>
@@ -441,14 +441,14 @@ export function initGames(X) {
       <div class="stack">${open.map(row).join('') || '<div class="card empty"><span class="e">🎲</span>No hay mesas abiertas. ¡Crea una y que se unan!</div>'}</div>
       ${live.filter(g => !mineIds.has(g.id)).length ? `<div class="h2row"><h2>Jugando ahora</h2></div><div class="stack">${live.filter(g => !mineIds.has(g.id)).map(row).join('')}</div>` : ''}
       <div class="h2row"><h2>🏆 Tabla de campeones</h2></div>
-      <div class="card">${ranks.length ? ranks.slice(0, 15).map(([uid, o], k) => `<div class="rk ${uid === me() ? 'me' : ''}"><span class="rk-n">${medal[k] || k + 1}</span><span class="rk-a">${esc(X.pEmoji(uid))}</span><span class="grow"><b>${esc(X.pName(uid))}</b><div class="muted small">${o.domino ? `🁫 ${o.domino} ` : ''}${o.ahorcado ? `🔤 ${o.ahorcado} ` : ''}${o.ttt ? `❌ ${o.ttt} ` : ''}${o.c4 ? `🔴 ${o.c4}` : ''}</div></span><b class="rk-p">${o.pts}</b></div>`).join('')
+      <div class="card">${ranks.length ? ranks.slice(0, 15).map(([uid, o], k) => `<div class="rk ${uid === me() ? 'me' : ''}"><span class="rk-n">${medal[k] || k + 1}</span><span class="rk-a">${esc(X.pEmoji(uid))}</span><span class="grow"><b>${esc(X.pName(uid))}</b><div class="muted small">${o.domino ? `🎲 ${o.domino} ` : ''}${o.ahorcado ? `🔤 ${o.ahorcado} ` : ''}${o.ttt ? `❌ ${o.ttt} ` : ''}${o.c4 ? `🔴 ${o.c4}` : ''}</div></span><b class="rk-p">${o.pts}</b></div>`).join('')
         : '<p class="muted small center">Todavía nadie ha ganado. Dominó vale 3 puntos, ahorcado y 4 en línea 2, y X y O 1.</p>'}</div>`;
   }
   function seatsHTML(g) {
     const n = g.players.length;
     return `<div class="seats">${g.players.map((s, i) => `<div class="seat ${g.status === 'playing' && !g.handOver && g.turn === i ? 'turn' : ''} ${s === me() ? 'me' : ''}">
       <span class="se">${esc(seatEmoji(s))}</span><span class="sn">${esc(s === me() ? 'Tú' : seatName(s))}</span>
-      ${g.type === 'domino' && g.status !== 'lobby' ? `<span class="sc">${g.counts?.[i] ?? 7} 🁢</span>` : ''}
+      ${g.type === 'domino' && g.status !== 'lobby' ? `<span class="sc">${g.counts?.[i] ?? 7} fichas</span>` : ''}
       ${g.type === 'domino' && g.mode === 'parejas' ? `<span class="team t${i % 2}">${i % 2 ? 'B' : 'A'}</span>` : ''}
       ${g.type === 'ahorcado' && g.scores ? `<span class="sc">${g.scores[i] || 0} pts</span>` : ''}
       ${g.type === 'ttt' ? `<span class="sc">${i === 0 ? '❌' : '⭕'}</span>` : ''}${g.type === 'c4' ? `<span class="sc">${i === 0 ? '🔴' : '🟡'}</span>` : ''}
@@ -534,7 +534,7 @@ export function initGames(X) {
   function pickMode(type) {
     const opt = (v, e, t, d) => `<button class="gopt" data-gnew="${type}:${v}"><span class="go-e">${e}</span><span><b>${t}</b><span class="muted small">${d}</span></span></button>`;
     const body = {
-      domino: ['🁫 Dominó', opt('parejas', '👥', 'En parejas', '2 contra 2 · se juega a 200 · los asientos vacíos se llenan con 🤖') + opt('solo', '🙋', 'Cada quien', 'De 2 a 4 · se juega a 100')],
+      domino: ['🎲 Dominó', opt('parejas', '👥', 'En parejas', '2 contra 2 · se juega a 200 · los asientos vacíos se llenan con 🤖') + opt('solo', '🙋', 'Cada quien', 'De 2 a 4 · se juega a 100')],
       ahorcado: ['🔤 Ahorcado', Object.entries(WORD_CATS).map(([k, c]) => opt(k, c.e, c.name, `${c.words.length} palabras`)).join('') + opt('mix', '🎰', 'Al azar', 'Cualquier categoría')],
       c4: ['🔴 4 en línea', opt('', '🙋', 'Contra alguien', 'Creas la mesa y otra persona se une') + opt('bot', '🤖', 'Contra la máquina', 'Empieza de una vez')],
       ttt: ['❌ X y O', opt('', '🙋', 'Contra alguien', 'Creas la mesa y otra persona se une') + opt('bot', '🤖', 'Contra la máquina', 'Empieza de una vez')],

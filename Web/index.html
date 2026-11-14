@@ -383,6 +383,23 @@ body.kb.chat-on #c-dock{bottom:calc(8px + env(safe-area-inset-bottom))}
 .bdg.ok{background:rgba(47,148,97,.28);color:#bff0d3}.bdg.no{background:rgba(226,72,63,.22);color:#ffc2bc}.bdg.wait{color:var(--muted)}
 .bdg.paid{background:rgba(236,188,92,.25);color:#ffe2a8}.bdg.said{background:rgba(236,188,92,.12);color:#ffd99a}.bdg.due{background:rgba(226,72,63,.14);color:#ffb3aa}
 .pact{display:flex;align-items:center;gap:4px}.btn.xs{padding:7px 11px;font-size:.78rem;border-radius:12px}.x.more{font-size:20px;font-weight:800;letter-spacing:1px}
+.nodate{display:inline-block;margin-top:14px;padding:8px 14px;border-radius:999px;background:rgba(0,0,0,.25);font-weight:700;font-size:.9rem}
+.irow.pend{border-bottom:0;padding-top:12px}
+.h2row.wh{flex-wrap:wrap;gap:10px}.h2row.wh h2{flex:1 1 100%;margin:0}
+#v-ruleta.locked .wheel-wrap{--wsz:min(62vw,240px);width:var(--wsz);opacity:.45;filter:saturate(.6)}
+#v-ruleta.locked .spin-cta{position:static}
+#v-ruleta.locked #spinBtn{display:none!important}
+.lockmsg{display:inline-block;padding:10px 14px;border-radius:14px;background:rgba(0,0,0,.25);border:1px dashed var(--line);font-weight:600;color:var(--text)}
+#q-formbox.after{margin-top:18px}
+#q-formbox.after::before{content:'✍️ Escribe un anónimo';display:block;font-family:Fraunces,serif;font-weight:700;font-size:1.25rem;margin:0 0 10px}
+a.card.gm,a.card.nextc{display:flex}
+a.btn{text-decoration:none}
+.gm .grow{flex:1;min-width:0}
+#h-sug{margin-top:14px;padding:14px 16px}#h-sug .je{font-size:26px}
+#ubtn .rdot{top:4px;right:6px;width:8px;height:8px;box-shadow:0 0 0 2px #1c2b22}
+#c-dock .emobar{display:none}body.kb #c-dock .emobar,#c-dock:focus-within .emobar{display:flex}
+.gc-e .dmn{vertical-align:middle}
+.sitem-compact{}
 /* modal + toast */
 .modal{position:fixed;inset:0;z-index:80;display:none;align-items:flex-end;justify-content:center;background:rgba(3,8,6,.7);backdrop-filter:blur(6px);padding:16px}
 .modal.on{display:flex;animation:fade .25s}
@@ -624,6 +641,7 @@ html.big .tab{font-size:.6rem}
         <div><b data-c="m">–</b><span>min</span></div>
         <div><b data-c="s">–</b><span>seg</span></div>
       </div>
+      <div class="nodate" id="h-nodate" hidden>📅 La fecha se anunciará pronto</div>
     </div>
     <div id="h-next"></div>
     <div id="h-notices"></div>
@@ -642,7 +660,7 @@ html.big .tab{font-size:.6rem}
     <div class="h2row"><h2>Próximas actividades</h2><a href="#actividades" class="small" style="text-decoration:none;font-weight:700">Ver todas ›</a></div>
     <div id="h-acts"></div>
     <div class="card rules-card" id="h-rules" style="display:none"></div>
-    <a class="card join clk" id="h-sug" href="#sugerencias" style="display:none"><div class="je">💡</div><div style="flex:1"><b>¿Qué te gustaría que agreguemos?</b><div class="muted small">Comparte ideas para mejorar el angelito: actividades, juegos, cambios… Tú decides si va con tu nombre.</div></div><span class="chev">›</span></a>
+    <a class="card join clk" id="h-sug" href="#sugerencias" style="display:none"><div class="je">💡</div><div style="flex:1"><b>¿Tienes una idea?</b><div class="muted small">Propón juegos o cambios para el angelito.</div></div><span class="chev">›</span></a>
     <div id="h-mem"></div>
     <div id="h-join2"></div>
   </section>
@@ -676,16 +694,16 @@ html.big .tab{font-size:.6rem}
 
   <!-- ACTIVIDADES -->
   <section class="view" id="v-actividades">
-    <h2 class="sec-title">Actividades</h2>
-    <p class="sec-sub">Toca una actividad para ver los detalles, votar y ver lo que te tocó.</p>
+    <h2 class="sec-title">Agenda</h2>
+    <div class="seg" id="ag-seg"><button class="on">📅 Actividades</button><button data-go="anonimos" class="seg-anon">💌 Buzón anónimo</button></div>
     <div id="acts-root"></div>
   </section>
   <section class="view" id="v-actividad"><div id="act-root"></div></section>
 
   <!-- ANÓNIMOS -->
   <section class="view" id="v-anonimos">
-    <h2 class="sec-title">Grupo</h2>
-    <div class="seg" id="anon-seg"><button data-go="chat">💬 Chat</button><button class="on">💌 Anónimos</button><button data-go="sugerencias" class="seg-s">💡 Ideas</button><button data-go="fotos" class="seg-f">📸 Fotos</button></div>
+    <h2 class="sec-title">Agenda</h2>
+    <div class="seg" id="anon-seg"><button data-go="actividades" class="seg-act">📅 Actividades</button><button class="on">💌 Buzón anónimo</button></div>
     <p class="sec-sub">Escribe preguntas o mensajes que se mostrarán sin tu nombre. Quedan bajo llave y se abren el día indicado.</p>
     <div id="q-formbox"></div>
     <div id="q-board" style="margin-top:18px"></div>
@@ -694,19 +712,19 @@ html.big .tab{font-size:.6rem}
   <!-- BUZÓN: sugerencias + chat -->
   <section class="view" id="v-buzon">
     <h2 class="sec-title">Grupo</h2>
-    <div class="seg" id="buz-seg"><button data-b="c" class="on">💬 Chat</button><button data-go="anonimos" class="seg-anon">💌 Anónimos</button><button data-b="s">💡 Ideas</button><button data-b="f">📸 Fotos</button></div>
+    <div class="seg" id="buz-seg"><button data-b="c" class="on">💬 Chat</button><button data-b="s">💡 Ideas</button><button data-b="f">📸 Fotos</button></div>
     <div id="buz-c">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><p class="sec-sub" style="margin-bottom:12px">Chistes, indirectas navideñas y ocurrencias 😂</p><span style="display:flex;gap:8px;align-items:center"><span class="muted small" id="c-count" style="white-space:nowrap"></span><button class="iconbtn" id="c-mute" style="width:34px;height:34px;font-size:16px" title="Silenciar notificaciones del chat" aria-label="Silenciar chat">🔔</button></span></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><p class="muted small" style="margin:0 0 8px">Ocurrencias del grupo · usa @ para mencionar</p><span style="display:flex;gap:8px;align-items:center"><span class="muted small" id="c-count" style="white-space:nowrap"></span><button class="iconbtn" id="c-mute" style="width:34px;height:34px;font-size:16px" title="Silenciar notificaciones del chat" aria-label="Silenciar chat">🔔</button></span></div>
       <div id="c-gate"></div>
       <div id="c-wrap" style="display:none">
         <div class="chatbox" id="c-list"></div>
         <div id="c-dock"><div class="emobar" id="c-emo"><button data-e="😂">😂</button><button data-e="🤣">🤣</button><button data-e="🎄">🎄</button><button data-e="🎁">🎁</button><button data-e="👀">👀</button><button data-e="🔥">🔥</button><button data-e="🤫">🤫</button><button data-e="🥳">🥳</button><button data-e="🙄">🙄</button><button data-e="❤️">❤️</button></div>
         <div id="c-reply"></div>
         <div class="mbar" id="c-mention" hidden></div>
-        <div class="dicehint" id="c-dicehint" hidden>🎲 ¿Sin ideas? Toca el dado y te damos una ocurrencia</div>
+        <div class="dicehint" id="c-dicehint" hidden></div>
         <form class="composer" id="c-form">
           <button type="button" class="iconbtn" id="c-dice" title="Ocurrencia random" aria-label="Ocurrencia random">🎲</button>
-          <input class="in" id="c-text" maxlength="500" placeholder="Escribe una ocurrencia…" autocomplete="off">
+          <input class="in" id="c-text" maxlength="500" placeholder="Escribe o toca 🎲 para una idea" autocomplete="off">
           <button class="btn primary" type="submit" style="border-radius:999px;padding:12px 16px">➤</button>
         </form></div>
       </div>
@@ -1039,9 +1057,9 @@ const MODS = { ruleta: ['🎡', 'Ruleta'], deseos: ['🎁', 'Lista de deseos'], 
 const mod = k => (S.event.modules || {})[k] !== false;
 const TAB_MOD = { ruleta: 'ruleta', deseos: 'deseos', actividades: 'agenda', actividad: 'agenda', anonimos: 'anonimos', juegos: 'juegos' };
 const BUZ_MOD = { s: 'buzon', c: 'chat', f: 'fotos' };
-const viewOn = v => v === 'buzon' ? (mod('buzon') || mod('chat') || mod('fotos') || mod('anonimos')) : !(TAB_MOD[v] && !mod(TAB_MOD[v]));
+const viewOn = v => v === 'buzon' ? (mod('buzon') || mod('chat') || mod('fotos')) : v === 'actividades' ? (mod('agenda') || mod('anonimos')) : !(TAB_MOD[v] && !mod(TAB_MOD[v]));
 function setBuz(b) {
-  if (!mod(BUZ_MOD[b])) { b = ['c', 's', 'f'].find(x => mod(BUZ_MOD[x])); if (!b) { if (mod('anonimos')) { location.hash = 'anonimos'; return; } b = 'c'; } }
+  if (!mod(BUZ_MOD[b])) b = ['c', 's', 'f'].find(x => mod(BUZ_MOD[x])) || 'c';
   S.buz = b;
   $$('#buz-seg button').forEach(x => { x.classList.toggle('on', x.dataset.b === b); x.style.display = mod(BUZ_MOD[x.dataset.b]) ? '' : 'none'; });
   $('#buz-s').style.display = b === 's' ? '' : 'none'; $('#buz-c').style.display = b === 'c' ? '' : 'none'; $('#buz-f').style.display = b === 'f' ? '' : 'none';
@@ -1621,12 +1639,13 @@ function route() {
   if (v.startsWith('juego-')) v = 'juegos';
   if (v.startsWith('actividad-')) { S.actId = v.slice(10); v = 'actividad'; renderActDetail(); }
   else if (!VIEWS.includes(v)) v = 'inicio';
+  if (v === 'actividades' && !mod('agenda') && mod('anonimos')) v = 'anonimos';
   if (!viewOn(v)) v = 'inicio';
   if (v === 'buzon') setBuz(S.buz);
   $$('.view').forEach(el => el.classList.toggle('on', el.id === 'v-' + v));
-  $$('.tab').forEach(el => el.classList.toggle('on', el.dataset.v === (v === 'actividad' ? 'actividades' : v === 'anonimos' ? 'buzon' : v)));
+  $$('.tab').forEach(el => el.classList.toggle('on', el.dataset.v === (v === 'actividad' ? 'actividades' : v === 'anonimos' ? 'actividades' : v)));
   document.body.classList.toggle('adm-view', v === 'admin');
-  $$('.seg-anon').forEach(b => { b.style.display = mod('anonimos') ? '' : 'none'; }); const as = $('#anon-seg'); if (as) { as.querySelector('[data-go=chat]').style.display = mod('chat') ? '' : 'none'; as.querySelector('.seg-s').style.display = mod('buzon') ? '' : 'none'; as.querySelector('.seg-f').style.display = mod('fotos') ? '' : 'none'; }
+  $$('.seg-anon').forEach(b => { b.style.display = mod('anonimos') ? '' : 'none'; }); $$('.seg-act').forEach(b => { b.style.display = mod('agenda') ? '' : 'none'; }); { const g = $('#ag-seg'); if (g) g.style.display = mod('anonimos') ? '' : 'none'; }
   $('#gear').style.background = v === 'admin' ? 'var(--cream)' : '';
   if (v === 'ruleta') requestAnimationFrame(drawWheel);
   if (v === 'juegos') { try { GAMES.render(); } catch (e) { console.error(e); } }
@@ -1695,7 +1714,9 @@ function renderHome() {
   if (c.dress) info.push(['👗', 'Vestimenta', c.dress]);
   if (c.contribAmount) info.push(['💵', 'Aporte', c.contribAmount]);
   info.push(['👥', 'Participantes', S.participants.length ? `${S.participants.length} ${S.participants.length === 1 ? 'inscrito' : 'inscritos'}` : 'Aún nadie']);
-  $('#h-info').innerHTML = info.map(([i, k, v]) => `<div class="irow"><div class="k">${i} ${k}</div><div class="v">${esc(v)}</div></div>`).join('');
+  const known = info.filter(x => x[2] !== 'Por definir');
+  $('#h-info').innerHTML = known.map(([i, k, v]) => `<div class="irow"><div class="k">${i} ${k}</div><div class="v">${esc(v)}</div></div>`).join('')
+    + (known.length < info.length ? `<div class="irow pend" style="grid-column:1/-1"><div class="v muted" style="font-weight:500">⏳ ${info.filter(x => x[2] === 'Por definir').map(x => x[1].toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' y $1')}: el organizador lo anunciará pronto</div></div>` : '');
   const n = $('#h-notes'); n.style.display = c.notes ? '' : 'none'; n.textContent = c.notes || '';
   const rules = Array.isArray(c.rules) ? c.rules : [];
   $('#h-sug').style.display = mod('buzon') ? '' : 'none';
@@ -1719,7 +1740,8 @@ function renderHome() {
       <div class="when">${esc(fmtDate(a.date))}${a.time ? ' · ' + esc(fmtTime(a.time)) : ''}</div>
       <h3>${esc(a.title)}</h3>${a.place ? `<p>📍 ${esc(a.place)}</p>` : ''}${kindTag(a)}
     </div><span class="chev">›</span></div></a>`).join('')}</div>`
-    : `<div class="card empty"><span class="e">🗓️</span>Todavía no hay actividades programadas.</div>`;
+    : '';
+  const ah = $('#h-acts').previousElementSibling; if (ah && mod('agenda')) ah.style.display = S.activities.length ? '' : 'none';
 }
 
 /* ---------- tus pendientes ---------- */
@@ -1809,7 +1831,9 @@ function tick() {
   const t = S.event.eventAt ? new Date(ms(S.event.eventAt)) : S.event.eventDate ? new Date(S.event.eventDate) : null;
   const d = t && !isNaN(t) ? Math.max(0, t - Date.now()) : null;
   const set = (k, v) => { const el = $(`[data-c="${k}"]`); if (el) el.textContent = v; };
-  if (d == null) return ['d', 'h', 'm', 's'].forEach(k => set(k, '–'));
+  const cnt = $('.hero .count'), nd = $('#h-nodate');
+  if (cnt) cnt.hidden = d == null; if (nd) nd.hidden = d != null;
+  if (d == null) return;
   set('d', Math.floor(d / 864e5)); set('h', String(Math.floor(d / 36e5) % 24).padStart(2, '0'));
   set('m', String(Math.floor(d / 6e4) % 60).padStart(2, '0')); set('s', String(Math.floor(d / 1e3) % 60).padStart(2, '0'));
 }
@@ -1830,7 +1854,11 @@ function renderWheel() {
     if (!canSpin && !(S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid))) btn.innerHTML = '🔒 Ruleta inhabilitada';
   }
   btn.disabled = S.spinning || !canSpin;
-  if (!S.spinning) drawWheel();
+  const locked = !!S.me && !canSpin && !S.spinning && !(S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid));
+  const wasLocked = $('#v-ruleta').classList.contains('locked');
+  $('#v-ruleta').classList.toggle('locked', locked);
+  if (locked) msg.innerHTML = '<span class="lockmsg">🔒 Se abre cuando el organizador haga el sorteo. Te avisamos 🔔</span>';
+  if (!S.spinning) { if (wasLocked !== locked) requestAnimationFrame(drawWheel); else drawWheel(); }
 }
 function drawWheel() {
   const cv = $('#wheel'); const size = cv.clientWidth; if (!size) return;
@@ -1852,7 +1880,7 @@ function drawWheel() {
     ctx.fillStyle = (col === '#f3e7d3' || col === '#e3ae4b') ? '#3a1a10' : '#fff8ec';
     const fs = Math.max(10, Math.min(16, size / (n > 10 ? 28 : 21)));
     ctx.font = `700 ${fs}px "DM Sans", sans-serif`; ctx.textAlign = flip ? 'left' : 'right'; ctx.textBaseline = 'middle';
-    let nm = (p.emoji ? p.emoji + ' ' : '') + (p.first || p.name); if (nm.length > 14) nm = nm.slice(0, 13) + '…';
+    let nm = n > 18 ? (p.emoji || '🎁') : (p.emoji ? p.emoji + ' ' : '') + (p.first || p.name); if (nm.length > 14) nm = nm.slice(0, 13) + '…';
     ctx.fillText(nm, flip ? -(r - 16) : r - 16, 0); ctx.restore();
   });
   ctx.beginPath(); ctx.arc(0, 0, r - 1, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 3; ctx.stroke();
@@ -1926,7 +1954,7 @@ function renderWishes() {
   const many = S.participants.length > 8;
   root.innerHTML = `${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}
   <div class="pscroll" id="w-strip">${wishStrip()}</div>
-  <div class="h2row"><h2>${esc(pEmoji(S.wishPid))} ${mine ? 'Mi lista de deseos' : 'Lista de ' + esc(pName(S.wishPid))}</h2>${mine ? `<div style="display:flex;gap:6px"><button class="btn sm" id="prof-icon">${esc(S.me.emoji)} Ícono</button>${mod('perfil') ? `<button class="btn sm ${profDone() < PROF.length ? 'gold pulse-soft' : ''}" id="prof-edit">👕 Mi perfil${profDone() < PROF.length ? ' <span class="rdot"></span>' : ''}</button>` : ''}</div>` : ''}</div>
+  <div class="h2row wh"><h2>${esc(pEmoji(S.wishPid))} ${mine ? 'Mi lista de deseos' : 'Lista de ' + esc(pName(S.wishPid))}</h2>${mine ? `<div style="display:flex;gap:6px"><button class="btn sm" id="prof-icon">${esc(S.me.emoji)} Ícono</button>${mod('perfil') ? `<button class="btn sm ${profDone() < PROF.length ? 'gold pulse-soft' : ''}" id="prof-edit">👕 Mi perfil${profDone() < PROF.length ? ' <span class="rdot"></span>' : ''}</button>` : ''}</div>` : ''}</div>
   ${mod('perfil') ? profileHtml(S.wishPid) : ''}
   <div class="stack">${items.length ? items.map(w => `
     <div class="item ${w.top ? 'wtop' : ''}"><span style="font-size:22px">${w.top ? '⭐' : '🎁'}</span><div class="grow">
@@ -2027,7 +2055,11 @@ function renderQuestions() {
     sel.innerHTML = `<option value="">🎄 Para todos</option>` + S.participants.map(p => `<option value="${esc(p.id)}">${esc(p.emoji)} ${esc(p.name)}</option>`).join('');
     sel.value = [...sel.options].some(o => o.value === cur) ? cur : '';
   }
-  const board = $('#q-board'), n = S.qCount;
+  const board = $('#q-board'), n = S.qCount, open = isRevealed() && !!S.me;
+  const sec = $('#v-anonimos'), fbx = $('#q-formbox');
+  if (open && fbx.nextElementSibling === board) { sec.insertBefore(board, fbx); fbx.classList.add('after'); }
+  if (!open && board.nextElementSibling === fbx) { sec.insertBefore(fbx, board); fbx.classList.remove('after'); }
+  sec.querySelector('.sec-sub').style.display = open ? 'none' : '';
   if (!isRevealed()) {
     const rd = revealDay(); let left = '';
     if (rd) { const days = Math.ceil((new Date(rd + 'T00:00') - new Date(todayStr() + 'T00:00')) / 864e5); left = days === 1 ? 'Se abren mañana' : `Faltan ${days} días`; }
@@ -2041,7 +2073,7 @@ function renderQuestions() {
     const qs = S.questions;
     board.innerHTML = qs.length ? `<div class="h2row" style="margin-top:0"><h2>🎉 ¡Se abrió el buzón!</h2><span class="muted small">${qs.length} mensajes</span></div>
       <div class="qgrid">${qs.map((q, i) => `<div class="q" style="--rot:${((i * 37) % 7) - 3}deg;background:${QCOLORS[i % QCOLORS.length]};animation-delay:${Math.min(i, 12) * 60}ms">
-        <div class="to">${q.to ? 'Para ' + esc(pName(q.to)) : 'Para todos'}</div><div class="txt">${esc(q.text)}</div></div>`).join('')}</div>`
+        <div class="to">${q.to ? (P(q.to) ? 'Para ' + esc(pName(q.to)) : 'Para alguien del grupo') : 'Para todos'}</div><div class="txt">${esc(q.text)}</div></div>`).join('')}</div>`
       : `<div class="card empty"><span class="e">📭</span>${S.qSubOn ? 'El buzón está abierto pero vacío.' : 'Abriendo el buzón…'}</div>`;
   }
 }
@@ -2325,10 +2357,10 @@ $('#c-dice').addEventListener('click', () => {
 });
 function diceHint() {
   let n = 0; try { n = +localStorage.getItem('angelito:diceUsed') || 0; } catch { }
-  const show = n < 3 && !!S.me; $('#c-dicehint').hidden = !show || !!$('#c-text').value; $('#c-dice').classList.toggle('glow', n < 3);
+  const show = n < 3 && !!S.me; $('#c-dicehint').hidden = true; $('#c-dice').classList.toggle('glow', n < 3);
 }
 $('#c-text').addEventListener('input', () => diceHint());
-setInterval(() => { const i = $('#c-text'); if (i && !i.value && document.activeElement !== i) { const l = prompts(); i.placeholder = '🎲 ' + l[Math.floor(Math.random() * l.length)].slice(0, 46) + '…'; } }, 7000);
+setInterval(() => { const i = $('#c-text'); if (i && !i.value && document.activeElement !== i) { const l = prompts(); i.placeholder = 'Escribe o toca 🎲 para una idea'; } }, 7000);
 $('#c-form').addEventListener('submit', async e => {
   e.preventDefault(); const i = $('#c-text'), text = i.value.trim(); if (!text || !S.me) return;
   i.value = '';
@@ -3079,7 +3111,8 @@ function renderActs() {
     <a class="actcard card" href="#actividad-${esc(a.id)}"><div class="em">${esc(a.emoji || '🎁')}</div>
       <div style="flex:1;min-width:0"><div class="when">${esc(actWhen(a))}</div><h3>${esc(a.title)}</h3>${kindTag(a)}</div>
       <span class="chev">›</span></a>`).join('')}</div>`
-    : `<div class="card empty"><span class="e">🗓️</span>Todavía no hay actividades. El organizador las publicará pronto.</div>`;
+    : `<div class="card empty"><span class="e">🗓️</span><b>Aquí estará el plan del día</b><p class="muted small" style="margin-top:6px">Cena, juegos, dinámicas e intercambio. Te avisamos 🔔 cuando el organizador lo publique.</p>
+      <div class="qa" style="justify-content:center;margin-top:12px">${mod('juegos') ? '<a class="btn sm gold" href="#juegos">🎮 Mientras tanto, a jugar</a>' : ''}${mod('deseos') ? '<a class="btn sm" href="#deseos">🎁 Mi lista de deseos</a>' : ''}</div></div>`;
 }
 function voteOptions(a) {
   return a.voteTarget === 'participants'
@@ -3310,6 +3343,7 @@ function onOpenReminders() {
   let last = ''; try { last = localStorage.getItem('angelito:remind:' + S.uid) || ''; } catch { }
   if (last === day) return;
   let sent = false;
+  if (!document.hidden) return; // con la app abierta ya lo ve en "Tus pendientes"
   if (mod('asistencia') && !a.status) { notifyUser('🎉 ¿Vas al angelito?', 'Confirma tu asistencia en Inicio.', './', 'att'); sent = true; }
   else if (mod('asistencia') && c.contribAmount && a.status === 'si' && !a.confirmed && !a.paid) { notifyUser('💵 Recuerda dar tu aporte', `${c.contribAmount}${c.contribInfo ? ' · ' + c.contribInfo : ''}`, './', 'pay'); sent = true; }
   if (sent) try { localStorage.setItem('angelito:remind:' + S.uid, day); } catch { }
