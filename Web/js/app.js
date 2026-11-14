@@ -1406,7 +1406,7 @@ function renderMyAngel() {
   if (!guessesOpen() && S.event.guessesLocked) {
     h += `<div class="card empty"><span class="e">🔒</span>Las adivinanzas ya están cerradas.</div>`;
   } else if (!guessesOpen()) {
-    h += `<form class="card stack" id="g-form"><p class="muted small">Escribe tu adivinanza. Nadie la verá hasta el día del intercambio, y puedes cambiarla hasta entonces.</p>
+    h += `<form class="card stack guesscard" id="g-form"><p class="muted small">Escribe tu adivinanza. Nadie la verá hasta el día del intercambio, y puedes cambiarla hasta entonces.</p>
       <textarea class="in" id="g-text" maxlength="200" placeholder="Creo que me van a regalar… un perfume 👃" style="min-height:70px">${esc(S.myGuess?.text || '')}</textarea>
       <button class="btn gold" type="submit">🔮 ${S.myGuess?.text ? 'Actualizar mi adivinanza' : 'Guardar mi adivinanza'}</button></form>`;
   } else {
@@ -1471,7 +1471,7 @@ function renderAttendance() {
   if (!S.me || !mod('asistencia')) { box.innerHTML = ''; } else {
     const c = S.event, me = S.att[S.uid] || {}, sm = attSummary();
     const late = c.rsvpDeadline && todayStr() > c.rsvpDeadline;
-    let h = `<div class="card" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:1.1rem">🎉 ¿Vas al angelito?</b><span class="cnts"><span class="cnt ok">${sm.going} van</span>${sm.notGoing ? `<span class="cnt no">${sm.notGoing} no</span>` : ''}</span></div>
+    let h = `<div class="card rsvpcard" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:1.1rem">🎉 ¿Vas al angelito?</b><span class="cnts"><span class="cnt ok">${sm.going} van</span>${sm.notGoing ? `<span class="cnt no">${sm.notGoing} no</span>` : ''}</span></div>
       ${c.rsvpDeadline ? `<p class="muted small" style="margin-top:4px">${late ? '⚠️ La fecha para confirmar ya pasó' : 'Confirma antes del ' + esc(fmtDate(c.rsvpDeadline))}</p>` : ''}
       <div class="rsvp" style="grid-template-columns:1fr 1fr;margin-top:12px"><button class="${me.status === 'si' ? 'on' : ''}" data-att="si"><span class="rs-i">${ic('check', 26)}</span>Sí, voy</button><button class="${me.status === 'no' ? 'on' : ''}" data-att="no"><span class="rs-i">${ic('xcircle', 26)}</span>No puedo</button></div>`;
     if (me.status === 'si' && c.contribAmount) {
@@ -1596,7 +1596,7 @@ function renderChat() {
     // mensajes seguidos de la misma persona (menos de 5 min): sin repetir nombre ni ícono, más juntitos
     const cont = !sep && prev && prev.uid === m.uid && Math.abs((ms(m.at) || m.ts || 0) - (ms(prev.at) || prev.ts || 0)) < 5 * 60e3; prev = m;
     const tagMe = (m.mentions || []).includes(S.uid) || ((m.mentions || []).includes('all') && m.uid !== S.uid);
-    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}${m.hasImg ? (S.chatImgs[m.id] ? `<button type="button" class="cimg" data-cimg="${esc(m.id)}" aria-label="Ver foto"><img src="${S.chatImgs[m.id]}" alt=""></button>` : '<div class="cimg ld"></div>') : ''}${m.hasImg && m.text === '📷 Foto' ? '' : `<div class="mt">${mentionHTML(m)}</div>`}${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${m.edited ? '<span class="edt">editado · </span>' : ''}${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : ' <span class="ok" title="Enviado">✓</span>') : ''}</div></div></div>`;
+    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm" style="color:${nmColor(m.uid)}">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}${m.hasImg ? (S.chatImgs[m.id] ? `<button type="button" class="cimg" data-cimg="${esc(m.id)}" aria-label="Ver foto"><img src="${S.chatImgs[m.id]}" alt=""></button>` : '<div class="cimg ld"></div>') : ''}${m.hasImg && m.text === '📷 Foto' ? '' : `<div class="mt">${mentionHTML(m)}</div>`}${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${m.edited ? '<span class="edt">editado · </span>' : ''}${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : ' <span class="ok" title="Enviado">✓</span>') : ''}</div></div></div>`;
   }).join('') : `<div class="empty" style="margin:auto"><span class="e">💬</span>Nadie ha escrito todavía.<br>¡Rompe el hielo! Toca 🎲 para una idea.</div>`;
   if (near || S.chatStick) { S.chatStick = false; l.scrollTop = l.scrollHeight; }
 }
@@ -2601,7 +2601,7 @@ function renderActs() {
     <a class="actcard card" href="#actividad-${esc(a.id)}"><div class="em">${esc(a.emoji || '🎁')}</div>
       <div style="flex:1;min-width:0"><div class="when">${esc(actWhen(a))}</div><h3>${esc(a.title)}</h3>${a.openAt && Date.now() < a.openAt ? `<span class="badge">🔒 Se abre el ${esc(openWhen(a))}</span>` : kindTag(a)}</div>
       <span class="chev">›</span></a>`).join('')}</div>`
-    : `${anon ? `<div class="stack" style="margin-bottom:12px">${anon}</div>` : ''}<div class="card empty"><span class="e">🗓️</span><b>Aquí estará el plan del día</b><p class="muted small" style="margin-top:6px">Cena, juegos, dinámicas e intercambio. Te avisamos 🔔 cuando el organizador lo publique.</p>
+    : `${anon ? `<div class="stack" style="margin-bottom:12px">${anon}</div>` : ''}<div class="card empty plancard"><span class="e">🗓️</span><b>Aquí estará el plan del día</b><p class="muted small" style="margin-top:6px">Cena, juegos, dinámicas e intercambio. Te avisamos 🔔 cuando el organizador lo publique.</p>
       <div class="qa" style="justify-content:center;margin-top:12px">${mod('juegos') ? '<a class="btn sm gold" href="#juegos">🎮 Mientras tanto, a jugar</a>' : ''}${mod('deseos') ? '<a class="btn sm" href="#deseos">🎁 Mi lista de deseos</a>' : ''}</div></div>`;
 }
 function voteOptions(a) {
@@ -3218,6 +3218,9 @@ document.addEventListener('click', e => {
 });
 
 /* ---------- íconos (trazos limpios en vez de emojis en menús y botones de opciones) ---------- */
+// Color fijo por persona para su nombre en el chat
+const NM_COLORS = ['#f6c560', '#7fd6a8', '#8ec5ff', '#f59ab5', '#c7a6ff', '#ffb37a', '#6fe0d6', '#e8e07a'];
+function nmColor(uid) { let h = 0; for (const c of String(uid)) h = (h * 31 + c.charCodeAt(0)) | 0; return NM_COLORS[Math.abs(h) % NM_COLORS.length]; }
 const SVGI = {
   back: '<path d="m15 18-6-6 6-6"/>',
   star: '<path d="M11.52 2.3a.53.53 0 0 1 .96 0l2.31 4.68a2.12 2.12 0 0 0 1.6 1.16l5.16.76a.53.53 0 0 1 .3.9l-3.74 3.64a2.12 2.12 0 0 0-.61 1.88l.88 5.14a.53.53 0 0 1-.77.56l-4.62-2.43a2.12 2.12 0 0 0-1.97 0L6.4 21.01a.53.53 0 0 1-.77-.56l.88-5.14a2.12 2.12 0 0 0-.61-1.88L2.16 9.8a.53.53 0 0 1 .29-.9l5.17-.76a2.12 2.12 0 0 0 1.6-1.16z"/>',

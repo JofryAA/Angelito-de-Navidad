@@ -1,6 +1,6 @@
 /* Service worker del Angelito: funciona como app, abre sin internet y recibe notificaciones. */
 const VERSION = 'angelito-2026.11.13-114418';
-const SHELL = ['./', './index.html', './firebase-config.js', './css/app.css', './css/panel.css', './js/app.js', './js/panel.js', './js/juegos.js', './manifest.webmanifest',
+const SHELL = ['./', './index.html', './firebase-config.js', './css/app.css', './css/panel.css', './css/tema.css', './js/app.js', './js/panel.js', './js/juegos.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon-64.png', './icons/badge-96.png'];
 
 const LIBS = ['app', 'auth', 'firestore'].map(n => `https://www.gstatic.com/firebasejs/10.12.2/firebase-${n}.js`);
