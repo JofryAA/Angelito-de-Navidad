@@ -96,6 +96,7 @@ function setBuz(b) {
   if (!mod(BUZ_MOD[b])) b = ['c', 's', 'f'].find(x => mod(BUZ_MOD[x])) || 'c';
   S.buz = b;
   $$('#buz-seg button').forEach(x => { x.classList.toggle('on', x.dataset.b === b); x.style.display = mod(BUZ_MOD[x.dataset.b]) ? '' : 'none'; });
+  $('#c-go-s').hidden = !mod(BUZ_MOD.s); $('#c-go-f').hidden = !mod(BUZ_MOD.f);
   $('#buz-s').style.display = b === 's' ? '' : 'none'; $('#buz-c').style.display = b === 'c' ? '' : 'none'; $('#buz-f').style.display = b === 'f' ? '' : 'none';
   if (b === 'f') { ensurePhotos(); renderPhotos(); }
   document.body.classList.toggle('chat-on', b === 'c' && $('#v-buzon').classList.contains('on')); syncImmersive();
@@ -972,17 +973,17 @@ function renderHome() {
   $('#h-sub').textContent = c.subtitle || 'Regalos, sorpresas y buena compañía.';
   $('#h-eyebrow').textContent = c.eventDate ? 'Intercambio · ' + fmtDate(c.eventDate, { day: 'numeric', month: 'long', year: 'numeric' }) : 'Angelito de Navidad';
   const info = [
-    ['📅', 'Fecha', c.eventDate ? fmtDate(c.eventDate) : 'Por definir'],
-    ['⏰', 'Hora', c.eventDate ? hm(new Date(c.eventDate)) : 'Por definir'],
-    ['📍', 'Lugar', c.place || 'Por definir'],
-    ['💰', 'Presupuesto', c.budget || 'Por definir'],
+    ['calendar', 'Fecha', c.eventDate ? fmtDate(c.eventDate) : 'Por definir'],
+    ['clock', 'Hora', c.eventDate ? hm(new Date(c.eventDate)) : 'Por definir'],
+    ['pin', 'Lugar', c.place || 'Por definir'],
+    ['wallet', 'Presupuesto', c.budget || 'Por definir'],
   ];
-  if (c.dress) info.push(['👗', 'Vestimenta', c.dress]);
-  if (c.contribAmount && mod('asistencia')) info.push(['💵', 'Aporte', c.contribAmount]);
-  info.push(['👥', 'Participantes', S.participants.length ? `${S.participants.length} ${S.participants.length === 1 ? 'inscrito' : 'inscritos'}` : 'Aún nadie']);
+  if (c.dress) info.push(['dress', 'Vestimenta', c.dress]);
+  if (c.contribAmount && mod('asistencia')) info.push(['coins', 'Aporte', c.contribAmount]);
+  info.push(['users', 'Participantes', S.participants.length ? `${S.participants.length} ${S.participants.length === 1 ? 'inscrito' : 'inscritos'}` : 'Aún nadie']);
   const known = info.filter(x => x[2] !== 'Por definir');
-  $('#h-info').innerHTML = known.map(([i, k, v]) => `<div class="irow"><div class="k">${i} ${k}</div><div class="v">${esc(v)}</div></div>`).join('')
-    + (known.length < info.length ? `<div class="irow pend" style="grid-column:1/-1"><div class="v muted" style="font-weight:500">⏳ ${info.filter(x => x[2] === 'Por definir').map(x => x[1].toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' y $1')}: el organizador lo anunciará pronto</div></div>` : '');
+  $('#h-info').innerHTML = known.map(([i, k, v], n) => `<div class="irow"><span class="ir-ic c${n % 5 + 1}">${ic(i, 18)}</span><div class="ir-t"><div class="k">${k}</div><div class="v">${esc(v)}</div></div></div>`).join('')
+    + (known.length < info.length ? `<div class="irow pend" style="grid-column:1/-1"><div class="v muted" style="font-weight:500;display:flex;gap:8px;align-items:center">${ic('hourglass', 16)} ${info.filter(x => x[2] === 'Por definir').map(x => x[1].toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' y $1')}: el organizador lo anunciará pronto</div></div>` : '');
   const n = $('#h-notes'); n.style.display = c.notes ? '' : 'none'; n.textContent = c.notes || '';
   const rules = Array.isArray(c.rules) ? c.rules : [];
   $('#h-sug').style.display = mod('buzon') ? '' : 'none';
@@ -1084,15 +1085,17 @@ function renderTodo() {
   if (mod('asistencia') && c.contribAmount && a.status === 'si') items.push([!!(a.paid || a.confirmed), `Da tu aporte de ${c.contribAmount}`, 'att']);
   if (mod('deseos')) items.push([S.wishes.some(w => w.uid === S.uid), 'Escribe tu lista de deseos', '#deseos']);
 
-  if (mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid)) items.unshift([!!S.assignment?.revealed, '🎡 Gira la ruleta y descubre a quién le regalas', '#ruleta']);
-  if (canNotify() && !(isIOS() && !isStandalone())) items.push([Notification.permission === 'granted', '🔔 Activa los avisos para enterarte de todo', 'notif']);
-  if (!isInstalled()) items.push([false, '📲 Pon el angelito en tu pantalla de inicio', 'install']);
+  if (mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid)) items.unshift([!!S.assignment?.revealed, 'Gira la ruleta y descubre a quién le regalas', '#ruleta']);
+  if (canNotify() && !(isIOS() && !isStandalone())) items.push([Notification.permission === 'granted', 'Activa los avisos para enterarte de todo', 'notif']);
+  if (!isInstalled()) items.push([false, 'Pon el angelito en tu pantalla de inicio', 'install']);
   if (!items.length) { box.innerHTML = anon; return; }
   const done = items.filter(x => x[0]).length;
   if (done === items.length) { box.innerHTML = `<div class="card todo-ok">🎉 <b>¡Tienes todo listo!</b> <span class="muted small">Solo falta disfrutar el angelito.</span></div>` + anon; return; }
-  box.innerHTML = `<div class="card todo"><div class="todo-h"><b>✨ Tus pendientes</b><span class="muted small">${done} de ${items.length}</span></div>
-    <div class="prog" style="margin:8px 0 6px"><i style="width:${done / items.length * 100}%;background:var(--gold)"></i></div>
-    <div class="steps">${items.map(([ok, l, go]) => `<button class="step ${ok ? 'done' : ''}" data-todo="${go}"><span class="ck">${ok ? '✓' : ''}</span><span>${esc(l)}</span>${ok ? '' : '<span class="go">›</span>'}</button>`).join('')}</div></div>` + anon;
+  const TI = { att: ['calcheck', 'c1'], '#deseos': ['gift', 'c2'], '#ruleta': ['wheel', 'c3'], notif: ['bell', 'c4'], install: ['install', 'c5'] };
+  const ord = [...items.filter(x => !x[0]), ...items.filter(x => x[0])], pct = Math.round(done / items.length * 100);
+  box.innerHTML = `<div class="card todo"><div class="todo-h"><b>Tus pendientes</b><span class="todo-n">${done}/${items.length}</span></div>
+    <div class="tbar"><i style="width:${pct}%"></i></div>
+    <div class="steps">${ord.map(([ok, l, go], k) => { const [icn, col] = TI[go] || ['check', 'c1']; return `<button class="step ${ok ? 'done' : ''}" data-todo="${go}" style="--d:${k * 60}ms"><span class="st-ic ${col}">${ok ? ic('check', 18) : ic(icn, 18)}</span><span class="st-l">${esc(l)}</span>${ok ? '' : `<span class="go">${ic('back', 16)}</span>`}</button>`; }).join('')}</div></div>` + anon;
 }
 document.addEventListener('click', e => {
   if (e.target.closest('#rules-more')) { S.rulesOpen = !S.rulesOpen; renderHome(); return; }
@@ -1120,7 +1123,7 @@ function renderWheel() {
   if (!S.me) {
     top.innerHTML = S.authReady ? needLogin('Entra con tu nombre y tu PIN para girar.') : ''; btn.style.display = 'none'; msg.textContent = '';
   } else {
-    top.innerHTML = `<div class="card who-card"><div class="av">${esc(S.me.emoji)}</div><div><div class="muted small">Vas a girar como</div><b style="font-size:1.15rem">${esc(S.me.name)}</b></div></div>`;
+    top.innerHTML = `<div class="card who-card"><div class="av">${esc(S.me.emoji)}</div><div class="grow"><div class="muted small">Vas a girar como</div><b style="font-size:1.15rem">${esc(S.me.name)}</b><div class="wc-st" id="wc-st"></div></div></div>`;
     if (!S.drawMeta || !drawReady() || !S.drawMeta.ids.includes(S.uid)) msg.textContent = 'La ruleta está inhabilitada por ahora. ¡Vuelve pronto! 🎄';
     else if (!S.assignment) msg.textContent = 'Cargando tu sorteo…';
     else { canSpin = true; msg.textContent = S.assignment.revealed ? 'Ya giraste. Puedes volver a verlo con tu PIN.' : `¡Mucha suerte, ${S.me.first}! 🍀`; }
@@ -1132,8 +1135,17 @@ function renderWheel() {
   const locked = !!S.me && !canSpin && !S.spinning && !(S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid));
   const wasLocked = $('#v-ruleta').classList.contains('locked');
   $('#v-ruleta').classList.toggle('locked', locked);
-  if (locked) msg.innerHTML = '<span class="lockmsg">🔒 Se abre cuando el organizador haga el sorteo. Te avisamos 🔔</span>';
+  const st = $('#wc-st');
+  if (st) st.innerHTML = locked ? `<span class="wc-pill">${ic('lock', 14)} Se abre cuando el organizador haga el sorteo</span>` : canSpin && S.assignment && !S.assignment.revealed ? `<span class="wc-pill go">${ic('wheel', 14)} ¡Ya puedes girar!</span>` : '';
+  if (locked) msg.innerHTML = '';
+  wheelBulbs();
   if (!S.spinning) { if (wasLocked !== locked) requestAnimationFrame(drawWheel); else drawWheel(); }
+}
+// Bombillos alrededor de la ruleta (animados con CSS)
+function wheelBulbs() {
+  const w = $('#wheel')?.closest('.wheel-wrap'); if (!w || w.querySelector('.bulbs')) return;
+  const d = document.createElement('div'); d.className = 'bulbs'; d.setAttribute('aria-hidden', 'true');
+  d.innerHTML = Array.from({ length: 20 }, (_, k) => `<i style="--a:${k * 18}deg;--k:${k % 2}"></i>`).join(''); w.appendChild(d);
 }
 function drawWheel() {
   const cv = $('#wheel'); const size = cv.clientWidth; if (!size) return;
@@ -1234,10 +1246,10 @@ function renderWishes() {
   const many = S.participants.length > 8;
   root.innerHTML = `${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}
   <div class="pscroll" id="w-strip">${wishStrip()}</div>
-  <div class="h2row wh"><h2>${esc(pEmoji(S.wishPid))} ${mine ? 'Mi lista de deseos' : 'Lista de ' + esc(pName(S.wishPid))}</h2>${mine ? `<div style="display:flex;gap:6px"><button class="btn sm" id="prof-icon">${esc(S.me.emoji)} Ícono</button>${mod('perfil') ? `<button class="btn sm ${profDone() < PROF.length ? 'gold pulse-soft' : ''}" id="prof-edit">👕 Mi perfil${profDone() < PROF.length ? ' <span class="rdot"></span>' : ''}</button>` : ''}</div>` : ''}</div>
+  <div class="h2row wh"><h2>${esc(pEmoji(S.wishPid))} ${mine ? 'Mi lista de deseos' : 'Lista de ' + esc(pName(S.wishPid))}</h2>${mine ? `<div style="display:flex;gap:6px"><button class="btn sm" id="prof-icon">${esc(S.me.emoji)} Ícono</button>${mod('perfil') ? `<button class="btn sm btn-ic ${profDone() < PROF.length ? 'gold pulse-soft' : ''}" id="prof-edit">${ic('shirt', 16)} Mi perfil${profDone() < PROF.length ? ' <span class="rdot"></span>' : ''}</button>` : ''}</div>` : ''}</div>
   ${mod('perfil') ? profileHtml(S.wishPid) : ''}
-  <div class="stack">${items.length ? items.map(w => `
-    <div class="item ${w.top ? 'wtop' : ''}"><span style="font-size:22px">${w.top ? '⭐' : '🎁'}</span><div class="grow">
+  <div class="stack">${items.length ? items.map((w, k) => `
+    <div class="item witem ${w.top ? 'wtop' : ''}" style="--d:${k * 50}ms"><span class="wi-ic c${k % 5 + 1}">${ic(w.top ? 'star' : 'gift', 20)}</span><div class="grow">
       ${w.top ? '<div class="small" style="color:var(--gold);font-weight:700">⭐ El que más quiere</div>' : ''}
       <div class="t">${esc(w.text)}</div>
       ${w.hasImg ? (S.wishImgs[w.id] ? `<button class="wimg" data-wimg="${esc(w.id)}" style="background:url('${S.wishImgs[w.id]}') center/cover" aria-label="Ver foto"></button>` : '<div class="wimg ld"></div>') : ''}
@@ -1247,13 +1259,13 @@ function renderWishes() {
       ${/^https?:\/\//i.test(w.link || '') ? `<div><a class="link" href="${esc(w.link)}" target="_blank" rel="noopener">🔗 Ver referencia</a></div>` : ''}
     </div>${w.uid === S.uid ? `<button class="wmore" data-wmore="${esc(w.id)}" aria-label="Opciones del deseo"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>` : ''}</div>`).join('')
     : `<div class="card empty"><span class="e">🌟</span>${mine ? 'Tu lista está vacía. ¡Agrega lo que te gustaría!' : esc(pName(S.wishPid)) + ' todavía no ha pedido nada.'}</div>`}</div>
-  ${mine ? `<form class="card stack" id="w-form" style="margin-top:16px">
-    <b>Agregar un deseo</b>
+  ${mine ? `<details class="wadd" id="w-add" ${S.wAddOpen || !items.length || keep.t ? 'open' : ''}><summary><span class="wa-ic">${ic('plus', 20)}</span><span><b>Agregar un deseo</b><small>Con foto, enlace y precio si quieres</small></span><span class="wa-ch">${ic('back', 18)}</span></summary><form class="card stack" id="w-form">
     <input class="in" id="w-text" maxlength="160" placeholder="Ej. Un libro de cocina, talla M, color azul…" required>
     <div class="row"><input class="in" id="w-link" maxlength="300" placeholder="Enlace (opcional)"><input class="in" id="w-price" maxlength="30" placeholder="Precio aprox. (opcional)"></div>
     ${S.wishDraftImg ? `<div class="wprev" style="background-image:url('${S.wishDraftImg}')"><button type="button" id="w-img-x" aria-label="Quitar foto">✕</button></div>`
-      : `<div class="camrow"><label class="btn sm">📷 Tomar foto<input type="file" class="w-img" accept="image/*" capture="environment" hidden></label><label class="btn sm">🖼️ Galería<input type="file" class="w-img" accept="image/*" hidden></label></div>`}
-    <button class="btn gold" type="submit">✨ Agregar a mi lista</button></form>` : ''}`;
+      : `<div class="camrow"><label class="btn sm btn-ic">${ic('camera', 16)} Tomar foto<input type="file" class="w-img" accept="image/*" capture="environment" hidden></label><label class="btn sm btn-ic">${ic('image', 16)} Galería<input type="file" class="w-img" accept="image/*" hidden></label></div>`}
+    <button class="btn gold" type="submit">✨ Agregar a mi lista</button></form></details>` : ''}`;
+  $('#w-add')?.addEventListener('toggle', e => { S.wAddOpen = e.target.open; });
   loadWishImgs(items);
   if (mine) { $('#w-text').value = keep.t; $('#w-link').value = keep.l; $('#w-price').value = keep.p; }
   $('#w-strip').scrollLeft = keep.sl;
@@ -1557,7 +1569,9 @@ function syncImmersive() {
   requestAnimationFrame(fitChat);
 }
 addEventListener('hashchange', () => setTimeout(syncImmersive, 0));
-setTimeout(() => { $('#c-back').innerHTML = ic('back', 22); }, 0);
+setTimeout(() => { $('#c-back').innerHTML = ic('back', 22); $('#c-go-s').innerHTML = ic('bulb', 19); $('#c-go-f').innerHTML = ic('image', 19); $('#gear').innerHTML = ic('gear', 20); $('#inst-btn .ib-app').innerHTML = ic('install', 18); }, 0);
+$('#c-go-s').addEventListener('click', () => setBuz('s'));
+$('#c-go-f').addEventListener('click', () => setBuz('f'));
 $('#c-back').addEventListener('click', () => { location.hash = '#inicio'; });
 function fitChat() {
   if (!document.body.classList.contains('chat-on')) return;
@@ -2601,8 +2615,8 @@ function renderActs() {
     <a class="actcard card" href="#actividad-${esc(a.id)}"><div class="em">${esc(a.emoji || '🎁')}</div>
       <div style="flex:1;min-width:0"><div class="when">${esc(actWhen(a))}</div><h3>${esc(a.title)}</h3>${a.openAt && Date.now() < a.openAt ? `<span class="badge">🔒 Se abre el ${esc(openWhen(a))}</span>` : kindTag(a)}</div>
       <span class="chev">›</span></a>`).join('')}</div>`
-    : `${anon ? `<div class="stack" style="margin-bottom:12px">${anon}</div>` : ''}<div class="card empty plancard"><span class="e">🗓️</span><b>Aquí estará el plan del día</b><p class="muted small" style="margin-top:6px">Cena, juegos, dinámicas e intercambio. Te avisamos 🔔 cuando el organizador lo publique.</p>
-      <div class="qa" style="justify-content:center;margin-top:12px">${mod('juegos') ? '<a class="btn sm gold" href="#juegos">🎮 Mientras tanto, a jugar</a>' : ''}${mod('deseos') ? '<a class="btn sm" href="#deseos">🎁 Mi lista de deseos</a>' : ''}</div></div>`;
+    : `${anon ? `<div class="stack" style="margin-bottom:12px">${anon}</div>` : ''}<div class="card plancard"><div class="pl-top"><span class="pl-ic">${ic('calendar', 26)}</span><div class="grow"><b>Aquí estará el plan del día</b><p class="small">Cena, juegos, dinámicas e intercambio. Te avisamos cuando el organizador lo publique.</p></div></div>${S.event.eventDate && new Date(S.event.eventDate) > new Date() ? (() => { const d = Math.ceil((new Date(S.event.eventDate) - new Date()) / 864e5); return `<div class="pl-cd"><b>${d}</b><span>${d === 1 ? 'día' : 'días'} para el angelito</span></div>`; })() : ''}
+      <div class="qa" style="justify-content:center;margin-top:12px">${mod('juegos') ? '<a class="btn sm gold" href="#juegos">Mientras tanto, a jugar</a>' : ''}${mod('deseos') ? `<a class="btn sm btn-ic" href="#deseos">${ic('gift', 16)} Mi lista de deseos</a>` : ''}</div></div>`;
 }
 function voteOptions(a) {
   return a.voteTarget === 'participants'
@@ -2969,7 +2983,7 @@ function renderBadges() {
   if (S.me && onBuzon && S.buz === 's' && S.suggestions.length) { const mx = Math.max(...S.suggestions.map(x => sTs(x))); if (mx > seenTs('sugSeen')) setSeen('sugSeen', mx); }
   const c = mod('chat') ? chatUnread() : 0, g = mod('buzon') ? sugUnread() : 0;
   const put = (el, n) => { if (!el) return; let b = el.querySelector('.bd'); if (!n) { b?.remove(); return; } if (!b) { b = document.createElement('span'); b.className = 'bd'; el.appendChild(b); } b.textContent = n > 99 ? '99+' : n; };
-  put($('.tab[data-v=buzon]'), c + g); put($('#buz-seg [data-b=c]'), c); put($('#buz-seg [data-b=s]'), g);
+  put($('.tab[data-v=buzon]'), c + g); put($('#buz-seg [data-b=c]'), c); put($('#buz-seg [data-b=s]'), g); put($('#c-go-s'), g);
   const spinNow = !!(S.me && mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid) && !S.assignment?.revealed);
   put($('.tab[data-v=ruleta]'), spinNow ? '!' : 0);
   let myTurn = 0; try { myTurn = S.me ? GAMES.active() : 0; } catch { } put($('.tab[data-v=juegos]'), myTurn);
@@ -3222,6 +3236,20 @@ document.addEventListener('click', e => {
 const NM_COLORS = ['#f6c560', '#7fd6a8', '#8ec5ff', '#f59ab5', '#c7a6ff', '#ffb37a', '#6fe0d6', '#e8e07a'];
 function nmColor(uid) { let h = 0; for (const c of String(uid)) h = (h * 31 + c.charCodeAt(0)) | 0; return NM_COLORS[Math.abs(h) % NM_COLORS.length]; }
 const SVGI = {
+  gift: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 0 1 0 5"/>',
+  wheel: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7M5.6 5.6l5 5M13.4 13.4l5 5M18.4 5.6l-5 5M10.6 13.4l-5 5"/>',
+  gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  install: '<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M12 7v7M9 11l3 3 3-3M10 18.5h4"/>',
+  bulb: '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6M10 22h4"/>',
+  calcheck: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  pin: '<path d="M20 10c0 5-5.5 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.5 20.2 4 15 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  coins: '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18M7 6h1v4M16.71 13.88l.7.71-2.82 2.82"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  dress: '<path d="M9 2h6l-1 5 4 14H6l4-14z"/><path d="M8 11h8"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  hourglass: '<path d="M5 22h14M5 2h14M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"/>',
   back: '<path d="m15 18-6-6 6-6"/>',
   star: '<path d="M11.52 2.3a.53.53 0 0 1 .96 0l2.31 4.68a2.12 2.12 0 0 0 1.6 1.16l5.16.76a.53.53 0 0 1 .3.9l-3.74 3.64a2.12 2.12 0 0 0-.61 1.88l.88 5.14a.53.53 0 0 1-.77.56l-4.62-2.43a2.12 2.12 0 0 0-1.97 0L6.4 21.01a.53.53 0 0 1-.77-.56l.88-5.14a2.12 2.12 0 0 0-.61-1.88L2.16 9.8a.53.53 0 0 1 .29-.9l5.17-.76a2.12 2.12 0 0 0 1.6-1.16z"/>',
   edit: '<path d="M21.17 6.81a2.83 2.83 0 0 0-4-4L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/>',
