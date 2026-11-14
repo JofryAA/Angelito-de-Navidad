@@ -457,6 +457,10 @@ service cloud.firestore {
         && request.resource.data.ts > request.time.toMillis() - 900000
         && request.resource.data.ts < request.time.toMillis() + 900000;
       // Reacciones: cada quien solo cambia la suya dentro del campo r.
+      // editar el propio mensaje (queda marcado como editado)
+      allow update: if isParticipant() && resource.data.uid == me() && changed().hasOnly(['text', 'edited', 'mentions'])
+        && str(request.resource.data.text, 500) && request.resource.data.text.size() > 0 && request.resource.data.edited == true
+        && request.resource.data.get('mentions', []) is list && request.resource.data.get('mentions', []).size() <= 10;
       allow update: if isParticipant() && changed().hasOnly(['r'])
         && request.resource.data.r.diff(resource.data.get('r', {})).affectedKeys().hasOnly([me()])
         && (!(me() in request.resource.data.r) || request.resource.data.r[me()] in ['❤️', '😂', '🔥', '👍', '😮', '🎄']);

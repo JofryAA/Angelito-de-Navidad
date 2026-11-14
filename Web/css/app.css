@@ -742,3 +742,6 @@ body.adm-view #helper,body.kb #helper{display:none!important}
 .wm-row:active,.wm-row:hover{background:rgba(255,255,255,.06)}
 .wm-row svg{flex:none;color:var(--gold)}.wm-row span{display:flex;flex-direction:column;line-height:1.25}.wm-row small{color:var(--muted);font-size:.78rem;margin-top:2px}
 .wm-row.danger,.wm-row.danger svg{color:#ff8f86}
+
+.mrow .me-e .ic{color:var(--gold)}.mrow .me-e{display:grid;place-items:center}
+.msg .tm .edt{font-style:italic;opacity:.85}

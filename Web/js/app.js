@@ -745,16 +745,16 @@ function askPin(title, body) {
   });
 }
 function userMenu() {
-  const row = (a, e, t, d, x = '') => `<button class="mrow" data-a="${a}"><span class="me-e">${e}</span><span class="grow"><b>${t}</b>${d ? `<span class="muted small">${d}</span>` : ''}</span>${x}<span class="chev">›</span></button>`;
+  const row = (a, e, t, d, x = '') => `<button class="mrow" data-a="${a}"><span class="me-e">${SVGI[e] ? ic(e, 22) : e}</span><span class="grow"><b>${t}</b>${d ? `<span class="muted small">${d}</span>` : ''}</span>${x}<span class="chev">›</span></button>`;
   const pd = profDone();
   const s = openModal(`<div class="who-card"><button class="av" data-a="icon" title="Cambiar mi ícono" style="position:relative">${esc(S.me.emoji)}<span style="position:absolute;right:-4px;bottom:-4px;font-size:12px;background:var(--gold);border-radius:50%;width:20px;height:20px;display:grid;place-items:center">✏️</span></button><div><h3 style="margin:0">${esc(S.me.name)}</h3><div class="muted small">Participante del angelito</div></div></div>
     <div class="mlist">
-      ${mod('perfil') ? row('prof', '👕', 'Mi perfil de gustos', 'Tallas, colores y lo que te gusta', `<span class="cnt ${pd < PROF.length ? 'no' : 'ok'}">${pd}/${PROF.length}</span>`) : ''}
-      ${S.isAdmin ? row('admin', '🛡️', 'Panel de control', S.isOwner ? 'Organizador principal' : 'Tienes permisos de administrador') : ''}
-      ${row('notif', '🔔', 'Notificaciones', 'Elige qué avisos recibir')}
-      ${isInstalled() ? '' : row('install', '📲', 'Instalar la app', 'Ábrela desde tu pantalla de inicio')}
-      ${row('help', '❓', 'Ayuda', 'Guía, preguntas frecuentes y soluciones')}
-      ${S.isOwner ? '' : row('org', '🔐', 'Entrar como organizador principal', '')}
+      ${mod('perfil') ? row('prof', 'shirt', 'Mi perfil de gustos', 'Tallas, colores y lo que te gusta', `<span class="cnt ${pd < PROF.length ? 'no' : 'ok'}">${pd}/${PROF.length}</span>`) : ''}
+      ${S.isAdmin ? row('admin', 'shield', 'Panel de control', S.isOwner ? 'Organizador principal' : 'Tienes permisos de administrador') : ''}
+      ${row('notif', 'bell', 'Notificaciones', 'Elige qué avisos recibir')}
+      ${isInstalled() ? '' : row('install', 'phone', 'Instalar la app', 'Ábrela desde tu pantalla de inicio')}
+      ${row('help', 'help', 'Ayuda', 'Guía, preguntas frecuentes y soluciones')}
+      ${S.isOwner ? '' : row('org', 'lock', 'Entrar como organizador principal', '')}
     </div>
     <div class="actions"><button class="btn ghost" data-a="out">Cerrar sesión</button><button class="btn gold" data-a="close">Listo</button></div>`);
   s.onclick = async e => {
@@ -786,9 +786,9 @@ function openHelp() {
       ${qa('🛡️ Soy administrador, ¿dónde está el panel?', 'Si el organizador te dio permisos, toca el <b>engranaje</b> de arriba o tu menú → <b>Panel de control</b>. Entras con tu misma cuenta.')}
     </div>
     <div class="mlist" style="margin-top:14px">
-      <button class="mrow" data-a="tour"><span class="me-e">📘</span><span class="grow"><b>Ver la guía paso a paso</b></span><span class="chev">›</span></button>
-      <button class="mrow" data-a="reload"><span class="me-e">🔄</span><span class="grow"><b>Recargar datos</b><span class="muted small">Si algo no aparece o se ve viejo</span></span><span class="chev">›</span></button>
-      ${S.me && mod('chat') ? '<button class="mrow" data-a="chat"><span class="me-e">💬</span><span class="grow"><b>Preguntar en el chat del grupo</b></span><span class="chev">›</span></button>' : ''}
+      <button class="mrow" data-a="tour"><span class="me-e">${ic('book', 22)}</span><span class="grow"><b>Ver la guía paso a paso</b></span><span class="chev">›</span></button>
+      <button class="mrow" data-a="reload"><span class="me-e">${ic('refresh', 22)}</span><span class="grow"><b>Recargar datos</b><span class="muted small">Si algo no aparece o se ve viejo</span></span><span class="chev">›</span></button>
+      ${S.me && mod('chat') ? `<button class="mrow" data-a="chat"><span class="me-e">${ic('chat', 22)}</span><span class="grow"><b>Preguntar en el chat del grupo</b></span><span class="chev">›</span></button>` : ''}
     </div>
     <div class="actions"><button class="btn gold" data-a="close">Listo</button></div>`);
   s.onclick = e => {
@@ -1512,18 +1512,16 @@ $('#h-att').addEventListener('click', async e => {
 document.addEventListener('click', e => {
   const m = e.target.closest('[data-pmore]'); if (!m) return;
   const id = m.dataset.pmore, p = P(id), a = S.att[id] || {}; if (!p) return;
-  const s2 = openModal(`<div class="who-card"><span class="av">${esc(p.emoji)}</span><div><h3 style="margin:0">${esc(p.name)}</h3></div></div>
-    <div class="stack" style="margin-top:14px">
-      ${a.confirmed && can('aportes') ? '<button class="btn" data-k="conf" data-v="0">↩️ Quitar el pago</button>' : ''}
-      ${S.isOwner ? '<button class="btn" data-k="presetPin">🔑 Darle un PIN temporal</button>' : ''}
-      <button class="btn" data-k="pedit">✏️ Editar nombre o ícono</button>
-      <button class="btn" data-k="rm" style="color:#ffb3aa">✕ Quitar del angelito</button></div>
-    <div class="actions"><button class="btn gold" data-k="x">Cerrar</button></div>`);
-  s2.onclick = ev => {
-    const b = ev.target.closest('[data-k]'); if (!b) return; closeModal(); if (b.dataset.k === 'x') return;
-    const t = document.createElement('button'); t.hidden = true; t.dataset[b.dataset.k] = id; if (b.dataset.v) t.dataset.v = b.dataset.v;
+  sheet({ head: `<div class="wm-h who-card" style="display:flex;gap:12px;align-items:center"><span class="av">${esc(p.emoji)}</span><div><div class="muted small">Participante</div><b>${esc(p.name)}</b></div></div>`, items: [
+    a.confirmed && can('aportes') && { k: 'conf', icon: 'undo', label: 'Quitar el pago', hint: 'Vuelve a quedar como pendiente' },
+    S.isOwner && { k: 'presetPin', icon: 'key', label: 'Darle un PIN temporal', hint: 'Si olvidó su PIN; conserva todo lo suyo' },
+    { k: 'pedit', icon: 'edit', label: 'Editar nombre o ícono' },
+    { k: 'rm', icon: 'userx', label: 'Quitar del angelito', hint: 'Se borra todo lo suyo', danger: true },
+  ] }).then(k => {
+    if (!k) return;
+    const t = document.createElement('button'); t.hidden = true; t.dataset[k] = id; if (k === 'conf') t.dataset.v = '0';
     $('#p-list').appendChild(t); setTimeout(() => { t.click(); t.remove(); }, 60);
-  };
+  });
 });
 document.addEventListener('click', e => { const f = e.target.closest('[data-pf2]'); if (f) { S.pFilter = f.dataset.pf2; renderAdmin(); } });
 document.addEventListener('input', e => { if (e.target.id === 'p-q') { S.pQuery = e.target.value; renderAdmin(); } });
@@ -1575,7 +1573,7 @@ function renderChat() {
   if (!can) return;
   $('#c-count').textContent = navigator.onLine === false ? '📡 Sin conexión: se enviará al volver' : S.chat.length ? nMsg(S.chat.length) : '';
   loadChatImgs();
-  const sig = S.chat.map(m => m.id + (m.pending ? '~' : '') + (m.hasImg && S.chatImgs[m.id] ? 'i' : '')).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join();
+  const sig = S.chat.map(m => m.id + (m.edited ? 'e' + m.text.length + m.text.slice(-4) : '') + (m.pending ? '~' : '') + (m.hasImg && S.chatImgs[m.id] ? 'i' : '')).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join();
   if (sig === chatSig) return; chatSig = sig;
   const l = $('#c-list'), near = l.scrollHeight - l.scrollTop - l.clientHeight < 80;
   let last = '', prev = null;
@@ -1586,7 +1584,7 @@ function renderChat() {
     // mensajes seguidos de la misma persona (menos de 5 min): sin repetir nombre ni ícono, más juntitos
     const cont = !sep && prev && prev.uid === m.uid && Math.abs((ms(m.at) || m.ts || 0) - (ms(prev.at) || prev.ts || 0)) < 5 * 60e3; prev = m;
     const tagMe = (m.mentions || []).includes(S.uid) || ((m.mentions || []).includes('all') && m.uid !== S.uid);
-    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}${m.hasImg ? (S.chatImgs[m.id] ? `<button type="button" class="cimg" data-cimg="${esc(m.id)}" aria-label="Ver foto"><img src="${S.chatImgs[m.id]}" alt=""></button>` : '<div class="cimg ld"></div>') : ''}${m.hasImg && m.text === '📷 Foto' ? '' : `<div class="mt">${mentionHTML(m)}</div>`}${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : ' <span class="ok" title="Enviado">✓</span>') : ''}</div></div></div>`;
+    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}${m.hasImg ? (S.chatImgs[m.id] ? `<button type="button" class="cimg" data-cimg="${esc(m.id)}" aria-label="Ver foto"><img src="${S.chatImgs[m.id]}" alt=""></button>` : '<div class="cimg ld"></div>') : ''}${m.hasImg && m.text === '📷 Foto' ? '' : `<div class="mt">${mentionHTML(m)}</div>`}${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${m.edited ? '<span class="edt">editado · </span>' : ''}${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : ' <span class="ok" title="Enviado">✓</span>') : ''}</div></div></div>`;
   }).join('') : `<div class="empty" style="margin:auto"><span class="e">💬</span>Nadie ha escrito todavía.<br>¡Rompe el hielo! Toca 🎲 para una idea.</div>`;
   if (near || S.chatStick) { S.chatStick = false; l.scrollTop = l.scrollHeight; }
 }
@@ -2098,7 +2096,7 @@ function renderAdmin() {
     const gs = GS[S.giftStatus[p.id]];
     const payBtn = payOn && can('aportes') && a.status === 'si' && !a.confirmed ? `<button class="btn xs gold" data-conf="${esc(p.id)}" data-v="1">✓ Pagó</button>` : '';
     return `<div class="prow"><span class="pe">${esc(p.emoji)}</span><div class="grow"><div class="t">${esc(p.name)}</div><div class="bdgs">${att}${pay}${spin}${gs ? `<span class="bdg">${gs[0]} ${gs[1]}</span>` : ''}</div></div>
-      <div class="pact">${payBtn}<button class="x more" data-pmore="${esc(p.id)}" aria-label="Más opciones">⋯</button></div></div>`;
+      <div class="pact">${payBtn}<button class="wmore" data-pmore="${esc(p.id)}" aria-label="Más opciones"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button></div></div>`;
   }).join('');
   const spun = Object.values(S.assignments).filter(a => a.revealed).length;
   $('#d-status').innerHTML = !hasDraw ? `Hay ${S.participants.length} inscritos. Cuando estén todos, genera el sorteo (mínimo 3).`
@@ -3149,15 +3147,11 @@ $('#r-thanks').addEventListener('submit', async e => {
 // Menú de opciones de un deseo propio (como en las apps: un solo botón ⋮ con todo adentro)
 function wishMenu(id) {
   const w = S.wishes.find(x => x.id === id && x.uid === S.uid); if (!w) return;
-  const ic = d => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
-  const s2 = openModal(`<div class="wm-h"><div class="muted small">Tu deseo</div><b>${esc(w.text)}</b></div>
-    <div class="wm-list">
-      <button class="wm-row" data-k="top">${ic('<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>')}<span><b>${w.top ? 'Quitar de favorito' : 'Marcar como favorito'}</b><small>${w.top ? 'Ya no aparecerá como el que más quieres' : 'Tu angelito sabrá que es el que más quieres'}</small></span></button>
-      <button class="wm-row" data-k="edit">${ic('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>')}<span><b>Editar</b><small>Cambia el texto, el enlace o el precio</small></span></button>
-      <button class="wm-row danger" data-k="del">${ic('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>')}<span><b>Eliminar</b><small>Se quita de tu lista</small></span></button>
-    </div><div class="actions"><button class="btn" data-k="x">Cancelar</button></div>`);
-  s2.onclick = async e => {
-    const k = e.target.closest('[data-k]')?.dataset.k; if (!k) return; closeModal();
+  sheet({ title: w.text, sub: 'Tu deseo', items: [
+    { k: 'top', icon: 'star', label: w.top ? 'Quitar de favorito' : 'Marcar como favorito', hint: w.top ? 'Ya no aparecerá como el que más quieres' : 'Tu angelito sabrá que es el que más quieres' },
+    { k: 'edit', icon: 'edit', label: 'Editar', hint: 'Cambia el texto, el enlace o el precio' },
+    { k: 'del', icon: 'trash', label: 'Eliminar', hint: 'Se quita de tu lista', danger: true },
+  ] }).then(async k => {
     if (k === 'top') return toggleTop(id);
     if (k === 'edit') return setTimeout(() => editWish(id), 180);
     if (k === 'del') {
@@ -3165,7 +3159,7 @@ function wishMenu(id) {
       const b = writeBatch(db); b.delete(doc(db, 'wishes', id)); if (w.hasImg) b.delete(doc(db, 'wishImg', id));
       try { await b.commit(); toast('Deseo eliminado'); } catch (err) { toast(authErr(err)); }
     }
-  };
+  });
 }
 // ✏️ Editar un deseo propio (texto, enlace y precio). La foto se cambia borrándolo y creándolo de nuevo.
 function editWish(id) {
@@ -3206,28 +3200,81 @@ document.addEventListener('click', e => {
   const p = e.target.closest('[data-wpick]'); if (p) return togglePick(p.dataset.wpick);
 });
 
+/* ---------- íconos (trazos limpios en vez de emojis en menús y botones de opciones) ---------- */
+const SVGI = {
+  star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
+  trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  reply: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 016 6v4"/>',
+  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/>',
+  shirt: '<path d="M8 3l4 2 4-2 5 4-3 4-2-1v11H8V10l-2 1-3-4z"/>',
+  shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
+  bell: '<path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 21h4"/>',
+  phone: '<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 8v6m-3-3l3 3 3-3"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.7-2.5 2-2.5 4"/><path d="M12 17h.01"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9m-4 4l3 3"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/>',
+  userx: '<circle cx="10" cy="8" r="4"/><path d="M3 21a7 7 0 0114 0"/><path d="M17 8l4 4m0-4l-4 4"/>',
+  book: '<path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5"/>',
+  refresh: '<path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 4v7h-7"/>',
+  chat: '<path d="M4 5h16v11H9l-5 4z"/>',
+  logout: '<path d="M15 4h4v16h-4"/><path d="M10 16l-4-4 4-4"/><path d="M6 12h10"/>',
+};
+const ic = (n, sz = 20) => `<svg class="ic" viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SVGI[n] || ''}</svg>`;
+// Hoja de opciones reutilizable (mismo estilo en toda la app): sheet({ title, sub, head, items:[{k, icon, label, hint, danger}] }) → Promise con la clave elegida
+function sheet({ title = '', sub = '', head = '', items = [] }) {
+  return new Promise(res => {
+    const s2 = openModal(`${head || `<div class="wm-h">${sub ? `<div class="muted small">${esc(sub)}</div>` : ''}<b>${esc(title)}</b></div>`}
+      <div class="wm-list">${items.filter(Boolean).map(i => `<button class="wm-row ${i.danger ? 'danger' : ''}" data-k="${i.k}">${ic(i.icon)}<span><b>${esc(i.label)}</b>${i.hint ? `<small>${esc(i.hint)}</small>` : ''}</span></button>`).join('')}</div>
+      <div class="actions"><button class="btn" data-k="">Cancelar</button></div>`);
+    s2.onclick = e => { const b = e.target.closest('[data-k]'); if (!b || b.closest('.wm-extra')) return; closeModal(); res(b.dataset.k || null); };
+  });
+}
 /* ---------- 💬 reacciones y respuestas ---------- */
 const REACTS = ['❤️', '😂', '🔥', '👍', '😮', '🎄'];
 function reactsFor(id) { const r = {}, m = S.chat.find(x => x.id === id); Object.entries((m && m.r) || {}).forEach(([u, e]) => { if (REACTS.includes(e)) (r[e] ||= []).push(u); }); return r; }
 function openMsgMenu(m) {
   const mine = m.uid === S.uid, canDel = mine || can('moderar'), myR = (m.r || {})[S.uid];
-  const s2 = openModal(`<div class="muted small">${esc(shortName(P(m.uid)) || 'Alguien')}</div><div style="margin:6px 0 14px;white-space:pre-wrap">${esc(m.text.slice(0, 300))}</div>
-    ${S.me ? `<div style="display:flex;justify-content:space-between;gap:6px">${REACTS.map(e => `<button class="iconbtn" data-re="${e}" style="width:46px;height:46px;font-size:24px;${myR === e ? 'background:var(--cream)' : ''}">${e}</button>`).join('')}</div>` : ''}
-    <div class="stack" style="margin-top:14px">${S.me ? '<button class="btn" data-a="reply">↩️ Responder</button>' : ''}${canDel ? '<button class="btn" data-a="del">🗑️ Borrar mensaje</button>' : ''}<button class="btn ghost" data-a="x">Cerrar</button></div>`);
-  s2.onclick = async e => {
-    const r = e.target.closest('[data-re]');
-    if (r) {
-      closeModal();
-      try { await setDoc(doc(db, 'chat', m.id), { r: { [S.uid]: myR === r.dataset.re ? deleteField() : r.dataset.re } }, { merge: true }); }
-      catch (err) { toast(authErr(err)); } return;
-    }
-    const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return; closeModal();
+  const reacts = S.me ? `<div class="wm-extra" style="display:flex;justify-content:space-between;gap:6px;margin:4px 0 10px">${REACTS.map(e => `<button class="iconbtn" data-re="${e}" style="width:46px;height:46px;font-size:24px;${myR === e ? 'background:var(--cream)' : ''}">${e}</button>`).join('')}</div>` : '';
+  const head = `<div class="wm-h"><div class="muted small">${esc(shortName(P(m.uid)) || 'Alguien')}</div><b style="font-weight:500;white-space:pre-wrap">${esc(m.hasImg && m.text === '📷 Foto' ? '📷 Foto' : m.text.slice(0, 300))}</b></div>${reacts}`;
+  const p = sheet({ head, items: [
+    S.me && { k: 'reply', icon: 'reply', label: 'Responder' },
+    !(m.hasImg && m.text === '📷 Foto') && { k: 'copy', icon: 'copy', label: 'Copiar texto' },
+    mine && { k: 'edit', icon: 'edit', label: m.hasImg ? 'Editar comentario' : 'Editar mensaje', hint: 'Los demás verán que lo editaste' },
+    canDel && { k: 'del', icon: 'trash', label: 'Eliminar mensaje', hint: mine ? 'Se borra para todos' : 'Como moderador', danger: true },
+  ] });
+  $('#sheet').addEventListener('click', async e => {
+    const r = e.target.closest('[data-re]'); if (!r) return; closeModal();
+    try { await setDoc(doc(db, 'chat', m.id), { r: { [S.uid]: myR === r.dataset.re ? deleteField() : r.dataset.re } }, { merge: true }); } catch (err) { toast(authErr(err)); }
+  }, { once: true });
+  p.then(async a => {
     if (a === 'reply') { S.replyTo = { id: m.id, uid: m.uid, text: m.text.slice(0, 100) }; renderReplyBar(); $('#c-text').focus(); }
+    if (a === 'copy') { try { await navigator.clipboard.writeText(m.text); toast('Texto copiado'); } catch { toast('No se pudo copiar'); } }
+    if (a === 'edit') editMsg(m);
     if (a === 'del') {
-      if (!(await confirmBox('¿Borrar este mensaje?', 'Se borrará para todos.', 'Borrar'))) return;
-      try { const x = mine ? db : adb, w = writeBatch(x); w.delete(doc(x, 'chat', m.id)); if (m.hasImg) w.delete(doc(x, 'chatImg', m.id)); await w.commit(); } catch (err) { toast(authErr(err)); }
+      if (!(await confirmBox('¿Eliminar este mensaje?', 'Se borrará para todos.', 'Eliminar'))) return;
+      try { const x = mine ? db : adb, w = writeBatch(x); w.delete(doc(x, 'chat', m.id)); if (m.hasImg) w.delete(doc(x, 'chatImg', m.id)); await w.commit(); toast('Mensaje eliminado'); } catch (err) { toast(authErr(err)); }
     }
-  };
+  });
+}
+// ✏️ Editar un mensaje propio (o el comentario de una foto)
+function editMsg(m) {
+  const cur = m.hasImg && m.text === '📷 Foto' ? '' : m.text;
+  const s2 = openModal(`<h3>${m.hasImg ? 'Editar comentario' : 'Editar mensaje'}</h3>
+    ${m.hasImg && S.chatImgs[m.id] ? `<img src="${S.chatImgs[m.id]}" alt="" style="width:100%;max-height:220px;object-fit:cover;border-radius:14px;margin-top:10px">` : ''}
+    <form class="stack" id="me-form" style="margin-top:12px"><textarea class="in" name="t" maxlength="500" style="min-height:90px" placeholder="${m.hasImg ? 'Escribe un comentario (opcional)' : ''}">${esc(cur)}</textarea>
+    <div class="actions"><button type="button" class="btn" data-a="close">Cancelar</button><button class="btn gold" type="submit">Guardar</button></div></form>`);
+  s2.onclick = e => { if (e.target.closest('[data-a=close]')) closeModal(); };
+  const ta = $('#me-form textarea', s2); setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 200);
+  $('#me-form', s2).addEventListener('submit', async e => {
+    e.preventDefault(); const t = ta.value.trim() || (m.hasImg ? '📷 Foto' : '');
+    if (!t) return toast('El mensaje no puede quedar vacío');
+    if (t === m.text) return closeModal();
+    const ments = t === '📷 Foto' ? [] : mentionsIn(t);
+    try { await setDoc(doc(db, 'chat', m.id), { text: t, edited: true, mentions: ments }, { merge: true }); closeModal(); toast('Mensaje editado'); }
+    catch (err) { toast(authErr(err)); }
+  });
 }
 function renderReplyBar() {
   const b = $('#c-reply'); if (!b) return;
