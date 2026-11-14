@@ -400,6 +400,29 @@ a.btn{text-decoration:none}
 #c-dock .emobar{display:none}body.kb #c-dock .emobar,#c-dock:focus-within .emobar{display:flex}
 .gc-e .dmn{vertical-align:middle}
 .sitem-compact{}
+.anoncard{border-color:rgba(236,188,92,.45);background:linear-gradient(135deg,rgba(226,72,63,.16),rgba(236,188,92,.1))}
+.tab{letter-spacing:-.01em}@media(max-width:390px){.tab{font-size:.58rem}}
+.ideaform{display:flex;flex-direction:column;gap:10px;padding:16px}.ideaform textarea{min-height:64px}
+.idearow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.signchip{padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:inherit;font:inherit;font-size:.82rem;font-weight:700}
+.signchip.on{border-color:var(--gold);color:var(--gold);background:rgba(236,188,92,.14)}
+.sugrow{display:flex;gap:12px;align-items:center}.sug{padding:12px 14px}.sug .meta{margin-top:6px}
+.vote{flex-direction:row;gap:6px;min-width:0;padding:8px 12px}.vote span{font-size:17px}
+.mlist{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+.mrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:inherit;font:inherit;cursor:pointer}
+.mrow .grow{display:flex;flex-direction:column;flex:1;min-width:0}.me-e{font-size:22px;width:28px;text-align:center}
+/* juegos: reloj, mesa y mano */
+#v-juegos.ingame>.sec-title,#v-juegos.ingame>.sec-sub{display:none}
+.tbar{position:absolute;left:8px;right:8px;bottom:4px;height:4px;border-radius:3px;background:var(--gold);transform-origin:left;animation:tl linear forwards}
+@keyframes tl{70%{background:var(--gold)}to{transform:scaleX(0);background:#e2483f}}
+.tline{position:relative;height:6px;margin:-2px 0 8px;border-radius:3px;background:rgba(255,255,255,.08)}.tline .tbar{left:0;right:0;bottom:0;height:6px}
+.seat{padding-bottom:12px}
+.mesa{padding:10px 2px!important;border-width:5px!important}
+.hand{justify-content:center;gap:5px!important;overflow-x:auto}
+.hand .dmn.big{padding:3px 2px;border-radius:8px}
+.hand .dmn.big .dh{grid-template-columns:repeat(3,7px);grid-template-rows:repeat(3,7px);gap:2.5px;padding:3px}
+.hand .dmn.no{opacity:.82!important;filter:none}
+.hand .dmn.ok{box-shadow:0 0 0 2px var(--gold),0 4px 8px rgba(0,0,0,.4)}
 /* modal + toast */
 .modal{position:fixed;inset:0;z-index:80;display:none;align-items:flex-end;justify-content:center;background:rgba(3,8,6,.7);backdrop-filter:blur(6px);padding:16px}
 .modal.on{display:flex;animation:fade .25s}
@@ -694,16 +717,16 @@ html.big .tab{font-size:.6rem}
 
   <!-- ACTIVIDADES -->
   <section class="view" id="v-actividades">
-    <h2 class="sec-title">Agenda</h2>
-    <div class="seg" id="ag-seg"><button class="on">📅 Actividades</button><button data-go="anonimos" class="seg-anon">💌 Buzón anónimo</button></div>
+    <h2 class="sec-title">Actividades</h2>
+    <p class="sec-sub">Todo lo que haremos. Toca una para ver los detalles y participar.</p>
     <div id="acts-root"></div>
   </section>
   <section class="view" id="v-actividad"><div id="act-root"></div></section>
 
   <!-- ANÓNIMOS -->
   <section class="view" id="v-anonimos">
-    <h2 class="sec-title">Agenda</h2>
-    <div class="seg" id="anon-seg"><button data-go="actividades" class="seg-act">📅 Actividades</button><button class="on">💌 Buzón anónimo</button></div>
+    <a class="btn sm ghost" href="#actividades" style="margin-bottom:8px">‹ Actividades</a>
+    <h2 class="sec-title">💌 Buzón anónimo</h2>
     <p class="sec-sub">Escribe preguntas o mensajes que se mostrarán sin tu nombre. Quedan bajo llave y se abren el día indicado.</p>
     <div id="q-formbox"></div>
     <div id="q-board" style="margin-top:18px"></div>
@@ -731,7 +754,7 @@ html.big .tab{font-size:.6rem}
     </div>
     <div id="buz-f" style="display:none"><div id="f-root"></div></div>
     <div id="buz-s" style="display:none">
-      <p class="sec-sub">¿Ideas para que el angelito quede mejor? Escríbelas aquí. Tú decides si se ve tu nombre.</p>
+      
       <div id="s-formbox"></div>
       <div id="s-list" style="margin-top:18px"></div>
     </div>
@@ -958,7 +981,7 @@ html.big .tab{font-size:.6rem}
   <button class="tab" data-v="inicio"><span class="i">🏠</span>Inicio</button>
   <button class="tab" data-v="ruleta"><span class="i">🎡</span>Ruleta</button>
   <button class="tab" data-v="deseos"><span class="i">🎁</span>Deseos</button>
-  <button class="tab" data-v="actividades"><span class="i">📅</span>Agenda</button>
+  <button class="tab" data-v="actividades"><span class="i">📅</span>Actividades</button>
   <button class="tab" data-v="juegos"><span class="i">🎮</span>Juegos</button>
   <button class="tab" data-v="buzon"><span class="i">💬</span>Grupo</button>
 </nav>
@@ -1108,7 +1131,7 @@ const inFlight = new WeakSet();
 document.addEventListener('submit', e => {
   const f = e.target;
   if (inFlight.has(f)) { e.preventDefault(); e.stopImmediatePropagation(); return; }
-  inFlight.add(f); setTimeout(() => inFlight.delete(f), 1500);
+  inFlight.add(f); setTimeout(() => inFlight.delete(f), 700);
 }, true);
 
 /* ---------- formularios: avisos propios, no los del navegador ---------- */
@@ -1608,11 +1631,17 @@ function askPin(title, body) {
   });
 }
 function userMenu() {
+  const row = (a, e, t, d, x = '') => `<button class="mrow" data-a="${a}"><span class="me-e">${e}</span><span class="grow"><b>${t}</b>${d ? `<span class="muted small">${d}</span>` : ''}</span>${x}<span class="chev">›</span></button>`;
+  const pd = profDone();
   const s = openModal(`<div class="who-card"><button class="av" data-a="icon" title="Cambiar mi ícono" style="position:relative">${esc(S.me.emoji)}<span style="position:absolute;right:-4px;bottom:-4px;font-size:12px;background:var(--gold);border-radius:50%;width:20px;height:20px;display:grid;place-items:center">✏️</span></button><div><h3 style="margin:0">${esc(S.me.name)}</h3><div class="muted small">Participante del angelito</div></div></div>
-    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${mod('perfil') ? `<button class="btn sm gold" data-a="prof">👕 Mi perfil ${profDone() < PROF.length ? `· ${profDone()}/${PROF.length}` : '✓'}</button>` : ''}<button class="btn sm" data-a="icon">😀 Cambiar mi ícono</button><button class="btn sm" data-a="tour">📘 Guía rápida</button></div>
-    <p class="muted small" style="margin-top:14px">Si estás en un teléfono prestado, cierra sesión al terminar.</p>
-    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm" data-a="notif">🔔 Notificaciones</button>${isInstalled() ? '' : '<button class="btn sm" data-a="install">📲 Instalar app</button>'}</div>
-    ${S.isAdmin ? '' : '<button class="btn sm ghost" data-a="org" style="margin-top:10px;width:100%">🛡️ Entrar como organizador</button>'}
+    <div class="mlist">
+      ${mod('perfil') ? row('prof', '👕', 'Mi perfil de gustos', 'Tallas, colores y lo que te gusta', `<span class="cnt ${pd < PROF.length ? 'no' : 'ok'}">${pd}/${PROF.length}</span>`) : ''}
+      ${row('icon', '😀', 'Cambiar mi ícono', '')}
+      ${row('notif', '🔔', 'Notificaciones', 'Elige qué avisos recibir')}
+      ${isInstalled() ? '' : row('install', '📲', 'Instalar la app', 'Ábrela desde tu pantalla de inicio')}
+      ${row('tour', '📘', 'Guía rápida', 'Cómo funciona todo')}
+      ${S.isAdmin ? '' : row('org', '🛡️', 'Soy organizador', '')}
+    </div>
     <div class="actions"><button class="btn ghost" data-a="out">Cerrar sesión</button><button class="btn gold" data-a="close">Listo</button></div>`);
   s.onclick = async e => {
     const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return; closeModal();
@@ -1645,7 +1674,6 @@ function route() {
   $$('.view').forEach(el => el.classList.toggle('on', el.id === 'v-' + v));
   $$('.tab').forEach(el => el.classList.toggle('on', el.dataset.v === (v === 'actividad' ? 'actividades' : v === 'anonimos' ? 'actividades' : v)));
   document.body.classList.toggle('adm-view', v === 'admin');
-  $$('.seg-anon').forEach(b => { b.style.display = mod('anonimos') ? '' : 'none'; }); $$('.seg-act').forEach(b => { b.style.display = mod('agenda') ? '' : 'none'; }); { const g = $('#ag-seg'); if (g) g.style.display = mod('anonimos') ? '' : 'none'; }
   $('#gear').style.background = v === 'admin' ? 'var(--cream)' : '';
   if (v === 'ruleta') requestAnimationFrame(drawWheel);
   if (v === 'juegos') { try { GAMES.render(); } catch (e) { console.error(e); } }
@@ -2593,19 +2621,19 @@ function setBuzQuiet() {
 function renderSuggestions() {
   const fb = $('#s-formbox');
   if (!S.me) fb.innerHTML = S.authReady ? needLogin('Entra con tu PIN para dejar una sugerencia.') : '';
-  else if (!$('#s-form')) fb.innerHTML = `<form class="card stack" id="s-form">
-      <label class="field"><span>Tu sugerencia</span><textarea class="in" id="s-text" maxlength="600" placeholder="Que el intercambio sea después de la cena, que juguemos dominó…" required></textarea></label>
-      <div class="switch"><div><b>Mostrar mi nombre</b><div class="muted small" id="s-hint">Apagado: los demás participantes la verán como anónima.</div></div><button type="button" class="tg" id="s-sign" aria-label="Mostrar mi nombre"></button></div>
-      <button class="btn gold" type="submit" id="s-go">💡 Enviar como anónima</button></form>`;
+  else if (!$('#s-form')) fb.innerHTML = `<form class="card ideaform" id="s-form">
+      <b>💡 Propón una idea para el angelito</b>
+      <textarea class="in" id="s-text" maxlength="600" rows="2" placeholder="Que juguemos dominó después de la cena…" required></textarea>
+      <div class="idearow"><button type="button" class="signchip" id="s-sign" aria-label="Mostrar mi nombre"><span id="s-hint">🕶️ Anónima</span></button><button class="btn gold sm" type="submit" id="s-go">Enviar</button></div></form>`;
   const list = $('#s-list');
   if (!S.me && !S.isAdmin) { list.innerHTML = ''; return; }
   const votes = id => S.sugVotes.filter(v => v.sug === id);
   const items = [...S.suggestions].sort((a, b) => votes(b.id).length - votes(a.id).length || sTs(b) - sTs(a));
-  list.innerHTML = items.length ? `<div class="h2row" style="margin-top:0"><h2>Sugerencias</h2><span class="muted small">Ordenadas por votos 👍</span></div><div class="stack">${items.map(x => {
+  list.innerHTML = items.length ? `<div class="h2row" style="margin-top:0"><h2>Ideas del grupo</h2><span class="muted small">Vota 👍 las que te gusten</span></div><div class="stack">${items.map(x => {
     const st = ST[x.status] || ST.nueva, au = S.sugAuthors[x.id], vs = votes(x.id), mine = vs.some(v => v.uid === S.uid);
-    return `<div class="sug"><div style="display:flex;gap:12px;align-items:flex-start"><div class="txt" style="flex:1">${esc(x.text)}</div>
+    return `<div class="sug"><div class="sugrow"><div style="flex:1;min-width:0"><div class="txt">${esc(x.text)}</div>
+        <div class="meta"><span>${x.signed && x.uid ? `${esc(pEmoji(x.uid))} ${esc(pName(x.uid))}` : '🕶️ Anónima'}</span>${x.status && x.status !== 'nueva' ? `<span class="st ${esc(x.status)}">${st[0]} ${st[1]}</span>` : ''}</div></div>
       <button class="vote ${mine ? 'on' : ''}" data-svote="${esc(x.id)}" ${S.me ? '' : 'disabled'} aria-label="Apoyar"><span>👍</span><b>${vs.length}</b></button></div>
-      <div class="meta"><span>${x.signed && x.uid ? `${esc(pEmoji(x.uid))} ${esc(pName(x.uid))}` : '🕶️ Anónima'}</span><span class="st ${esc(x.status || '')}">${st[0]} ${st[1]}</span></div>
       ${S.isOwner ? `<div class="spy">🕵️ Solo tú ves esto · Escrita por: <b>${au ? esc(pName(au)) : 'desconocido'}</b></div>` : ''}
       ${can('moderar') ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${Object.entries(ST).map(([k, v]) => `<button class="btn sm ${x.status === k || (!x.status && k === 'nueva') ? 'gold' : ''}" data-sst="${k}" data-sid="${esc(x.id)}">${v[0]} ${v[1]}</button>`).join('')}<button class="btn sm" data-sdel="${esc(x.id)}">🗑️</button></div>` : ''}
     </div>`;
@@ -2614,8 +2642,7 @@ function renderSuggestions() {
 $('#s-formbox').addEventListener('click', e => {
   if (!e.target.closest('#s-sign')) return;
   const t = $('#s-sign'); t.classList.toggle('on'); const on = t.classList.contains('on');
-  $('#s-hint').textContent = on ? `Se verá como ${S.me.name}.` : 'Apagado: los demás participantes la verán como anónima.';
-  $('#s-go').textContent = on ? '💡 Enviar con mi nombre' : '💡 Enviar como anónima';
+  $('#s-hint').textContent = on ? `${S.me.emoji} Con mi nombre` : '🕶️ Anónima';
 });
 $('#s-formbox').addEventListener('submit', async e => {
   e.preventDefault(); if (e.target.id !== 's-form') return;
@@ -3107,11 +3134,20 @@ function kindTag(a) {
 }
 const actWhen = a => `${fmtDate(a.date)}${a.time ? ' · ' + fmtTime(a.time) : ''}`;
 function renderActs() {
-  $('#acts-root').innerHTML = S.activities.length ? `<div class="stack">${S.activities.map(a => `
+  // El buzón anónimo es una actividad más (siempre primera en la lista).
+  let anon = '';
+  if (mod('anonimos')) {
+    const open = isRevealed(), rd = revealDay(), n = S.qCount || 0;
+    const when = open ? '¡Ya está abierto!' : rd ? 'Se abre el ' + fmtDate(rd) : 'Se abre el día del intercambio';
+    anon = `<a class="actcard card anoncard" href="#anonimos"><div class="em">💌</div>
+      <div style="flex:1;min-width:0"><div class="when">${esc(when)}</div><h3>Buzón anónimo</h3><span class="badge">${open ? '👀 Leer los ' + n + ' mensajes' : '✍️ Escribe sin que sepan quién · ' + n + ' guardados'}</span></div>
+      <span class="chev">›</span></a>`;
+  }
+  $('#acts-root').innerHTML = S.activities.length ? `<div class="stack">${anon}${S.activities.map(a => `
     <a class="actcard card" href="#actividad-${esc(a.id)}"><div class="em">${esc(a.emoji || '🎁')}</div>
       <div style="flex:1;min-width:0"><div class="when">${esc(actWhen(a))}</div><h3>${esc(a.title)}</h3>${kindTag(a)}</div>
       <span class="chev">›</span></a>`).join('')}</div>`
-    : `<div class="card empty"><span class="e">🗓️</span><b>Aquí estará el plan del día</b><p class="muted small" style="margin-top:6px">Cena, juegos, dinámicas e intercambio. Te avisamos 🔔 cuando el organizador lo publique.</p>
+    : `${anon ? `<div class="stack" style="margin-bottom:12px">${anon}</div>` : ''}<div class="card empty"><span class="e">🗓️</span><b>Aquí estará el plan del día</b><p class="muted small" style="margin-top:6px">Cena, juegos, dinámicas e intercambio. Te avisamos 🔔 cuando el organizador lo publique.</p>
       <div class="qa" style="justify-content:center;margin-top:12px">${mod('juegos') ? '<a class="btn sm gold" href="#juegos">🎮 Mientras tanto, a jugar</a>' : ''}${mod('deseos') ? '<a class="btn sm" href="#deseos">🎁 Mi lista de deseos</a>' : ''}</div></div>`;
 }
 function voteOptions(a) {

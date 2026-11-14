@@ -205,7 +205,7 @@ const half = v => `<span class="dh">${Array.from({ length: 9 }, (_, k) => `<i cl
 const halfS = v => `<span class="dmh">${Array.from({ length: 9 }, (_, k) => `<i class="${PIPS[v].includes(k) ? 'on' : ''}"></i>`).join('')}</span>`;
 function snakeHTML(chain, width) {
   if (!chain.length) return '<span class="muted small" style="margin:auto">La mesa está vacía · sale la primera ficha</span>';
-  const S = Math.max(20, Math.min(30, Math.floor(width / 14))), cols = Math.floor(width / S);
+  const S = Math.max(24, Math.min(38, Math.floor(width / 11))), cols = Math.floor(width / S);
   const { tiles, rows } = snakeLayout(chain, cols), off = Math.max(0, (width - cols * S) / 2);
   return `<div class="snake" style="height:${rows * S}px">${tiles.map(o => `<span class="dmt ${o.v ? 'v' : 'h'} ${o.k === 0 || o.k === chain.length - 1 ? 'end' : ''} ${o.k === LAST.k ? 'new' : ''}" style="left:${off + o.x * S}px;top:${o.y * S}px;width:${o.w * S - 2}px;height:${o.h * S - 2}px">${halfS(o.a)}<b></b>${halfS(o.b)}</span>`).join('')}</div>`;
 }
@@ -260,11 +260,12 @@ export function initGames(X) {
     }, () => { G.cur = { id, gone: true }; render(); });
   }
   function closeGame() {
-    [G.sub, G.subHand, ...Object.values(G.subBots)].forEach(u => u && u()); clearTimeout(G.botT);
-    Object.assign(G, { sub: null, subHand: null, subBots: {}, cur: null, hand: [], botHands: {} });
+    [G.sub, G.subHand, ...Object.values(G.subBots)].forEach(u => u && u()); clearTimeout(G.botT); clearTimeout(G.clockT); clearTimeout(G.dogT);
+    Object.assign(G, { sub: null, subHand: null, subBots: {}, cur: null, hand: [], botHands: {}, turnKey: '' });
   }
   function onGameChange(prev) {
-    const g = G.cur; if (!g || g.type !== 'domino') { maybeBot(); return; }
+    const g = G.cur; armClock();
+    if (!g || g.type !== 'domino') { if (g && g.status === 'done' && prev?.status !== 'done' && (g.winners || []).includes(me())) confetti(160); maybeBot(); return; }
     const mine = g.players?.includes(me());
     if (mine && !G.subHand) G.subHand = onSnapshot(doc(db, 'games', g.id, 'hands', me()), s => { G.hand = s.exists() ? (s.data().tiles || []) : []; render(); }, () => { });
     if (g.host === me()) g.players.filter(isBot).forEach(b => { if (G.subBots[b]) return; G.subBots[b] = onSnapshot(doc(db, 'games', g.id, 'hands', b), s => { G.botHands[b] = s.exists() ? (s.data().tiles || []) : []; maybeBot(); }, () => { }); });
@@ -273,6 +274,32 @@ export function initGames(X) {
     const key = `${g.id}:${g.hand}:${g.turn}:${g.handOver}`;
     if (g.status === 'playing' && !g.handOver && g.players[g.turn] === me() && G.seenTurn !== key) { G.seenTurn = key; if (navigator.vibrate) try { navigator.vibrate(60); } catch { } if (document.hidden) X.notify?.('🎲 ¡Te toca jugar!', g.title || 'Dominó', '#juegos'); }
     maybeBot();
+  }
+  /* ----- reloj de turno: 30 s por jugada, con su barra ----- */
+  const TURN_MS = (typeof window !== 'undefined' && window.__turnMs) || 30000;
+  const live = g => g && g.status === 'playing' && !g.handOver && Array.isArray(g.players);
+  function armClock() {
+    const g = G.cur;
+    if (!live(g)) { clearTimeout(G.clockT); clearTimeout(G.dogT); G.turnKey = ''; return; }
+    const key = `${g.id}:${g.hand || 0}:${g.turn}:${g.seq}`;
+    if (key === G.turnKey) return;
+    G.turnKey = key; G.turnStart = Date.now(); clearTimeout(G.clockT); clearTimeout(G.dogT);
+    const seat = g.players[g.turn];
+    if (seat === me()) G.clockT = setTimeout(() => { if (G.turnKey === key) autoMove(); }, TURN_MS);
+    else if (g.host === me() && !isBot(seat)) G.clockT = setTimeout(() => { if (G.turnKey === key) skipTurn(seat); }, TURN_MS + 6000); // si la persona no está, se salta su turno
+    if (g.host === me() && isBot(seat)) { const dog = () => { if (G.turnKey !== key) return; maybeBot(true); G.dogT = setTimeout(dog, 5000); }; G.dogT = setTimeout(dog, 5000); } // por si el 🤖 se quedó sin jugar
+  }
+  const clockBar = () => `<i class="tbar" style="animation-duration:${TURN_MS / 1000}s;animation-delay:-${Math.min(TURN_MS - 1, Math.max(0, Date.now() - (G.turnStart || Date.now()))) / 1000}s"></i>`;
+  function autoMove() { // se acabó tu tiempo: la app juega por ti
+    const g = G.cur; if (!live(g) || g.players[g.turn] !== me()) return;
+    toast('⏰ Se acabó el tiempo: jugamos por ti');
+    if (g.type === 'domino') { const c = botChoice(G.hand, g.chain || [], g.mustOpen); return playDomino(me(), c ? c.tile : null, c?.side); }
+    if (g.type === 'ttt') return playTTT(me(), tttBot(g.board, g.turn === 0 ? 'X' : 'O'));
+    if (g.type === 'c4') return playC4(me(), c4Bot(g.board, g.turn === 0 ? 'R' : 'Y'));
+    return skipTurn(me());
+  }
+  function skipTurn(seat) {
+    return tx((t, g) => { if (!live(g) || g.players[g.turn] !== seat) return; upd(t, g, { turn: (g.turn + 1) % g.players.length, last: { seat, timeout: true } }); });
   }
   const teamOfSeat = (g, s) => { const i = g.players.indexOf(s); return i < 0 ? -1 : g.mode === 'parejas' ? i % 2 : i; };
 
@@ -288,10 +315,14 @@ export function initGames(X) {
     if (mode === 'bot') base.title += ' contra 🤖'; // las reglas exigen crear la mesa solo con uno mismo; start() sienta al 🤖
     try { await setDoc(doc(db, 'games', id), base); location.hash = 'juego-' + id; if (mode === 'bot') setTimeout(() => { if (G.cur?.id === id) start(); }, 900); } catch (e) { toast(X.authErr(e)); }
   }
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const QUIET = ['No es tu turno', 'La mano no está en juego']; // llegan tarde por un doble toque o un turno que ya pasó: no molestan
   async function tx(fn) {
-    if (G.busy) return; G.busy = true;
-    try { await runTransaction(db, async t => { const s = await t.get(doc(db, 'games', G.cur.id)); if (!s.exists()) throw new Error('La mesa ya no existe'); return fn(t, { id: s.id, ...s.data() }); }); }
-    catch (e) { toast(e?.code ? X.authErr(e) : (e.message || 'No se pudo')); }
+    for (let w = 0; G.busy && w < 50; w++) await sleep(100); // espera a que termine la jugada anterior en vez de perder esta
+    if (G.busy || !G.cur) return; G.busy = true;
+    const gid = G.cur.id;
+    try { await runTransaction(db, async t => { const s = await t.get(doc(db, 'games', gid)); if (!s.exists()) throw new Error('La mesa ya no existe'); return fn(t, { id: s.id, ...s.data() }); }); }
+    catch (e) { const m = e?.code ? X.authErr(e) : (e.message || 'No se pudo'); if (!QUIET.includes(m)) toast(m); console.warn('juego', e); }
     finally { G.busy = false; }
   }
   const upd = (t, g, patch) => t.update(doc(db, 'games', g.id), { ...patch, seq: (g.seq || 0) + 1, updatedAt: Date.now() });
@@ -355,18 +386,20 @@ export function initGames(X) {
     });
   }
   function maybeBot() {
-    const g = G.cur; clearTimeout(G.botT);
-    if (!g || g.host !== me() || g.status !== 'playing') return;
+    const g0 = G.cur; clearTimeout(G.botT);
+    if (!live(g0) || g0.host !== me()) return;
     if (document.hidden) return; // si quien creó la mesa no la está viendo, los 🤖 esperan (no gastan nada)
-    const seat = g.players?.[g.turn]; if (!seat || !isBot(seat)) return;
-    if (g.type === 'domino') {
-      if (g.handOver || !G.botHands[seat]) return;
-      G.botT = setTimeout(() => { const c = botChoice(G.botHands[seat], g.chain || [], g.mustOpen); playDomino(seat, c ? c.tile : null, c?.side); }, 1100 + Math.random() * 700);
-    } else if (g.type === 'ttt') {
-      G.botT = setTimeout(() => playTTT(seat, tttBot(g.board, g.turn === 0 ? 'X' : 'O')), 700);
-    } else if (g.type === 'c4') {
-      G.botT = setTimeout(() => playC4(seat, c4Bot(g.board, g.turn === 0 ? 'R' : 'Y')), 800);
-    }
+    const seat0 = g0.players[g0.turn]; if (!isBot(seat0)) return;
+    G.botT = setTimeout(() => {
+      const g = G.cur; if (!live(g) || g.host !== me()) return; // siempre con el estado más reciente
+      const seat = g.players[g.turn]; if (!isBot(seat)) return;
+      if (g.type === 'domino') {
+        const hand = G.botHands[seat]; if (!hand) return;
+        if ((g.counts?.[g.turn] ?? hand.length) !== hand.length) return; // la mano del 🤖 aún no llegó; el reloj lo reintenta
+        const c = botChoice(hand, g.chain || [], g.mustOpen); playDomino(seat, c ? c.tile : null, c?.side);
+      } else if (g.type === 'ttt') playTTT(seat, tttBot(g.board, g.turn === 0 ? 'X' : 'O'));
+      else if (g.type === 'c4') playC4(seat, c4Bot(g.board, g.turn === 0 ? 'R' : 'Y'));
+    }, g0.type === 'domino' ? 900 + Math.random() * 600 : 750);
   }
   function playTTT(seat, cell) {
     return tx((t, g) => {
@@ -447,7 +480,7 @@ export function initGames(X) {
   function seatsHTML(g) {
     const n = g.players.length;
     return `<div class="seats">${g.players.map((s, i) => `<div class="seat ${g.status === 'playing' && !g.handOver && g.turn === i ? 'turn' : ''} ${s === me() ? 'me' : ''}">
-      <span class="se">${esc(seatEmoji(s))}</span><span class="sn">${esc(s === me() ? 'Tú' : seatName(s))}</span>
+      <span class="se">${esc(seatEmoji(s))}</span><span class="sn">${esc(s === me() ? 'Tú' : seatName(s).replace('🤖 ', ''))}</span>${live(g) && g.turn === i ? clockBar() : ''}
       ${g.type === 'domino' && g.status !== 'lobby' ? `<span class="sc">${g.counts?.[i] ?? 7} fichas</span>` : ''}
       ${g.type === 'domino' && g.mode === 'parejas' ? `<span class="team t${i % 2}">${i % 2 ? 'B' : 'A'}</span>` : ''}
       ${g.type === 'ahorcado' && g.scores ? `<span class="sc">${g.scores[i] || 0} pts</span>` : ''}
@@ -473,7 +506,7 @@ export function initGames(X) {
     const chain = g.chain || [], can = mySeat >= 0 ? playable(G.hand, chain, g.mustOpen) : [];
     const sc = g.mode === 'parejas' ? `<div class="score2"><div class="${teamOfSeat(g, me()) === 0 ? 'mine' : ''}"><span>Pareja A</span><b>${g.scores?.[0] || 0}</b></div><span class="muted small">a ${g.target}</span><div class="${teamOfSeat(g, me()) === 1 ? 'mine' : ''}"><span>Pareja B</span><b>${g.scores?.[1] || 0}</b></div></div>`
       : `<div class="score2 solo">${g.players.map((s, i) => `<div class="${s === me() ? 'mine' : ''}"><span>${esc(s === me() ? 'Tú' : seatName(s))}</span><b>${g.scores?.[i] || 0}</b></div>`).join('')}<span class="muted small">a ${g.target}</span></div>`;
-    const last = g.last ? (g.last.pass ? `${esc(seatName(g.last.seat))} pasó` : `${esc(g.last.seat === me() ? 'Jugaste' : seatName(g.last.seat) + ' jugó')}`) : g.mustOpen && !chain.length ? `Sale ${esc(seatName(g.players[g.turn]))} con el doble ${g.mustOpen[0]}` : '';
+    const last = g.last ? (g.last.timeout ? `⏰ A ${esc(seatName(g.last.seat))} se le acabó el tiempo` : g.last.pass ? `${esc(seatName(g.last.seat))} pasó` : `${esc(g.last.seat === me() ? 'Jugaste' : seatName(g.last.seat) + ' jugó')}`) : g.mustOpen && !chain.length ? `Sale ${esc(seatName(g.players[g.turn]))} con el doble ${g.mustOpen[0]}` : '';
     const R = g.result, why = { domino: '¡Dominó!', capicua: '¡Capicúa! (+25)', tranque: '¡Tranque!', empate: 'Tranque empatado: nadie suma' };
     const winnerTxt = R ? (R.team < 0 ? why.empate : `${g.mode === 'parejas' ? 'Pareja ' + (R.team ? 'B' : 'A') : esc(seatName(g.players[R.team]))} gana ${R.pts} puntos · ${why[R.why]}`) : '';
     return `${sc}${seatsHTML(g)}
@@ -482,7 +515,7 @@ export function initGames(X) {
       ${g.handOver ? `<div class="card center hover"><div style="font-size:36px">${R?.team < 0 ? '🤝' : '🎉'}</div><b>${winnerTxt}</b>
           ${g.status === 'done' ? `<p style="margin-top:8px">🏆 ${(g.winners || []).length ? 'Ganan ' + g.winners.map(s => esc(seatName(s))).join(' y ') : 'Ganaron los 🤖'}</p>` : ''}
           <div class="qa" style="justify-content:center">${g.host === me() ? (g.status === 'done' ? '<button class="btn gold" data-gact="again">🔁 Otra partida</button>' : '<button class="btn gold" data-gact="next">Siguiente mano ▶️</button>') : '<span class="muted small">Esperando a quien creó la mesa…</span>'}</div></div>` : ''}
-      ${mySeat >= 0 && g.status === 'playing' ? `<div class="myhand ${myTurn ? 'turn' : ''}"><div class="mh-h"><b>${myTurn ? '👉 ¡Te toca!' : `Turno de ${esc(seatName(g.players[g.turn]))}`}</b>${myTurn && !can.length && !g.handOver ? '<button class="btn sm gold" data-gact="pass">Paso 🙅</button>' : ''}</div>
+      ${mySeat >= 0 && g.status === 'playing' ? `<div class="myhand ${myTurn ? 'turn' : ''}"><div class="mh-h"><b>${myTurn ? '👉 ¡Te toca!' : `Turno de ${esc(seatName(g.players[g.turn]))}`}</b>${myTurn && !can.length && !g.handOver ? '<button class="btn sm gold" data-gact="pass">Paso 🙅</button>' : ''}</div>${myTurn && !g.handOver ? `<div class="tline">${clockBar()}</div>` : ''}
         <div class="hand">${G.hand.map(t => tileHTML(t, `big ${myTurn && can.includes(t) ? 'ok' : 'no'}`, `data-tile="${t}"`)).join('')}</div></div>` : ''}`;
   }
   function tttHTML(g) {
@@ -520,7 +553,7 @@ export function initGames(X) {
     if (g.status !== 'lobby' && !g.players.includes(me()) && g.max <= 2) return head + `<div class="card empty"><span class="e">🔒</span>Esta partida es solo de ${g.players.map(s => esc(seatName(s))).join(' y ')}<div class="qa" style="justify-content:center"><a class="btn" href="#juegos">Volver</a></div></div>`;
     return head + (g.type === 'domino' ? dominoHTML(g) : g.type === 'ttt' ? tttHTML(g) : g.type === 'c4' ? c4HTML(g) : hangHTML(g));
   }
-  const mesaWidth = () => Math.max(260, (($('#g-root')?.clientWidth) || 360) - 28);
+  const mesaWidth = () => Math.max(260, (($('#g-root')?.clientWidth) || 360) - 20);
   let rzT; addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => { if (G.cur?.type === 'domino' && document.querySelector('#g-mesa')) renderView(); }, 150); });
   function renderView() {
     const root = $('#g-root'); if (!root) return;
@@ -528,6 +561,7 @@ export function initGames(X) {
     ensure();
     const h = location.hash.slice(1), m = h.match(/^juego-(.+)$/);
     if (m) open(m[1]); else if (G.cur) closeGame();
+    $('#v-juegos')?.classList.toggle('ingame', !!G.cur);
     root.innerHTML = G.cur ? renderGame(G.cur) : renderLobbyList();
   }
 

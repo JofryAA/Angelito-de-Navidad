@@ -15,6 +15,7 @@ jobs:
           V=$(date -u +%Y.%m.%d-%H%M%S)
           sed -i -E "s/const APP_VERSION = '[^']*'/const APP_VERSION = '$V'/" Web/index.html
           sed -i -E "s/const VERSION = 'angelito-[^']*'/const VERSION = 'angelito-$V'/" Web/sw.js
+          sed -i -E "s#'\./juegos\.js(\?v=[^']*)?'#'./juegos.js?v=$V'#" Web/index.html
           echo "{\"version\": \"$V\"}" > Web/version.json
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
