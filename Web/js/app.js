@@ -1942,26 +1942,34 @@ function setBuzQuiet() {
 function renderSuggestions() {
   const fb = $('#s-formbox');
   if (!S.me) fb.innerHTML = S.authReady ? needLogin('Entra con tu PIN para dejar una sugerencia.') : '';
-  else if (!$('#s-form')) fb.innerHTML = `<form class="card ideaform" id="s-form">
-      <b>💡 Propón una idea para el angelito</b>
-      <textarea class="in" id="s-text" maxlength="600" rows="2" placeholder="Que juguemos dominó después de la cena…" required></textarea>
-      <div class="idearow"><button type="button" class="signsw" id="s-sign" role="switch" aria-checked="false" aria-label="Firmar con mi nombre"><span class="ss-av" id="s-av">🕶️</span><span class="ss-t"><b id="s-hint">Anónima</b><small id="s-sub">Nadie sabrá quién fue</small></span><span class="ss-tg" aria-hidden="true"><i></i></span></button><button class="btn gold sm" type="submit" id="s-go">Enviar</button></div></form>`;
+  else if (!$('#s-form')) fb.innerHTML = `<form class="ideaform2" id="s-form">
+      <div class="if-hd"><span class="if-ic">${ic('bulb', 26)}</span><div><b>¿Qué le falta al angelito?</b><small>Propón juegos, comida o dinámicas. El grupo vota las mejores.</small></div></div>
+      <div class="if-chips">${[['🎮', 'Un juego: '], ['🍽️', 'De comer: '], ['🎶', 'Música: '], ['🎁', 'Una dinámica: '], ['🎄', 'Decoración: ']].map(([e, t]) => `<button type="button" class="if-chip" data-sstart="${t}">${e} ${t.replace(/: $/, '')}</button>`).join('')}</div>
+      <textarea class="in" id="s-text" maxlength="600" rows="3" placeholder="Ej. Que juguemos dominó después de la cena 🎲" required></textarea>
+      <div class="idearow2"><button type="button" class="signsw" id="s-sign" role="switch" aria-checked="false" aria-label="Firmar con mi nombre"><span class="ss-av" id="s-av">🕶️</span><span class="ss-t"><b id="s-hint">Anónima</b><small id="s-sub">Nadie sabrá quién fue</small></span><span class="ss-tg" aria-hidden="true"><i></i></span></button>
+      <button class="btn if-go" type="submit" id="s-go">${ic('send', 18)} Enviar idea</button></div></form>`;
   try { if (localStorage.getItem('angelito:signIdeas') === '1') setSign(true); } catch { }
   const list = $('#s-list');
   if (!S.me && !S.isAdmin) { list.innerHTML = ''; return; }
   const votes = id => S.sugVotes.filter(v => v.sug === id);
   const items = [...S.suggestions].sort((a, b) => votes(b.id).length - votes(a.id).length || sTs(b) - sTs(a));
-  list.innerHTML = items.length ? `<div class="h2row" style="margin-top:0"><h2>Ideas del grupo</h2><span class="muted small">Vota 👍 las que te gusten</span></div><div class="stack">${items.map(x => {
-    const st = ST[x.status] || ST.nueva, au = S.sugAuthors[x.id], vs = votes(x.id), mine = vs.some(v => v.uid === S.uid);
-    return `<div class="sug"><div class="sugrow"><div style="flex:1;min-width:0"><div class="txt">${esc(x.text)}</div>
-        <div class="meta"><span>${x.signed && x.uid ? `${esc(pEmoji(x.uid))} ${esc(pName(x.uid))}` : '🕶️ Anónima'}</span>${x.status && x.status !== 'nueva' ? `<span class="st ${esc(x.status)}">${st[0]} ${st[1]}</span>` : ''}</div></div>
-      <button class="vote ${mine ? 'on' : ''}" data-svote="${esc(x.id)}" ${S.me ? '' : 'disabled'} aria-label="Apoyar"><span>👍</span><b>${vs.length}</b></button></div>
-      ${S.isOwner ? `<div class="spy">🕵️ Solo tú ves esto · Escrita por: <b>${au ? esc(pName(au)) : 'desconocido'}</b></div>` : ''}
-      ${can('moderar') ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${Object.entries(ST).map(([k, v]) => `<button class="btn sm ${x.status === k || (!x.status && k === 'nueva') ? 'gold' : ''}" data-sst="${k}" data-sid="${esc(x.id)}">${v[0]} ${v[1]}</button>`).join('')}<button class="btn sm" data-sdel="${esc(x.id)}">🗑️</button></div>` : ''}
-    </div>`;
-  }).join('')}</div>` : `<div class="card empty"><span class="e">💡</span>Todavía no hay sugerencias. ¡Sé el primero!</div>`;
+  const max = Math.max(1, ...items.map(x => votes(x.id).length));
+  list.innerHTML = items.length ? `<div class="h2row" style="margin-top:0"><h2>Ideas del grupo</h2><span class="tag">${items.length} ${items.length === 1 ? 'idea' : 'ideas'}</span></div><p class="muted small" style="margin:-6px 0 12px">Toca 👍 en las que te gusten: las más votadas suben.</p><div class="stack">${items.map((x, k) => {
+    const st = ST[x.status] || ST.nueva, au = S.sugAuthors[x.id], vs = votes(x.id), mine = vs.some(v => v.uid === S.uid), top = k < 3 && vs.length > 0;
+    return `<div class="sug2 ${top ? 'top' : ''} s-${esc(x.status || 'nueva')}" style="--d:${Math.min(k, 8) * 50}ms;--v:${vs.length / max * 100}%">
+      <button class="vote2 ${mine ? 'on' : ''}" data-svote="${esc(x.id)}" ${S.me ? '' : 'disabled'} aria-label="Apoyar"><span class="v-th">👍</span><b>${vs.length}</b></button>
+      <div class="s2-b"><div class="s2-top">${top ? `<span class="s2-rank">${['🥇', '🥈', '🥉'][k]} Top ${k + 1}</span>` : ''}${x.status && x.status !== 'nueva' ? `<span class="st2 ${esc(x.status)}">${st[0]} ${st[1]}</span>` : ''}</div>
+        <div class="txt">${esc(x.text)}</div>
+        <div class="s2-meta">${x.signed && x.uid ? `<span class="s2-av">${esc(pEmoji(x.uid))}</span>${esc(pName(x.uid))}` : '<span class="s2-av">🕶️</span>Anónima'}</div>
+        <div class="s2-bar"><i></i></div>
+        ${S.isOwner ? `<div class="spy">🕵️ Solo tú ves esto · Escrita por: <b>${au ? esc(pName(au)) : 'desconocido'}</b></div>` : ''}
+        ${can('moderar') ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${Object.entries(ST).map(([kk, v]) => `<button class="btn sm ${x.status === kk || (!x.status && kk === 'nueva') ? 'gold' : ''}" data-sst="${kk}" data-sid="${esc(x.id)}">${v[0]} ${v[1]}</button>`).join('')}<button class="btn sm" data-sdel="${esc(x.id)}">🗑️</button></div>` : ''}
+      </div></div>`;
+  }).join('')}</div>` : `<div class="card s2-empty"><div class="s2e-ic">💡</div><b>Todavía no hay ideas</b><p class="muted small">¡Sé el primero! Por ejemplo:</p><div class="if-chips" style="justify-content:center">${['🎲 Dominó después de la cena', '🎤 Karaoke de villancicos', '📸 Foto grupal con gorros'].map(t => `<span class="if-chip ghost">${t}</span>`).join('')}</div></div>`;
 }
 $('#s-formbox').addEventListener('click', e => {
+  const st = e.target.closest('[data-sstart]');
+  if (st) { const t = $('#s-text'); if (!t.value.startsWith(st.dataset.sstart)) t.value = st.dataset.sstart + t.value.replace(/^[^:]{1,20}: /, ''); t.focus(); t.setSelectionRange(t.value.length, t.value.length); return; }
   if (!e.target.closest('#s-sign')) return;
   const on = !$('#s-sign').classList.contains('on'); setSign(on);
   try { localStorage.setItem('angelito:signIdeas', on ? '1' : '0'); } catch { }
@@ -1975,7 +1983,7 @@ function setSign(on) {
 $('#s-formbox').addEventListener('submit', async e => {
   e.preventDefault(); if (e.target.id !== 's-form') return;
   const text = $('#s-text').value.trim(); if (!text) return;
-  const signed = $('#s-sign').classList.contains('on'), btn = $('#s-go'), label = btn.textContent; busy(btn, true);
+  const signed = $('#s-sign').classList.contains('on'), btn = $('#s-go'), label = btn.innerHTML; busy(btn, true);
   try {
     const b = writeBatch(db), ref = doc(collection(db, 'suggestions')); S.myCreated.add(ref.id);
     const ts = Math.floor(Date.now() / 3600e3) * 3600e3; // hora redondeada: no delata quién la escribió
