@@ -351,3 +351,61 @@ body.chat-on #c-dock{will-change:auto}
 .s2-empty{text-align:center;padding:24px 16px!important}
 .s2e-ic{font-size:44px;animation:bob 3s ease-in-out infinite}
 .s2-empty b{display:block;font-size:1.05rem;margin-top:6px}
+/* =================== Asistencia =================== */
+.rv-t{font-size:1.15rem;display:block}
+.rv-who{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:10px 12px;border-radius:16px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.18);color:#fff;font:inherit;text-align:left;cursor:pointer;transition:transform .14s,background .2s}
+.rv-who:active{transform:scale(.98)}.rv-who:hover{background:rgba(0,0,0,.26)}
+.rv-faces{display:flex;flex:none}
+.rf{display:grid;place-items:center;width:34px;height:34px;margin-left:-10px;border-radius:50%;background:#1c6a45;border:2px solid #2aa565;font-size:17px;box-shadow:0 3px 8px rgba(0,0,0,.25);animation:popin .35s calc(var(--k) * 60ms) backwards}
+.rf:first-child{margin-left:0}
+.rf.more{font-size:.72rem;font-weight:800;background:#fff;color:#11603a}
+.rv-n{display:flex;align-items:baseline;gap:4px;flex:none}
+.rv-n b{font-size:1.9rem;font-family:var(--serif,inherit);line-height:1}
+.rv-n span{font-weight:700}
+.rv-sub{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-end;font-size:.72rem;opacity:.85;text-align:right}
+.rv-sub em{font-style:normal;font-weight:800;opacity:1;margin-top:2px;color:#d6ffe6}
+.rv-me{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:16px;background:#fff;color:#11603a;animation:popin .3s backwards}
+.rv-me.no{color:#8f2147}
+.rv-me b{flex:1;min-width:0}
+.rv-mi{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:currentColor;flex:none}
+.rv-mi .ic{color:#fff}
+.rv-me .btn{background:rgba(0,0,0,.06)!important;color:inherit!important;border-color:rgba(0,0,0,.1)!important}
+.al{display:grid;gap:14px;margin-top:12px;max-height:60vh;overflow:auto}
+.al-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.al-h span{font-size:.75rem;font-weight:800;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.1)}
+.al-g.ok .al-h span{background:var(--c-green)}.al-g.no .al-h span{background:var(--c-rose)}.al-g.wait .al-h span{background:var(--c-amber)}
+.al-l{display:flex;flex-wrap:wrap;gap:6px}
+.al-p{display:inline-flex;align-items:center;gap:6px;padding:6px 10px 6px 6px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);font-size:.85rem;animation:popin .3s var(--d) backwards}
+.al-p span{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.1);font-size:14px}
+.al-p small{opacity:.7}
+
+/* =================== Animación en toda la app =================== */
+body:not(.anim-in) :is(.todo .step,.witem,.sug2){animation:none!important}
+@keyframes tabpop{0%{transform:scale(1)}40%{transform:translateY(-4px) scale(1.25)}70%{transform:translateY(0) scale(.95)}100%{transform:translateY(-1px) scale(1.08)}}
+@keyframes toastin{0%{transform:translateX(-50%) translateY(-30px) scale(.9)}60%{transform:translateX(-50%) translateY(4px) scale(1.02)}100%{transform:translateX(-50%)}}
+@keyframes sheetup{from{transform:translateY(40px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+@keyframes shimmer{0%{background-position:-150% 0}100%{background-position:250% 0}}
+@keyframes pulse2{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+.tab{transition:background .25s,color .25s,transform .14s}
+.tab:active{transform:scale(.9)}
+.tab.on .i{animation:tabpop .45s cubic-bezier(.2,1.4,.4,1) both}
+.tab .bd{animation:pulse2 1.8s ease-in-out infinite}
+#toast.on{animation:toastin .45s cubic-bezier(.2,1.4,.4,1)}
+.modal.on .sheet{animation:sheetup .35s cubic-bezier(.2,1,.3,1) backwards}
+/* brillo que pasa por los botones dorados */
+.btn.gold{background-size:100% 100%;position:relative;overflow:hidden}
+.btn.gold::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.45) 50%,transparent 70%) 0 0/250% 100% no-repeat;background-position:-150% 0;animation:shimmer 3.6s ease-in-out infinite;pointer-events:none}
+/* tarjetas de color: se levantan un poco al tocar */
+:is(.profcard,.anonhome,.anoncard,#h-sug.join,.gc2,.actcard,.wadd>summary){transition:transform .16s ease,box-shadow .2s}
+:is(.profcard,.anonhome,.anoncard,#h-sug.join,.actcard,.wadd>summary):active{transform:scale(.98)}
+@media(hover:hover){:is(.profcard,.anonhome,.anoncard,#h-sug.join,.actcard):hover{transform:translateY(-2px)}}
+/* cuenta regresiva: los números laten suave */
+.count>div{transition:transform .2s}
+.count>div:last-child b{display:inline-block;animation:pulse2 1s ease-in-out infinite}
+/* la campana del chat se mueve cuando está activa */
+.bellbtn.on .ic{animation:wiggle 2.8s ease-in-out infinite;transform-origin:50% 10%}
+/* ícono del logo */
+.brand .logo{transition:transform .3s}
+.brand:active .logo{transform:rotate(-12deg) scale(.92)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}

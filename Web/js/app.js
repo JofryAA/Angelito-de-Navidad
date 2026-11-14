@@ -810,6 +810,8 @@ document.addEventListener('click', e => { if (e.target.closest('[data-help]')) {
 const VIEWS = ['inicio', 'ruleta', 'deseos', 'actividades', 'anonimos', 'buzon', 'juegos', 'admin'];
 const tabScroll = {}; let curView = null;
 function route() {
+  // las animaciones de entrada de listas solo al cambiar de pantalla (no cada vez que llegan datos nuevos)
+  document.body.classList.add('anim-in'); clearTimeout(route.t); route.t = setTimeout(() => document.body.classList.remove('anim-in'), 1100);
   if (!history.state?.sheet) sheetEntry = false;
   if (curView) tabScroll[curView] = scrollY;
   let v = location.hash.slice(1);
@@ -1480,14 +1482,26 @@ function attSummary() {
   return { going: ids.filter(id => a(id).status === 'si').length, notGoing: ids.filter(id => a(id).status === 'no').length,
     pending: ids.filter(id => !a(id).status).length, paid: ids.filter(id => a(id).confirmed).length, said: ids.filter(id => a(id).paid && !a(id).confirmed).length };
 }
+// Lista de quiénes van / no pueden / no han respondido
+function openAttList() {
+  const g = st => S.participants.filter(p => ((S.att[p.id] || {}).status || '') === st).sort((a, b) => a.name.localeCompare(b.name));
+  const col = (t, cls, l) => `<div class="al-g ${cls}"><div class="al-h"><b>${t}</b><span>${l.length}</span></div>${l.length ? `<div class="al-l">${l.map((p, k) => `<div class="al-p" style="--d:${k * 30}ms"><span>${esc(p.emoji)}</span>${esc(p.name)}${p.id === S.uid ? ' <small>(tú)</small>' : ''}</div>`).join('')}</div>` : '<p class="muted small">Nadie</p>'}</div>`;
+  const s2 = openModal(`<h3>🎉 ¿Quiénes van?</h3><div class="al">${col('✅ Van', 'ok', g('si'))}${col('😢 No pueden', 'no', g('no'))}${col('⏳ Sin responder', 'wait', g(''))}</div><div class="actions"><button class="btn gold" data-a="x">Listo</button></div>`);
+  s2.onclick = e => { if (e.target.closest('[data-a]')) closeModal(); };
+}
 function renderAttendance() {
   const box = $('#h-att'); if (!box) return;
   if (!S.me || !mod('asistencia')) { box.innerHTML = ''; } else {
     const c = S.event, me = S.att[S.uid] || {}, sm = attSummary();
     const late = c.rsvpDeadline && todayStr() > c.rsvpDeadline;
-    let h = `<div class="card rsvpcard" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:1.1rem">🎉 ¿Vas al angelito?</b><span class="cnts"><span class="cnt ok">${sm.going} van</span>${sm.notGoing ? `<span class="cnt no">${sm.notGoing} no</span>` : ''}</span></div>
-      ${c.rsvpDeadline ? `<p class="muted small" style="margin-top:4px">${late ? '⚠️ La fecha para confirmar ya pasó' : 'Confirma antes del ' + esc(fmtDate(c.rsvpDeadline))}</p>` : ''}
-      <div class="rsvp" style="grid-template-columns:1fr 1fr;margin-top:12px"><button class="${me.status === 'si' ? 'on' : ''}" data-att="si"><span class="rs-i">${ic('check', 26)}</span>Sí, voy</button><button class="${me.status === 'no' ? 'on' : ''}" data-att="no"><span class="rs-i">${ic('xcircle', 26)}</span>No puedo</button></div>`;
+    const goingP = S.participants.filter(p => (S.att[p.id] || {}).status === 'si');
+    const faces = goingP.slice(0, 6).map((p, k) => `<span class="rf" style="--k:${k}">${esc(p.emoji)}</span>`).join('') + (goingP.length > 6 ? `<span class="rf more" style="--k:6">+${goingP.length - 6}</span>` : '');
+    const editing = !me.status || S.attEdit;
+    let h = `<div class="card rsvpcard" style="margin-bottom:16px"><b class="rv-t">🎉 ¿Vas al angelito?</b>
+      ${c.rsvpDeadline ? `<p class="muted small" style="margin-top:2px">${late ? '⚠️ La fecha para confirmar ya pasó' : 'Confirma antes del ' + esc(fmtDate(c.rsvpDeadline))}</p>` : ''}
+      <button class="rv-who" data-attlist type="button"><span class="rv-faces">${faces || '<span class="rf">🙂</span>'}</span><span class="rv-n"><b>${sm.going}</b><span>${sm.going === 1 ? 'va' : 'van'}</span></span><span class="rv-sub">${sm.notGoing ? `${sm.notGoing} no pueden` : ''}${sm.notGoing && sm.pending ? ' · ' : ''}${sm.pending ? `${sm.pending} sin responder` : ''}<em>Ver lista ›</em></span></button>
+      ${editing ? `<div class="rsvp" style="grid-template-columns:1fr 1fr;margin-top:12px"><button class="${me.status === 'si' ? 'on' : ''}" data-att="si"><span class="rs-i">${ic('check', 26)}</span>Sí, voy</button><button class="${me.status === 'no' ? 'on' : ''}" data-att="no"><span class="rs-i">${ic('xcircle', 26)}</span>No puedo</button></div>`
+        : `<div class="rv-me ${me.status}"><span class="rv-mi">${me.status === 'si' ? ic('check', 18) : ic('xcircle', 18)}</span><b>${me.status === 'si' ? '¡Vas! Te esperamos' : 'Dijiste que no puedes ir'}</b><button class="btn sm" data-attedit type="button">Cambiar</button></div>`}`;
     if (me.status === 'si' && c.contribAmount) {
       h += `<div class="prize" style="margin:14px 0 0;flex-wrap:wrap"><span style="font-size:22px">💵</span><div style="flex:1;min-width:180px"><b>Aporte: ${esc(c.contribAmount)}</b>${c.contribInfo ? `<div class="small" style="margin-top:2px">${esc(c.contribInfo)}</div>` : ''}
         <div class="small" style="margin-top:6px">${me.confirmed ? '✅ <b>El organizador confirmó tu aporte.</b> ¡Gracias!' : me.paid ? '⏳ Marcaste que ya lo diste. Falta que el organizador lo confirme.' : '💤 Todavía no has dado tu aporte.'}</div></div>
@@ -1517,7 +1531,10 @@ function renderAttendance() {
   }).join('') || '<p class="muted small">Nadie se ha registrado todavía.</p>';
 }
 $('#h-att').addEventListener('click', async e => {
+  if (e.target.closest('[data-attedit]')) { S.attEdit = true; return renderAttendance(); }
+  if (e.target.closest('[data-attlist]')) return openAttList();
   const b = e.target.closest('[data-att],[data-paid]'); if (!b || !S.me) return;
+  if (b.dataset.att) S.attEdit = false;
   const cur = S.att[S.uid] || {};
   const o = { uid: S.uid, status: b.dataset.att || cur.status || 'si', paid: b.dataset.paid != null ? b.dataset.paid === '1' : !!cur.paid, at: serverTimestamp() };
   if (o.status === 'no') o.paid = !!cur.paid;
