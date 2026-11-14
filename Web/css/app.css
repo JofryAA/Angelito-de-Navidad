@@ -701,3 +701,7 @@ body.adm-view #helper,body.kb #helper{display:none!important}
 .helpsteps{margin:10px 0 0 18px;line-height:1.7}.helpsteps b{color:var(--cream)}
 
 .xck{font-size:.84rem;line-height:1.4;padding:9px 12px;border-radius:12px;margin-top:6px}.xck.err{background:rgba(226,72,63,.16);border:1px solid rgba(226,72,63,.45);color:#ffd0cb}.xck.warn{background:rgba(236,188,92,.12);border:1px solid rgba(236,188,92,.4)}.xck.ok{background:rgba(70,160,110,.14);border:1px solid rgba(70,160,110,.4)}
+#helper .hb-btn{touch-action:none;cursor:grab}
+#helper.drag .hb-btn{cursor:grabbing;transform:scale(1.1);box-shadow:0 14px 30px rgba(0,0,0,.55)}
+#helper:not(.drag){transition:left .25s ease,right .25s ease,bottom .2s ease}
+#helper.left{align-items:flex-start}#helper.left .hb-bub{border-radius:18px 18px 18px 6px}

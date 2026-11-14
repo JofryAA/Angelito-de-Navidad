@@ -902,8 +902,43 @@ $('#helper').addEventListener('click', e => {
     else location.hash = g.slice(1);
     return;
   }
-  if (e.target.closest('#helper-btn')) { if (el.classList.contains('open')) el.classList.remove('open'); else openHelper(false); }
+  if (e.target.closest('#helper-btn')) { if (helperDrag.moved) return; if (el.classList.contains('open')) el.classList.remove('open'); else openHelper(false); }
 });
+// El 💡 se puede arrastrar a cualquier altura y se pega al borde izquierdo o derecho (se recuerda en este teléfono).
+const helperDrag = { moved: false };
+function placeHelper(pos) {
+  const el = $('#helper'); if (!el) return;
+  const p = pos || (() => { try { return JSON.parse(localStorage.getItem('angelito:helperPos') || 'null'); } catch { return null; } })();
+  if (!p) return;
+  const maxB = innerHeight - 140, b = Math.max(84, Math.min(maxB, p.b));
+  el.style.bottom = b + 'px'; el.classList.toggle('left', p.side === 'left');
+  el.style.left = p.side === 'left' ? '14px' : 'auto'; el.style.right = p.side === 'left' ? 'auto' : '14px';
+}
+(() => {
+  const btn = $('#helper-btn'), el = $('#helper'); if (!btn) return;
+  let sx = 0, sy = 0, startB = 0, id = null;
+  btn.addEventListener('pointerdown', e => {
+    id = e.pointerId; sx = e.clientX; sy = e.clientY; helperDrag.moved = false;
+    startB = innerHeight - el.getBoundingClientRect().bottom; btn.setPointerCapture(id);
+  });
+  btn.addEventListener('pointermove', e => {
+    if (e.pointerId !== id) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!helperDrag.moved && Math.hypot(dx, dy) < 8) return; // un toque normal no lo mueve
+    helperDrag.moved = true; el.classList.add('drag'); el.classList.remove('open');
+    el.style.left = Math.max(4, Math.min(innerWidth - 56, e.clientX - 24)) + 'px'; el.style.right = 'auto';
+    el.style.bottom = Math.max(70, Math.min(innerHeight - 70, startB - dy)) + 'px';
+  });
+  const end = e => {
+    if (e.pointerId !== id) return; id = null; el.classList.remove('drag');
+    if (!helperDrag.moved) return;
+    const pos = { side: e.clientX < innerWidth / 2 ? 'left' : 'right', b: parseFloat(el.style.bottom) || 92 };
+    placeHelper(pos); try { localStorage.setItem('angelito:helperPos', JSON.stringify(pos)); } catch { }
+    setTimeout(() => { helperDrag.moved = false; }, 50); // que el "click" que sigue al soltar no abra la burbuja
+  };
+  btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
+  placeHelper(); addEventListener('resize', () => placeHelper());
+})();
 function renderAll() {
   for (const f of [renderHelper, applyMods, renderUser, renderHome, renderWheel, renderWishes, renderActs, renderActDetail, renderQuestions, renderSuggestions, renderMyAngel, renderProgress, renderAttendance, renderAppCard, renderNotices, renderBadges, renderHints, renderThanks, renderPhotos, renderLive, renderMemCard, renderPartyLive, saveBoot, renderQuick, renderRevealBtn, renderNoticeAdmin, checkEvents, renderChat, renderGames, renderProfCard, renderUserDot, renderNext, renderAdmin]) { try { f(); } catch (e) { console.error('render', f.name, e); } }
 }
