@@ -832,6 +832,7 @@ body.kb.chat-on .top,body.kb.chat-on #v-buzon>.sec-title,body.kb.chat-on #buz-se
         <h3>📺 Modo fiesta</h3>
         <p class="muted small" style="margin-top:6px">Para el día del evento: conecta el teléfono o la computadora al TV y presenta con animación la revelación de cada angelito, los anónimos, las votaciones y las adivinanzas. Toca la pantalla (o la flecha →) para avanzar.</p>
         <button class="btn gold" id="party-open" style="margin-top:12px">📺 Abrir modo fiesta</button>
+        <button class="btn" id="party-unlock" style="margin-top:8px" hidden>🔓 Reabrir pistas y sospechas <span class="muted small" style="display:block;font-weight:400">Si abriste el modo fiesta solo para ensayar</span></button>
         <details style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">🎲 Preguntas de la trivia</summary>
           <p class="muted small" style="margin-top:8px">Una por línea: <code>Pregunta | opción | *correcta | opción | opción</code> (marca la correcta con *). Nadie más las puede ver.</p>
           <textarea class="in" id="tv-text" style="min-height:160px;margin-top:8px" placeholder="Toca 'Cargar' para ver las actuales"></textarea>
@@ -878,7 +879,7 @@ body.kb.chat-on .top,body.kb.chat-on #v-buzon>.sec-title,body.kb.chat-on #buz-se
       <form class="card stack admin-sec" data-grp="evento" data-ord="1" id="cfg-form" data-perm="evento">
         <h3>🎄 Evento</h3>
         <label class="field"><span>Nombre del evento</span><input class="in" name="eventName" maxlength="60" placeholder="Angelito de Navidad 2026"></label>
-        <label class="field"><span>Subtítulo</span><input class="in" name="subtitle" maxlength="90" placeholder="La familia se reúne para el intercambio"></label>
+        <label class="field"><span>Subtítulo <small class="muted">(se ve en la portada antes de entrar y en la invitación)</small></span><input class="in" name="subtitle" maxlength="90" placeholder="La familia se reúne para el intercambio"></label>
         <div class="row">
           <label class="field"><span>Fecha y hora del intercambio</span><input class="in" type="datetime-local" name="eventDate"></label>
           <label class="field"><span>Lugar</span><input class="in" name="place" maxlength="80" placeholder="Casa de la abuela"></label>
@@ -931,7 +932,7 @@ body.kb.chat-on .top,body.kb.chat-on #v-buzon>.sec-title,body.kb.chat-on #buz-se
           <input class="in pinin" id="pa-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••">
           <button class="btn gold" type="submit">Inscribir</button>
         </form></details>
-        <p class="muted small" style="margin-bottom:10px">💡 ¿Olvidó su PIN? Toca ⋯ junto a su nombre → 🔑 PIN temporal. Conserva todo lo suyo.</p>
+        <p class="muted small" style="margin-bottom:10px">💡 ¿Olvidó su PIN? El organizador principal toca ⋯ junto a su nombre → 🔑 PIN temporal. Conserva todo lo suyo.</p>
         <div id="p-tools"></div>
         <div class="stack" id="p-list"></div>
       </div>
@@ -1232,7 +1233,7 @@ function startCoreSubs() {
   unsubCore.push(onSnapshot(collection(db, 'participants'), { includeMetadataChanges: true }, s => { // avisa también cuando el servidor confirma
     if (fromServer(s)) { SYNC.people = true; SYNC.tries = 0; }
     S.participants = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at));
-    S.me = S.uid ? P(S.uid) || null : null; maybeForcePin(); maybeAskNotif();
+    S.me = S.uid ? P(S.uid) || null : null; maybeForcePin(); maybeAskNotif(); syncAdminMode();
     if (S.me && userSubDenied) retryUserSubs();
     render();
   }, coreRetry('participants')));
@@ -1326,7 +1327,7 @@ onAuthStateChanged(auth, user => {
   S.giftStatus = {}; S.incoming = null; S.myGuess = null; S.chat = []; if (!S.isAdmin) S.att = {};
   S.authReady = true; setTimeout(maybeForcePin, 0);
   subRetries = 0;
-  if (!user) { S.myStaff = null; syncAdminMode(); }
+  if (!user) { S.myStaff = null; syncAdminMode(); if (!adminAuth.currentUser) { S.att = {}; S.suggestions = []; } }
   if (user) startUserSubs(user);
   syncQuestions(true); syncGuesses(true); render();
   if (user && canNotify() && Notification.permission === 'granted') setTimeout(() => registerPush(), 1500);
@@ -1392,10 +1393,12 @@ function startAdminSubs() {
 function syncAdminMode() {
   if (adminAuth.currentUser) return;            // hay una sesión de organizador aparte: esa manda
   const had = !!S.staffSelf;
-  if (S.myStaff && S.uid) {
+  if (S.myStaff && S.uid && S.me) {
     const prev = JSON.stringify(S.staff?.perms || null);
+    const same = had && prev === JSON.stringify(S.myStaff.perms || null);
     adb = db; S.staff = S.myStaff; S.isAdmin = true; S.isOwner = false; S.staffSelf = true;
-    if (!had || prev !== JSON.stringify(S.staff.perms || null)) startAdminSubs();
+    if (same) return; // nada cambió
+    startAdminSubs();
     if (!had) { let seen = ''; try { seen = localStorage.getItem('angelito:staffHi') || ''; } catch { } if (seen !== S.uid) { try { localStorage.setItem('angelito:staffHi', S.uid); } catch { } toast('🛡️ Ya eres administrador: toca el engranaje de arriba'); } }
   } else if (had) {
     S.staffSelf = false; S.staff = null; S.isAdmin = false; adb = adbOwn; startAdminSubs();
@@ -1599,9 +1602,11 @@ async function resetPin(pid, tempPin) {
   const R = (c, id) => doc(adb, c, id);
   const q = (c, f, v) => getDocs(query(collection(adb, c), where(f, '==', v)));
   const { id: _i, ...pdata } = p;
-  put(R('participants', nid), { ...pdata, email, mustChangePin: true }); del(R('participants', pid));
-  if (p.nameKey) put(R('names', p.nameKey), { uid: nid });
-  put(R('banned', pid), { at: serverTimestamp() });
+  // el cambio de ficha va al final y de una sola vez: si algo se corta antes, la persona sigue intacta con su cuenta vieja
+  const fin = writeBatch(adb);
+  fin.set(R('participants', nid), { ...pdata, email, mustChangePin: true }); fin.delete(R('participants', pid));
+  if (p.nameKey) fin.set(R('names', p.nameKey), { uid: nid });
+  fin.set(R('banned', pid), { at: serverTimestamp() });
   for (const c of ['assignments', 'giftStatus', 'giftIncoming', 'attendance', 'guesses']) {
     const snap = await getDoc(R(c, pid)).catch(() => null);
     if (snap && snap.exists()) { const data = snap.data(); if ('uid' in data) data.uid = nid; put(R(c, nid), data); del(R(c, pid)); }
@@ -1614,6 +1619,7 @@ async function resetPin(pid, tempPin) {
   (await q('votes', 'uid', pid)).forEach(d => { put(R('votes', `${d.data().act}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
   (await q('votes', 'choice', pid)).forEach(d => { if (d.data().uid !== pid) put(d.ref, { ...d.data(), choice: nid }); });
   (await q('sugVotes', 'uid', pid)).forEach(d => { put(R('sugVotes', `${d.data().sug}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
+  (await q('chatReacts', 'uid', pid)).forEach(d => { put(R('chatReacts', `${d.data().msg}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
   del(R('fcmTokens', pid));
   for (const c of ['profiles', 'hintsSent', 'angelGuess', 'thanks', 'wishPick']) { const sn = await getDoc(R(c, pid)).catch(() => null); if (sn && sn.exists()) { put(R(c, nid), sn.data()); del(R(c, pid)); } }
   (await q('hints', 'to', pid)).forEach(d => put(d.ref, { ...d.data(), to: nid }));
@@ -1629,7 +1635,7 @@ async function resetPin(pid, tempPin) {
   if (S.reveal?.pairs?.some(x => x.g === pid || x.r === pid)) put(R('reveal', 'main'), { ...S.reveal, pairs: S.reveal.pairs.map(x => ({ g: x.g === pid ? nid : x.g, r: x.r === pid ? nid : x.r })) });
   if (S.event.guessWinner === pid) put(R('config', 'event'), { guessWinner: nid });
   (await q('angelGuess', 'guess', pid)).forEach(d => { if (d.id !== pid) put(d.ref, { ...d.data(), guess: nid }); });
-  if (S.drawMeta?.ids?.includes(pid)) put(R('config', 'draw'), { ...S.drawMeta, ids: S.drawMeta.ids.map(x => x === pid ? nid : x) });
+  if (S.drawMeta?.ids?.includes(pid)) fin.set(R('config', 'draw'), { ...S.drawMeta, ids: S.drawMeta.ids.map(x => x === pid ? nid : x) });
   S.activities.filter(a => Array.isArray(a.results) && a.results.some(r => r.key === pid))
     .forEach(a => put(R('activities', a.id), { results: a.results.map(r => r.key === pid ? { ...r, key: nid } : r) }));
   // permisos de administrador, puntos de los juegos y mesas en las que está sentada
@@ -1648,6 +1654,7 @@ async function resetPin(pid, tempPin) {
     ops.slice(i, i + 400).forEach(([t, ref, data]) => t === 'set' ? b.set(ref, data, { merge: ref.path.startsWith('activities/') || ref.path === 'config/event' }) : b.delete(ref));
     await b.commit();
   }
+  await fin.commit();
   return nid;
 }
 document.addEventListener('click', e => {
@@ -1735,7 +1742,7 @@ async function registerPerson(first, last, pin, byAdmin) {
   const emoji = EMOJIS.find(x => !used.has(x)) || EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
   try {
     const xdb = byAdmin ? adb : db, w = writeBatch(xdb);
-    w.set(doc(xdb, 'participants', cred.user.uid), { first, last, name, nameKey, email, emoji, at: serverTimestamp() });
+    w.set(doc(xdb, 'participants', cred.user.uid), { first, last, name, nameKey, email, emoji, at: serverTimestamp(), ...(byAdmin ? { mustChangePin: true } : {}) }); // quien inscribe no se queda con su PIN: al entrar crea el suyo
     w.set(doc(xdb, 'names', nameKey), { uid: cred.user.uid });
     await w.commit();
   } catch (e) { try { await deleteUser(cred.user); } catch { } throw e; }
@@ -1767,7 +1774,7 @@ function userMenu() {
       ${row('notif', '🔔', 'Notificaciones', 'Elige qué avisos recibir')}
       ${isInstalled() ? '' : row('install', '📲', 'Instalar la app', 'Ábrela desde tu pantalla de inicio')}
       ${row('help', '❓', 'Ayuda', 'Guía, preguntas frecuentes y soluciones')}
-      ${S.isAdmin ? '' : row('org', '🔐', 'Entrar como organizador principal', '')}
+      ${S.isOwner ? '' : row('org', '🔐', 'Entrar como organizador principal', '')}
     </div>
     <div class="actions"><button class="btn ghost" data-a="out">Cerrar sesión</button><button class="btn gold" data-a="close">Listo</button></div>`);
   s.onclick = async e => {
@@ -1900,7 +1907,7 @@ function renderHome() {
     ['💰', 'Presupuesto', c.budget || 'Por definir'],
   ];
   if (c.dress) info.push(['👗', 'Vestimenta', c.dress]);
-  if (c.contribAmount) info.push(['💵', 'Aporte', c.contribAmount]);
+  if (c.contribAmount && mod('asistencia')) info.push(['💵', 'Aporte', c.contribAmount]);
   info.push(['👥', 'Participantes', S.participants.length ? `${S.participants.length} ${S.participants.length === 1 ? 'inscrito' : 'inscritos'}` : 'Aún nadie']);
   const known = info.filter(x => x[2] !== 'Por definir');
   $('#h-info').innerHTML = known.map(([i, k, v]) => `<div class="irow"><div class="k">${i} ${k}</div><div class="v">${esc(v)}</div></div>`).join('')
@@ -2860,8 +2867,13 @@ function admGo(g) {
   $('#adm-nav [data-ag].on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   const top = $('#adm-nav').getBoundingClientRect().top + scrollY - 8; if (scrollY > top) scrollTo({ top, behavior: 'smooth' });
 }
-document.addEventListener('click', e => { const b = e.target.closest('[data-ag]'); if (b) { admGo(b.dataset.ag); const t = b.dataset.nextgo; if (t) setTimeout(() => $('#' + t)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 250); } });
+document.addEventListener('click', e => { const b = e.target.closest('[data-ag]'); if (b) { admGo(b.dataset.ag); const t = b.dataset.nextgo; if (t) setTimeout(() => { const el = $('#' + t); if (!el) return; if (el.tagName === 'DETAILS') el.open = true; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 250); } });
+$('#party-unlock').addEventListener('click', async () => {
+  if (!(await confirmBox('¿Reabrir pistas y sospechas?', 'Todos podrán volver a mandar pistas y cambiar a quién creen que es su angelito.', 'Reabrir'))) return;
+  if (await saveEvent({ angelLocked: false })) toast('🔓 Pistas y sospechas abiertas otra vez');
+});
 function renderAdmDash() {
+  { const u = $('#party-unlock'); if (u) u.hidden = !(S.isOwner && S.event.angelLocked); }
   const box = $('#adm-dash'); if (!box || S.admGrp !== 'resumen') return;
   const c = S.event, ps = S.participants, sm = attSummary();
   const withW = ps.filter(p => S.wishes.some(w => w.uid === p.id)).length;
@@ -2873,15 +2885,15 @@ function renderAdmDash() {
     [S.activities.length > 0, '📅 Crea las actividades', 'actividades', can('actividades')],
     [ps.length >= 3, '👥 Que se inscriban al menos 3 personas', 'personas', can('participantes')],
     [drawn, S.drawMeta && !drawReady() ? '🎡 Vuelve a generar el sorteo (cambió la lista)' : '🎡 Genera el sorteo', 'personas', S.isOwner],
-    [!c.contribAmount || (sm.going > 0 && sm.paid >= sm.going), '💵 Recibe los aportes', 'personas', can('aportes') && !!c.contribAmount],
+    [!c.contribAmount || (sm.going > 0 && sm.paid >= sm.going), '💵 Recibe los aportes', 'personas', can('aportes') && !!c.contribAmount && mod('asistencia')],
   ].filter(x => x[3]);
   const done = steps.filter(x => x[0]).length;
   const nextStep = steps.find(x => !x[0]);
-  const cta = nextStep ? `<button class="card nextc hot" data-ag="${nextStep[2]}" data-nextgo="${nextStep[1].includes('sorteo') ? 'd-gen' : ''}" style="width:100%;text-align:left;margin-bottom:14px"><div class="nx-e">👉</div><div class="grow"><span class="muted small">Siguiente paso</span><b style="display:block">${nextStep[1]}</b></div><span class="btn sm gold">Hacerlo ahora</span></button>` : `<div class="card nextc" style="margin-bottom:14px"><div class="nx-e">✅</div><div class="grow"><b>¡Todo listo!</b><div class="muted small">Solo falta disfrutar la fiesta.</div></div></div>`;
+  const cta = nextStep ? `<button class="card nextc hot" data-ag="${nextStep[2]}" data-nextgo="${nextStep[1].includes('sorteo') ? 'd-gen' : ''}" style="width:100%;text-align:left;margin-bottom:14px"><div class="nx-e">👉</div><div class="grow"><span class="muted small">Siguiente paso</span><b style="display:block">${nextStep[1]}</b></div><span class="btn sm gold">Hacerlo ahora</span></button>` : `<div class="card nextc" style="margin-bottom:14px"><div class="nx-e">✅</div><div class="grow"><b>${S.isOwner ? '¡Todo listo!' : 'Tus tareas están al día'}</b><div class="muted small">${S.isOwner ? 'Solo falta disfrutar la fiesta.' : 'Lo demás le toca al organizador principal.'}</div></div></div>`;
   box.innerHTML = cta + `<div class="dgrid">
       ${tile('👥 Inscritos', ps.length, regOpen() ? 'Inscripciones abiertas' : '🔒 Inscripciones cerradas', 'personas')}
       ${tile('✅ Van', sm.going, sm.pending ? `${sm.pending} sin responder` : 'Todos respondieron', 'personas')}
-      ${c.contribAmount ? tile('💵 Aportes', `${sm.paid}/${sm.going}`, sm.said ? `${sm.said} dicen que ya` : 'recibidos', 'personas') : tile('📅 Actividades', S.activities.length, 'programadas', 'actividades')}
+      ${c.contribAmount && mod('asistencia') && can('aportes') ? tile('💵 Aportes', `${sm.paid}/${sm.going}`, sm.said ? `${sm.said} dicen que ya` : 'recibidos', 'personas') : tile('📅 Actividades', S.activities.length, 'programadas', 'actividades')}
       ${tile('🎁 Con lista', `${withW}/${ps.length}`, 'ya escribieron deseos', 'personas')}
       ${tile('🎡 Sorteo', drawn ? '✅' : '⏳', drawn ? 'Listo' : S.drawMeta ? 'Hay que repetirlo' : 'Pendiente', 'personas')}
       ${tile('💌 Anónimos', S.qCount || 0, 'preguntas', 'mensajes')}
@@ -2892,7 +2904,7 @@ function renderAdmDash() {
     <div class="card" style="margin-top:14px"><b>Accesos rápidos</b><div class="qa">
       ${can('evento') ? '<button class="btn sm gold" data-ag="mensajes">📣 Enviar un aviso</button>' : ''}
       ${can('participantes') ? '<button class="btn sm" data-ag="personas">👥 Participantes</button>' : ''}
-      ${can('actividades') ? '<button class="btn sm" data-ag="actividades">➕ Actividad</button>' : ''}
+      ${can('actividades') ? '<button class="btn sm" data-ag="actividades" data-nextgo="a-fold">➕ Actividad</button>' : ''}
       ${S.isOwner ? '<button class="btn sm" data-ag="fiesta">📺 Modo fiesta</button>' : ''}</div></div>`;
 }
 function renderAdmin() {
@@ -2979,23 +2991,32 @@ $('#adm-login').addEventListener('submit', async e => {
 });
 $('#adm-out').addEventListener('click', async () => { await signOut(adminAuth); $('#adm-login').innerHTML = ''; render(); toast('Saliste del modo organizador'); });
 const saveEvent = async patch => {
+  S.selfEditAt = Date.now(); // lo cambié yo: no me avises a mí mismo
   try { await setDoc(doc(adb, 'config', 'event'), patch, { merge: true }); return true; } catch (e) { toast(authErr(e)); return false; }
 };
 $('#cfg-form').addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target, o = {};
   for (const k of ['eventName', 'subtitle', 'eventDate', 'place', 'mapsUrl', 'budget', 'dress', 'revealDate', 'notes', 'contribAmount', 'contribInfo', 'rsvpDeadline']) o[k] = f.elements[k].value.trim();
+  if (o.eventDate && isNaN(new Date(o.eventDate))) return toast('La fecha del evento no es válida');
+  if (o.revealDate && isNaN(new Date(o.revealDate + 'T00:00'))) return toast('La fecha de los anónimos no es válida');
   o.eventAt = o.eventDate ? Timestamp.fromDate(new Date(o.eventDate)) : null;
   if (!o.eventName) return toast('Ponle nombre al evento');
   if (o.mapsUrl && !/^https:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(o.mapsUrl)) return toast('El enlace debe ser de Google Maps (https://maps.app.goo.gl/…)');
   if (o.rsvpDeadline && o.eventDate && o.rsvpDeadline > o.eventDate.slice(0, 10)) return toast('La fecha para confirmar debe ser antes del evento');
   if (o.eventDate && new Date(o.eventDate) < new Date() && !(await confirmBox('Esa fecha ya pasó', '¿Guardar de todos modos?', 'Guardar'))) return;
   if (S.isOwner) o.revealAt = o.revealDate ? Timestamp.fromDate(new Date(o.revealDate + 'T00:00')) : (o.eventDate ? Timestamp.fromDate(new Date(o.eventDate.slice(0, 10) + 'T00:00')) : null);
-  else delete o.revealDate;
+  else {
+    delete o.revealDate;
+    // si el principal no fijó un día propio para los anónimos, se abren el día del evento (aunque cambie la fecha)
+    if (!S.event.revealDate && o.eventDate) { const ra = Timestamp.fromDate(new Date(o.eventDate.slice(0, 10) + 'T00:00')); if (ra.toMillis() > Date.now()) o.revealAt = ra; }
+  }
+  if (S.isOwner && o.revealDate && o.eventDate && o.revealDate > o.eventDate.slice(0, 10)) return toast('Los anónimos deben abrirse antes o el mismo día del evento');
+  if (S.isOwner && o.revealDate && o.revealDate < todayStr() && !(await confirmBox('Los anónimos se abrirían ya', 'Esa fecha ya pasó: todos verían los mensajes ahora mismo.', 'Guardar igual'))) return;
   if (await saveEvent(o)) { cfgDirty = false; toast('Evento guardado 🎄'); }
 });
 let cpDirty = false;
 $('#cp-text').addEventListener('input', () => { cpDirty = true; });
-$('#cp-save').addEventListener('click', async () => { const l = $('#cp-text').value.split('\n').map(x => x.trim()).filter(Boolean); if (await saveEvent({ chatPrompts: l })) { cpDirty = false; toast('Ideas guardadas 🎲'); } });
+$('#cp-save').addEventListener('click', async () => { const l = $('#cp-text').value.split('\n').map(x => x.trim().slice(0, 140)).filter(Boolean).slice(0, 120); if (await saveEvent({ chatPrompts: l })) { cpDirty = false; toast('Ideas guardadas 🎲'); } });
 $('#cp-reset').addEventListener('click', async () => { if (!(await confirmBox('¿Usar las ideas de fábrica?', 'Se reemplazan las ideas que escribiste.', 'Reemplazar'))) return; if (await saveEvent({ chatPrompts: [] })) { cpDirty = false; $('#cp-text').value = OCURRENCIAS.join('\n'); toast('Ideas de fábrica'); } });
 $('#mod-list').addEventListener('click', async e => {
   const b = e.target.closest('[data-mod]'); if (!b) return;
@@ -3008,12 +3029,13 @@ $('#pa-form').addEventListener('submit', async e => {
   const first = titleCase($('#pa-first').value), last = titleCase($('#pa-last').value), pin = $('#pa-pin').value, btn = e.target.querySelector('button[type=submit]');
   if (!first || !last) return toast('Escribe nombre y apellido');
   if (!/^\d{4}$/.test(pin)) return toast('El PIN debe tener 4 números');
+  if (S.drawMeta && !S.isOwner) return toast('Ya se hizo el sorteo: solo el organizador principal puede inscribir a más personas.');
   if (S.drawMeta && !(await confirmBox('El sorteo ya está hecho', 'Si inscribes a alguien ahora habrá que volver a sortear y todos tendrán que girar de nuevo.', 'Inscribir igual'))) return;
   busy(btn, true);
   try {
     const r = await registerPerson(first, last, pin, true);
     if (r === 'dup') toast(`Ya existe ${first} ${last}`);
-    else { toast(`✅ ${first} inscrito. Su PIN es ${pin}`); $('#pa-first').value = $('#pa-last').value = $('#pa-pin').value = ''; }
+    else { toast(`✅ ${first} inscrito. Entra con el PIN ${pin} y la app le pedirá crear el suyo`); $('#pa-first').value = $('#pa-last').value = $('#pa-pin').value = ''; }
   } catch (err) { toast(authErr(err)); }
   busy(btn, false, 'Inscribir');
 });
@@ -3103,6 +3125,7 @@ const DEFAULT_RULES = [
 const curRules = () => Array.isArray(S.event.rules) ? S.event.rules.map(r => ({ ...r })) : [];
 $('#r-form').addEventListener('submit', async e => {
   e.preventDefault(); const text = $('#r-text').value.trim(); if (!text) return;
+  if (curRules().length >= 40) return toast('Máximo 40 reglas');
   if (await saveEvent({ rules: [...curRules(), { icon: $('#r-icon').value, text }] })) { $('#r-text').value = ''; toast('Regla agregada 📜'); }
 });
 $('#r-defaults').addEventListener('click', async () => {
@@ -3119,11 +3142,12 @@ $('#r-list').addEventListener('click', async e => {
   else { const i = +(b.dataset.rup ?? b.dataset.rdown), j = b.dataset.rup != null ? i - 1 : i + 1; [r[i], r[j]] = [r[j], r[i]]; }
   await saveEvent({ rules: r });
 });
-$('#reg-tg').addEventListener('click', async () => { const v = !regOpen(); if (await saveEvent({ registrationOpen: v })) toast(v ? 'Inscripciones abiertas' : 'Inscripciones cerradas 🔒'); });
+$('#reg-tg').addEventListener('click', async () => { const v = !regOpen(); if (v && S.drawMeta && !S.isOwner) return toast('Ya se hizo el sorteo: solo el organizador principal puede reabrir las inscripciones.'); if (await saveEvent({ registrationOpen: v })) toast(v ? 'Inscripciones abiertas' : 'Inscripciones cerradas 🔒'); });
 $('#q-now').addEventListener('click', async () => { const v = !S.event.revealNow; if (v && !(await confirmBox('¿Abrir el buzón ahora?', `Todos verán los ${S.qCount || 0} anónimos antes de la fecha. Aunque lo cierres después, ya los habrán visto.`, 'Abrir ahora'))) return; if (await saveEvent({ revealNow: v })) toast(v ? 'Buzón abierto 🎉' : 'Buzón cerrado de nuevo 🔒'); });
 $('#p-list').addEventListener('click', async e => {
   const b = e.target.closest('[data-rm]'); if (!b) return; const id = b.dataset.rm;
-  const msg = S.drawMeta ? 'Se borrarán su registro y su lista. El sorteo quedará inválido y habrá que volver a sortear.' : 'Se borrarán su registro, su lista de deseos y su asistencia. Si solo olvidó su PIN, mejor toca ⋯ → 🔑 PIN temporal (conserva todo lo suyo).';
+  if (S.drawMeta && !S.isOwner) return toast('Ya se hizo el sorteo: solo el organizador principal puede cambiar la lista.');
+  const msg = S.drawMeta ? 'Se borrarán su registro y su lista. El sorteo quedará inválido y habrá que volver a sortear.' : 'Se borrarán su registro, su lista de deseos y su asistencia. Si solo olvidó su PIN, mejor un 🔑 PIN temporal (lo da el organizador principal y conserva todo lo suyo).';
   if (!(await confirmBox(`¿Quitar a ${pName(id)}?`, msg, 'Quitar'))) return;
   try {
     const b2 = writeBatch(adb);
@@ -3133,7 +3157,16 @@ $('#p-list').addEventListener('click', async e => {
     b2.set(doc(adb, 'banned', id), { at: serverTimestamp() });
     (await getDocs(query(collection(adb, 'wishes'), where('uid', '==', id)))).forEach(d => b2.delete(d.ref));
     (await getDocs(query(collection(adb, 'wishImg'), where('uid', '==', id)))).forEach(d => b2.delete(d.ref));
-    if (S.isOwner) for (const c of ['attendance', 'profiles', 'giftStatus', 'guesses', 'angelGuess', 'wishPick', 'thanks']) b2.delete(doc(adb, c, id));
+    // todo lo suyo, para que no queden puestos tomados ni votos de alguien que ya no está
+    const mine = c => getDocs(query(collection(adb, c), where('uid', '==', id))).then(r => r.docs).catch(() => []);
+    for (const c of ['activitySignups', 'sugVotes', 'chatReacts']) (await mine(c)).forEach(d => b2.delete(d.ref));
+    if (can('actividades')) (await mine('votes')).forEach(d => b2.delete(d.ref));
+    b2.delete(doc(adb, 'attendance', id)); b2.delete(doc(adb, 'profiles', id));
+    if (S.staffList?.some(x => x.id === id) || S.isOwner) b2.delete(doc(adb, 'staff', id));
+    if (S.isOwner) {
+      for (const c of ['giftStatus', 'guesses', 'angelGuess', 'wishPick', 'thanks', 'hintsSent', 'fcmTokens']) b2.delete(doc(adb, c, id));
+      const rec = S.assignments?.[id]?.recipient; if (rec) b2.delete(doc(adb, 'giftIncoming', rec));
+    }
     await b2.commit(); toast('Participante eliminado');
   } catch (err) { toast(authErr(err)); }
 });
@@ -3142,18 +3175,25 @@ $('#d-gen').addEventListener('click', async () => {
   if (ids.length < 3) return toast('Necesitas al menos 3 participantes');
   const msg = S.drawMeta ? 'Se borrarán todos los giros y cada quien tendrá que girar de nuevo. Las inscripciones se cerrarán.' : `Se sortearán ${ids.length} personas y se cerrarán las inscripciones.`;
   if (!(await confirmBox(S.drawMeta ? '¿Volver a sortear?' : '¿Generar el sorteo?', msg, 'Sortear'))) return;
-  const order = [...ids];
-  let perm; do { perm = shuffle([...ids]); } while (perm.some((x, i) => x === ids[i]));
-  for (let i = order.length - 1; i > 0; i--) { const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1); [order[i], order[j]] = [order[j], order[i]]; }
+  if (ids.length > 450) return toast('Son demasiadas personas para sortear de una vez');
+  // Una sola cadena: A→B→C→…→A. Nadie se toca a sí mismo y no hay parejas que se regalen mutuamente.
+  const ring = shuffle([...ids]), next = Object.fromEntries(ring.map((x, i) => [x, ring[(i + 1) % ring.length]]));
+  const perm = ids.map(x => next[x]);
   try {
+    // 1) primero se invalida el sorteo viejo: si algo falla a medias, la app no lo da por bueno
+    if (S.drawMeta) { const b0 = writeBatch(adb); b0.delete(doc(adb, 'config', 'draw')); await b0.commit(); }
+    // 2) limpieza de giros, pistas y estados anteriores (puede ir en tandas)
     const ops = [];
     for (const c of ['giftStatus', 'giftIncoming', 'hints', 'hintsSent', 'angelGuess', 'reveal', 'thanks', 'wishPick']) (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
     (await getDocs(collection(adb, 'assignments'))).forEach(d => { if (!ids.includes(d.id)) ops.push(['del', d.ref]); });
-    ids.forEach((id, i) => ops.push(['set', doc(adb, 'assignments', id), { recipient: perm[i], revealed: false, at: serverTimestamp() }]));
-    ops.push(['set', doc(adb, 'config', 'event'), { registrationOpen: false, angelLocked: false }, true]);
-    ops.push(['set', doc(adb, 'config', 'draw'), { ids, n: ids.length, at: serverTimestamp() }]);  // al final: solo queda listo si todo lo demás se guardó
-    await commitOps(ops); toast('¡Sorteo generado! 🎉 Ya pueden girar.'); confetti(60);
-  } catch (err) { toast(authErr(err)); }
+    await commitOps(ops);
+    // 3) el sorteo nuevo completo en UNA sola escritura: o queda todo o no queda nada
+    const b = writeBatch(adb);
+    ids.forEach((id, i) => b.set(doc(adb, 'assignments', id), { recipient: perm[i], revealed: false, at: serverTimestamp() }));
+    b.set(doc(adb, 'config', 'event'), { registrationOpen: false, angelLocked: false }, { merge: true });
+    b.set(doc(adb, 'config', 'draw'), { ids, n: ids.length, at: serverTimestamp() });
+    await b.commit(); toast('¡Sorteo generado! 🎉 Ya pueden girar.'); confetti(60);
+  } catch (err) { toast(authErr(err) + ' · Vuelve a tocar Sortear'); }
 });
 async function commitOps(ops) {
   for (let i = 0; i < ops.length; i += 400) {
@@ -3210,12 +3250,16 @@ aForm.addEventListener('submit', async e => {
   try {
     if (id) {
       const old = S.activities.find(a => a.id === id);
+      // "Apúntate": cada quien está anotado por el número de la opción; si una opción cambia o se quita, esa persona queda libre
+      const su = old?.kind === 'signup' ? S.signups.filter(x => x.act === id && (o.kind !== 'signup' || (old.items || [])[x.idx] !== o.items[x.idx])) : [];
+      if (su.length && !(await confirmBox('Cambiaste opciones con gente anotada', `${su.length === 1 ? '1 persona quedará' : su.length + ' personas quedarán'} sin anotar en lo que cambió, para que nadie aparezca llevando otra cosa.`, 'Guardar'))) return;
       const b = writeBatch(adb);
+      su.forEach(x => b.delete(doc(adb, 'activitySignups', x.id)));
       b.set(doc(adb, 'activities', id), o, { merge: true });
       if (old?.kind === 'assign' && old.secret !== o.secret)
         (await getDocs(query(collection(adb, 'activityPicks'), where('act', '==', id)))).forEach(d => b.set(d.ref, { public: !o.secret }, { merge: true }));
       await b.commit(); toast('Actividad actualizada ✏️');
-    } else { await setDoc(doc(collection(adb, 'activities')), { ...o, at: serverTimestamp() }); toast('Actividad agregada 📅'); }
+    } else { S.selfEditAt = Date.now(); await setDoc(doc(collection(adb, 'activities')), { ...o, at: serverTimestamp() }); toast('Actividad agregada 📅'); }
     fillActForm({}, false); $('#a-fold').open = false;
     setTimeout(() => $('#a-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   } catch (err) { toast(authErr(err)); }
@@ -3529,7 +3573,8 @@ function checkEvents() {
   if (now.thx && !was.thx) notifyCat('angelito', '💛 ¡Tu persona recibió tu regalo!', 'Te dejó un mensaje. Entra a verlo.', './#ruleta');
   if (now.picks > was.picks) notifyCat('actividades', '🎭 Te tocó algo en una actividad', 'Entra a Agenda para verlo.', './#actividades');
   added('results').forEach(id => { const a = S.activities.find(x => x.id === id); if (a) notifyCat('actividades', '🏆 Resultados publicados', a.title, './#actividad-' + id); });
-  added('acts').forEach(id => { const a = S.activities.find(x => x.id === id); if (a) notifyCat('actividades', `📅 Nueva actividad: ${a.title}`, actWhen(a), './#actividad-' + id, n => `📅 ${n} actividades nuevas en la agenda`); });
+  const mine = Date.now() - (S.selfEditAt || 0) < 8000;
+  if (!mine) added('acts').forEach(id => { const a = S.activities.find(x => x.id === id); if (a) notifyCat('actividades', `📅 Nueva actividad: ${a.title}`, actWhen(a), './#actividad-' + id, n => `📅 ${n} actividades nuevas en la agenda`); });
   // chat: cada mensaje avisa (la notificación nueva reemplaza la anterior); si te mencionan, aviso aparte aunque silencies el chat
   const newMsgs = added('chatIds').map(id => S.chat.find(m => m.id === id)).filter(m => m && m.uid !== S.uid);
   const viewingChat = !document.hidden && $('#v-buzon').classList.contains('on') && S.buz === 'c';
@@ -3539,8 +3584,8 @@ function checkEvents() {
   const newSugs = added('sugs').filter(id => !S.myCreated.has(id) && S.suggestions.find(x => x.id === id)?.uid !== S.uid);
   if (newSugs.length) { const x = S.suggestions.find(y => y.id === newSugs[newSugs.length - 1]); notifyCat('sugerencias', '💡 Nueva sugerencia', (x?.text || '').slice(0, 120) + ' · ¡Vota 👍!', './#sugerencias', n => `💡 ${n} sugerencias nuevas para votar`); }
   if (now.rec && now.rec === was.rec) { const nw = added('recWishes'); if (nw.length) { const w = S.wishes.find(x => x.id === nw[nw.length - 1]); notifyCat('deseos', '🎁 Tu persona agregó un deseo nuevo', 'Entra a verlo 👀', './#deseos', n => `🎁 Tu persona agregó ${n} deseos nuevos`); } }
-  if (was.ev !== now.ev && was.ev !== '||') notifyCat('evento', '🎄 Cambió la información del evento', `${fmtDate(S.event.eventDate) || ''}${S.event.place ? ' · 📍 ' + S.event.place : ''}`, './');
-  if (was.rules !== now.rules && was.rules !== '[]') notifyCat('evento', '📜 Se actualizaron las reglas del angelito', 'Échales un vistazo en Inicio.', './');
+  if (!mine && was.ev !== now.ev && was.ev !== '||') notifyCat('evento', '🎄 Cambió la información del evento', `${fmtDate(S.event.eventDate) || ''}${S.event.place ? ' · 📍 ' + S.event.place : ''}`, './');
+  if (!mine && was.rules !== now.rules && was.rules !== '[]') notifyCat('evento', '📜 Se actualizaron las reglas del angelito', 'Échales un vistazo en Inicio.', './');
   added('notices').map(id => S.notices.find(n => n.id === id)).filter(n => n && noticeForMe(n) && !seen().has(n.id)).forEach(n => notifyCat('avisos', '📣 ' + n.title, n.body || '', './'));
 }
 function onOpenReminders() {
@@ -3558,7 +3603,7 @@ function onOpenReminders() {
 /* ---------- admin: avisos ---------- */
 function renderNoticeAdmin() {
   if (!S.isAdmin) return;
-  $('#n-list').innerHTML = S.notices.length ? S.notices.slice(0, 15).map(n => `<div class="item"><span style="font-size:20px">📣</span><div class="grow"><div class="t">${esc(n.title)}</div>${n.body ? `<div class="muted small">${esc(n.body)}</div>` : ''}<div class="muted small" style="margin-top:4px">Para: ${esc(AUD[n.target] || 'Todos')} · ${esc(new Date(n.ts || 0).toLocaleString('es', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }))}</div></div><button class="x" data-ndel="${esc(n.id)}" aria-label="Borrar">✕</button></div>`).join('') : '<p class="muted small">No has enviado avisos.</p>';
+  $('#n-list').innerHTML = S.notices.length ? S.notices.slice(0, 15).map(n => `<div class="item"><span style="font-size:20px">📣</span><div class="grow"><div class="t">${esc(n.title)}</div>${n.body ? `<div class="muted small">${esc(n.body)}</div>` : ''}<div class="muted small" style="margin-top:4px">Para: ${esc(AUD[n.target] || 'Todos')} · ${esc(`${new Date(n.ts || 0).toLocaleDateString('es', { day: 'numeric', month: 'short' })}, ${hm(new Date(n.ts || 0))}`)}</div></div><button class="x" data-ndel="${esc(n.id)}" aria-label="Borrar">✕</button></div>`).join('') : '<p class="muted small">No has enviado avisos.</p>';
 }
 async function sendNotice(title, body, target) {
   try { await setDoc(doc(collection(adb, 'notices')), { title, body, target, ts: Date.now(), at: serverTimestamp() }); toast('📣 Aviso enviado'); return true; }
@@ -3744,7 +3789,8 @@ async function openParty() {
     if (S.event.guessWinner && P(S.event.guessWinner)) slides.push({ reveal: false, onReveal: () => confetti(160), html: s => big('🏆', 'Ganador de la adivinanza', s.reveal ? `<span class="gold" style="font-size:1.6em">${esc(pName(S.event.guessWinner))}</span>` : 'Toca para revelar 🥁') });
   }
   slides.push({ html: () => big('🎄', '¡Feliz Navidad!', 'Gracias por compartir 💛') });
-  PARTY = { slides, i: 0 };
+  let saved = 0; try { saved = fresh ? 0 : +sessionStorage.getItem('angelito:partyI') || 0; } catch { }
+  PARTY = { slides, i: Math.max(0, Math.min(saved, slides.length - 1)) };
   $('#party').classList.add('on'); enterSlide();
   try { await document.documentElement.requestFullscreen?.(); } catch { }
 }
@@ -3768,7 +3814,7 @@ function partyNext() {
 }
 function partySkip() { if (PARTY.i < PARTY.slides.length - 1) { PARTY.i++; enterSlide(); } }
 function partyPrev() { if (PARTY.i > 0) { PARTY.i--; enterSlide(); } }
-function closeParty() { $('#party').classList.remove('on'); PARTY = null; setLive({ mode: 'none' }); PARTY_SUBS.forEach(u => u()); PARTY_SUBS = []; try { document.fullscreenElement && document.exitFullscreen(); } catch { } }
+function closeParty() { try { if (PARTY) sessionStorage.setItem('angelito:partyI', String(PARTY.i)); } catch { } $('#party').classList.remove('on'); PARTY = null; setLive({ mode: 'none' }); PARTY_SUBS.forEach(u => u()); PARTY_SUBS = []; try { document.fullscreenElement && document.exitFullscreen(); } catch { } }
 $('#party').addEventListener('click', e => {
   if (e.target.closest('[data-pauthor]')) { const s = PARTY.slides[PARTY.i]; s.author = true; confetti(70); return paintParty(); }
   if (e.target.closest('#party-x')) return closeParty();
@@ -3998,7 +4044,7 @@ $('#tv-load').addEventListener('click', async () => { $('#tv-text').value = triv
 $('#tv-default').addEventListener('click', () => { $('#tv-text').value = triviaText(TRIVIA_DEFAULT); });
 $('#tv-save').addEventListener('click', async () => {
   const list = parseTrivia($('#tv-text').value); if (!list.length) return toast('Escribe al menos una pregunta');
-  try { await setDoc(doc(adb, 'secret', 'trivia'), { list }); triviaCache = list; toast(`🎲 ${list.length} preguntas guardadas`); } catch (err) { toast(authErr(err)); }
+  try { await setDoc(doc(adb, 'secret', 'trivia'), { list }); triviaCache = list; toast(`🎲 ${list.length} ${list.length === 1 ? 'pregunta guardada' : 'preguntas guardadas'}`); } catch (err) { toast(authErr(err)); }
 });
 async function setLive(o) { try { await setDoc(doc(adb, 'party', 'live'), { ...o, ts: Date.now() }); } catch (e) { console.warn('live', e); } }
 

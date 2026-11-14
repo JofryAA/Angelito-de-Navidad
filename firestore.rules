@@ -21,6 +21,12 @@ service cloud.firestore {
       return isOwner() || (isStaff() && get(/databases/$(database)/documents/staff/$(me())).data.get('perms', {}).get(p, false) == true);
     }
     function isParticipant() { return signedIn() && exists(/databases/$(database)/documents/participants/$(me())); }
+    function drawn() { return exists(/databases/$(database)/documents/config/draw); }
+    // Cambiar la lista de personas: el principal siempre; un administrador de "participantes" solo antes del sorteo
+    // (después lo invalidaría y solo el principal puede volver a sortear).
+    function canPeople() { return isOwner() || (can('participantes') && !drawn()); }
+    // Limpieza al quitar a alguien: se permite borrar lo suyo si en esa misma operación se borra su ficha.
+    function goneAfter(uid) { return canPeople() && !existsAfter(/databases/$(database)/documents/participants/$(uid)); }
     // Solo los inscritos y el equipo organizador leen los datos del grupo (no cualquiera con una cuenta).
     function member() { return isParticipant() || isOwner() || isStaff(); }
     function hasEvent() { return exists(/databases/$(database)/documents/config/event); }
@@ -45,6 +51,7 @@ service cloud.firestore {
     match /staff/{uid} {
       allow read: if isOwner() || (signedIn() && me() == uid);
       allow write: if isOwner();
+      allow delete: if goneAfter(uid);
     }
 
     // ---------- evento ----------
@@ -53,9 +60,33 @@ service cloud.firestore {
     match /config/{id} {
       allow read: if true;
       allow write: if isOwner();
-      allow update: if id == 'event' && (
-        (can('evento') && !changed().hasAny(['revealNow', 'revealAt', 'revealDate', 'guessesOpen', 'guessesLocked', 'registrationOpen', 'angelLocked', 'guessWinner']))
-        || (can('participantes') && changed().hasOnly(['registrationOpen'])));
+      // Forma válida del evento (para que nadie, ni por error, guarde algo que rompa la app de todos).
+      function eventOk(d) {
+        // sin lista cerrada de campos (el evento real puede traer campos de versiones anteriores), pero con tamaños y tipos
+        return d.keys().size() <= 40
+          && str(d.get('eventName', ''), 80) && str(d.get('subtitle', ''), 120) && str(d.get('notes', ''), 1000)
+          && str(d.get('place', ''), 120) && str(d.get('contribInfo', ''), 200) && str(d.get('mapsUrl', ''), 400)
+          && (d.get('eventAt', null) == null || d.eventAt is timestamp)
+          && d.get('rules', []) is list && d.get('rules', []).size() <= 40
+          && d.get('chatPrompts', []) is list && d.get('chatPrompts', []).size() <= 120
+          && d.get('modules', {}) is map;
+      }
+      // Un administrador de "evento" que cambia la fecha mueve también la apertura de los anónimos (si el principal no fijó otro día):
+      // siempre el mismo día del evento, nunca antes de hoy.
+      function revealFollowsDate() {
+        return !changed().hasAny(['revealAt'])
+          || (request.resource.data.get('revealDate', '') == '' && request.resource.data.revealAt is timestamp
+              && request.resource.data.eventAt is timestamp && request.resource.data.revealAt <= request.resource.data.eventAt
+              && request.resource.data.revealAt > request.resource.data.eventAt - duration.value(1, 'd')
+              && request.resource.data.revealAt > request.time);
+      }
+      allow create: if id == 'event' && can('evento') && eventOk(request.resource.data)
+        && !request.resource.data.keys().hasAny(['revealNow', 'revealAt', 'revealDate', 'guessesOpen', 'guessesLocked', 'angelLocked', 'guessWinner']);
+      allow update: if id == 'event' && eventOk(request.resource.data) && (
+        (can('evento') && !changed().hasAny(['revealNow', 'revealDate', 'guessesOpen', 'guessesLocked', 'registrationOpen', 'angelLocked', 'guessWinner'])
+          && revealFollowsDate())
+        || (can('participantes') && changed().hasOnly(['registrationOpen'])
+            && (request.resource.data.registrationOpen == false || !drawn())));
     }
 
     match /activities/{id} {
@@ -75,7 +106,7 @@ service cloud.firestore {
     // Índice de nombres: impide que dos personas se registren con el mismo nombre.
     match /names/{nameKey} {
       allow read: if true;
-      allow create: if (can('participantes') || (signedIn() && request.resource.data.uid == me()))
+      allow create: if (canPeople() || (signedIn() && request.resource.data.uid == me()))
         && request.resource.data.keys().hasOnly(['uid'])
         && getAfter(/databases/$(database)/documents/participants/$(request.resource.data.uid)).data.nameKey == nameKey;
       allow delete: if can('participantes');
@@ -89,7 +120,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if validPerson(request.resource.data)
         && getAfter(/databases/$(database)/documents/names/$(request.resource.data.nameKey)).data.uid == uid
-        && (can('participantes')
+        && (canPeople()
             || (signedIn() && me() == uid && regOpen()
                 && request.resource.data.email == request.auth.token.email
                 && !exists(/databases/$(database)/documents/banned/$(uid))));
@@ -102,7 +133,7 @@ service cloud.firestore {
         && request.resource.data.emoji is string && request.resource.data.emoji.size() > 0 && request.resource.data.emoji.size() <= 16;
       // Quien entró con un PIN temporal marca que ya creó el suyo.
       allow update: if signedIn() && me() == uid && changed().hasOnly(['mustChangePin']) && request.resource.data.mustChangePin == false;
-      allow delete: if can('participantes');
+      allow delete: if canPeople();
     }
 
     // ---------- sorteo ----------
@@ -232,7 +263,7 @@ service cloud.firestore {
         && str(request.resource.data.choice, 120) && request.resource.data.choice != me()
         && get(/databases/$(database)/documents/activities/$(request.resource.data.act)).data.get('kind', '') == 'vote'
         && get(/databases/$(database)/documents/activities/$(request.resource.data.act)).data.get('resultsOpen', false) == false;
-      allow delete: if can('actividades');
+      allow delete: if can('actividades') || goneAfter(resource.data.uid);
     }
     match /activitySignups/{id} {
       allow read: if member();
@@ -241,7 +272,7 @@ service cloud.firestore {
         && request.resource.data.idx is int && request.resource.data.idx >= 0
         && id == request.resource.data.act + '__' + string(request.resource.data.idx)
         && request.resource.data.idx < get(/databases/$(database)/documents/activities/$(request.resource.data.act)).data.get('items', []).size();
-      allow delete: if can('actividades') || (signedIn() && resource.data.uid == me());
+      allow delete: if can('actividades') || (signedIn() && resource.data.uid == me()) || goneAfter(resource.data.uid);
     }
 
     // ---------- buzón anónimo ----------
@@ -294,7 +325,7 @@ service cloud.firestore {
         && id == request.resource.data.sug + '__' + me()
         && request.resource.data.keys().hasOnly(['sug', 'uid', 'at']) && tsOk(request.resource.data)
         && exists(/databases/$(database)/documents/suggestions/$(request.resource.data.sug));
-      allow delete: if can('moderar') || (signedIn() && resource.data.uid == me());
+      allow delete: if can('moderar') || (signedIn() && resource.data.uid == me()) || goneAfter(resource.data.uid);
     }
     // Autor real de cada sugerencia: SOLO el organizador principal.
     match /suggestionAuthors/{id} {
@@ -317,7 +348,7 @@ service cloud.firestore {
       allow update: if (can('aportes') && changed().hasOnly(['confirmed', 'uid']) && request.resource.data.confirmed is bool)
         || (isParticipant() && me() == uid && changed().hasOnly(['status', 'paid', 'at', 'uid']) && tsOk(request.resource.data)
             && request.resource.data.uid == uid && request.resource.data.status in ['si', 'no'] && request.resource.data.paid is bool);
-      allow delete: if isOwner();
+      allow delete: if isOwner() || goneAfter(uid);
     }
 
     // ---------- estado del regalo ----------
@@ -425,7 +456,7 @@ service cloud.firestore {
         && id == request.resource.data.msg + '__' + me()
         && request.resource.data.keys().hasOnly(['msg', 'uid', 'e'])
         && request.resource.data.e in ['❤️', '😂', '🔥', '👍', '😮', '🎄'];
-      allow delete: if can('moderar') || (signedIn() && resource.data.uid == me());
+      allow delete: if can('moderar') || (signedIn() && resource.data.uid == me()) || goneAfter(resource.data.uid);
     }
 
     // ---------- 💛 recibí mi regalo ----------
@@ -487,8 +518,8 @@ service cloud.firestore {
       allow create: if okId(id) && (can('evento') || (can('aportes') && request.resource.data.target in ['unpaid', 'pending']))
         && request.resource.data.keys().hasOnly(['title', 'body', 'target', 'ts', 'at']) && tsOk(request.resource.data)
         && str(request.resource.data.title, 80) && str(request.resource.data.body, 300)
-        && request.resource.data.target in ['all', 'unpaid', 'pending'];
-      allow delete: if can('evento') || can('aportes');
+        && request.resource.data.target in ['all', 'unpaid', 'pending'] && request.resource.data.ts is int;
+      allow delete: if can('evento') || (can('aportes') && resource.data.target in ['unpaid', 'pending']);
     }
 
     // Token de notificaciones push de cada teléfono.
