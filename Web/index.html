@@ -150,7 +150,7 @@
     <div id="adm-login"></div>
     <div id="adm-panel" style="display:none">
       <div class="admbar">
-        <div class="ab-id"><span class="ab-ic" id="adm-ic">🛡️</span><div class="ab-t"><small id="adm-role">Panel de control</small><b id="adm-who">Organizador</b></div><a class="btn sm gold" href="#inicio" style="text-decoration:none">‹ Volver</a></div>
+        <div class="ab-id"><span class="ab-ic" id="adm-ic">🛡️</span><div class="ab-t"><small id="adm-role">Panel de control</small><b id="adm-who">Organizador</b></div><a class="btn sm gold" href="#inicio" style="text-decoration:none">‹<span class="ab-vt"> Volver</span></a></div>
         <div class="ab-acts" id="adm-acts"><button class="ab-link" id="adm-pw" type="button"><i data-pic="key"></i>Cambiar contraseña</button><button class="ab-link out" id="adm-out" type="button"><i data-pic="exit"></i>Cerrar sesión</button></div>
       </div>
       <nav class="anav" id="adm-nav"></nav>
@@ -367,6 +367,11 @@
         <div class="switch" style="margin-top:10px">
           <div><b>Abrir ahora</b><div class="muted small">Muestra los anónimos sin esperar la fecha.</div></div>
           <button class="tg" id="q-now" aria-label="Abrir ahora"></button>
+        </div>
+        <div class="qwhen">
+          <div class="qw-h"><b>¿Cuándo se abren?</b><span class="muted small" id="q-left"></span></div>
+          <div class="qw-row"><label class="field"><span>Día</span><input class="in" type="date" id="q-date"></label><label class="field"><span>Hora</span><input class="in" type="time" id="q-time"></label></div>
+          <div class="qw-act"><button class="btn sm gold" id="q-save" type="button">Guardar fecha</button><button class="btn sm ghost" id="q-useev" type="button">Usar el día del evento</button></div>
         </div>
         <p class="muted small" id="q-count" style="margin-top:12px"></p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">

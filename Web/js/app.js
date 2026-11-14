@@ -1596,8 +1596,9 @@ function renderChat() {
   // Para escribir hay que tener los avisos activados (así nadie se pierde lo que le responden). Leer siempre se puede.
   const needN = !!S.me && !S.isAdmin && canNotify() && !(isIOS() && !isStandalone()) && Notification.permission !== 'granted';
   $('#c-form').style.display = S.me && !needN ? '' : 'none'; $('#c-emo').style.display = S.me && !needN ? '' : 'none';
-  $('#c-ngate').hidden = !needN;
-  if (needN) $('#c-ngate').innerHTML = `<div class="ngate"><span>🔔</span><div><b>Activa los avisos para escribir</b><small>${Notification.permission === 'denied' ? 'Los tienes bloqueados: te explico cómo permitirlos.' : 'Así te enteras cuando te respondan o te mencionen.'}</small></div><button class="btn sm gold" type="button" data-nact>Activar</button></div>`;
+  $('#c-ngate').hidden = !needN && !!S.me;
+  if (!S.me) $('#c-ngate').innerHTML = `<div class="ngate"><span>💬</span><div><b>Para escribir, entra con tu nombre</b><small>${S.isAdmin ? 'Como organizador solo puedes leer el chat.' : 'Usa tu PIN de 4 números.'}</small></div>${S.isAdmin ? '' : '<button class="btn sm gold" type="button" data-auth="login">Entrar</button>'}</div>`;
+  else if (needN) $('#c-ngate').innerHTML = `<div class="ngate"><span>🔔</span><div><b>Activa los avisos para escribir</b><small>${Notification.permission === 'denied' ? 'Los tienes bloqueados: te explico cómo permitirlos.' : 'Así te enteras cuando te respondan o te mencionen.'}</small></div><button class="btn sm gold" type="button" data-nact>Activar</button></div>`;
   if (!can) return;
   $('#c-count').textContent = navigator.onLine === false ? '📡 Sin conexión: se enviará al volver' : S.chat.length ? nMsg(S.chat.length) : '';
   loadChatImgs();
@@ -2136,6 +2137,8 @@ function renderAdmin() {
       : '⚠️ Los participantes cambiaron después del sorteo. Vuelve a generarlo.';
   $('#d-gen').textContent = hasDraw ? 'Volver a sortear' : 'Generar sorteo';
   $('#q-count').textContent = `${nMsg(S.qCount)} en el buzón · ${isRevealed() ? 'abiertos ahora' : 'se abren el ' + (revealWhen() || 'día del evento')}`;
+  if (![$('#q-date'), $('#q-time')].includes(document.activeElement) && !syncCfgBar.qEdit) { $('#q-date').value = revealDay() || ''; $('#q-time').value = S.event.revealTime || '00:00'; }
+  { const ra = S.event.revealAt ? ms(S.event.revealAt) : 0; $('#q-left').textContent = isRevealed() ? '🔓 Abiertos' : ra > Date.now() ? '⏳ ' + leftTo(ra) : ''; }
   $('#a-list').innerHTML = S.activities.map(a => {
     let meta = '', btns = '';
     if (a.kind === 'assign') { meta = a.assignedAt ? `🎲 Repartido a ${Number(a.assignedN) || 0} · ${a.secret ? 'secreto' : 'público'}` : '🎲 Sin repartir'; btns = `<button class="btn sm gold" data-assign="${esc(a.id)}">${a.assignedAt ? 'Repartir de nuevo' : '🎲 Repartir'}</button>`; }
@@ -2178,6 +2181,16 @@ $('#cfg-form').addEventListener('submit', async e => {
   if (S.isOwner && o.revealDate && o.eventDate && o.revealDate > o.eventDate.slice(0, 10)) return toast('Los anónimos deben abrirse antes o el mismo día del evento');
   if (S.isOwner && o.revealDate && o.revealDate < todayStr() && !(await confirmBox('Los anónimos se abrirían ya', 'Esa fecha ya pasó: todos verían los mensajes ahora mismo.', 'Guardar igual'))) return;
   if (await saveEvent(o)) { cfgDirty = false; syncCfgBar(); toast('Evento guardado'); }
+});
+// Buzón anónimo: cambiar el día y la hora en que se abren, desde su propia tarjeta
+['q-date', 'q-time'].forEach(id => $('#' + id).addEventListener('input', () => { syncCfgBar.qEdit = true; }));
+$('#q-useev').addEventListener('click', () => { const d = (S.event.eventDate || '').slice(0, 10); if (!d) return toast('Primero pon la fecha del evento'); $('#q-date').value = d; $('#q-time').value = '00:00'; syncCfgBar.qEdit = true; });
+$('#q-save').addEventListener('click', async () => {
+  const d = $('#q-date').value, t = $('#q-time').value || '00:00', ev = (S.event.eventDate || '').slice(0, 10);
+  if (!d || isNaN(new Date(d + 'T' + t))) return toast('Elige un día válido');
+  if (ev && d > ev) return toast('Los anónimos deben abrirse antes o el mismo día del evento');
+  if (new Date(d + 'T' + t) < new Date() && !(await confirmBox('Los anónimos se abrirían ya', 'Esa fecha ya pasó: todos verían los mensajes ahora mismo.', 'Guardar igual'))) return;
+  if (await saveEvent({ revealDate: d, revealTime: t, revealAt: Timestamp.fromDate(new Date(d + 'T' + t)) })) { syncCfgBar.qEdit = false; toast('Fecha del buzón guardada 💌'); render(); }
 });
 let cpDirty = false;
 $('#cp-text').addEventListener('input', () => { cpDirty = true; });

@@ -265,3 +265,36 @@ body.chat-on #buz-seg{display:none!important}
 .qr-n{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:rgba(255,255,255,.08);font-weight:800;font-size:.8rem}
 .qrev.ok .qr-n{background:var(--c-green)}.qrev.no .qrev .qr-n,.qrev.no .qr-n{background:var(--c-rose)}
 .qrev .small{margin-top:4px}
+
+/* =================== Tanda 4: medidas que se adaptan =================== */
+/* Textos largos: parten bien y no se salen de su caja */
+h1,h2,h3,.v,.t,.st-l,.chead-t b,.ab-t b,.gc2-tx b,.qc-q{overflow-wrap:break-word;hyphens:auto}
+.sec-title{font-size:clamp(1.45rem,6.4vw,2rem)!important;line-height:1.1}
+.sec-sub{font-size:clamp(.86rem,3.6vw,1rem)}
+.btn{min-width:0;line-height:1.15;text-align:center}
+.grow,.ir-t,.chead-t,.st-l{min-width:0}
+/* Cabecera del panel */
+.ab-t small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.66rem!important;letter-spacing:.08em}
+.ab-id{flex-wrap:nowrap}
+.ab-id .btn{flex:none;padding:10px 14px}
+.ab-acts{display:grid!important;grid-template-columns:1fr 1fr}
+.ab-acts .ab-link{justify-content:center;font-size:clamp(.74rem,3.3vw,.88rem);padding:12px 8px;text-align:center}
+/* Barra de secciones: bordes que se desvanecen al deslizar */
+#adm-nav.anav{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent);mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent);padding-left:12px!important;padding-right:12px!important;scroll-padding:0 12px}
+/* Celdas de detalles: en pantallas muy angostas, una por fila */
+@media(max-width:360px){
+  .evcard .info{grid-template-columns:1fr!important}
+  .gcreate2{grid-template-columns:1fr 1fr;gap:8px}.gc2{min-height:160px;padding:12px}.gc2-go{padding:5px 9px}
+  .ab-ic{width:48px!important;height:48px!important;font-size:26px!important}
+  .seat .sn{font-size:.7rem}
+}
+@media(max-width:340px){.ab-id .btn{padding:8px 10px;font-size:.8rem}.chbtn{width:36px;height:36px}}
+/* Buzón anónimo (panel): fecha editable */
+.qwhen{margin-top:14px;padding:14px;border-radius:16px;background:linear-gradient(145deg,rgba(217,70,107,.18),rgba(143,33,71,.08));border:1px solid rgba(217,70,107,.3)}
+.qw-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.qw-row{display:grid;grid-template-columns:1.3fr 1fr;gap:10px;margin-top:10px}
+.qw-row .field{min-width:0}.qw-row .in{min-width:0;width:100%}
+.qw-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+@media(max-width:360px){.qw-row{grid-template-columns:1fr}}
+@media(max-width:400px){.ab-vt{display:none}.ab-id .btn{width:42px;height:42px;padding:0!important;font-size:1.3rem;display:grid;place-items:center}}
+.chead-t b{font-size:clamp(.92rem,4.2vw,1.05rem)!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
