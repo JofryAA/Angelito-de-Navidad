@@ -1550,24 +1550,20 @@ const OCURRENCIAS = [
   '¿Qué regalo NUNCA deberían darte? 🚫', 'Pon 3 emojis y que adivinen qué quieres de regalo 🧩', '¿Quién de aquí sería el mejor Santa Claus? 🎅'
 ];
 // Alto exacto del chat: lo que queda entre su borde superior y el cuadro de escribir.
-// En el chat y dentro de una partida la barra de pestañas se recoge en una pestañita: más pantalla.
-// Se despliega tocándola y se vuelve a recoger sola.
+// En el chat y dentro de una partida no hay barra de pestañas (más pantalla): se sale con el botón ‹ de arriba.
 function syncImmersive() {
   const on = document.body.classList.contains('chat-on') || /^#juego-/.test(location.hash);
   document.body.classList.toggle('immersive', on);
-  if (!on) document.body.classList.remove('tabs-peek');
   requestAnimationFrame(fitChat);
 }
 addEventListener('hashchange', () => setTimeout(syncImmersive, 0));
-$('#tabs-handle').addEventListener('click', () => {
-  const b = document.body; b.classList.toggle('tabs-peek'); requestAnimationFrame(fitChat);
-  clearTimeout(syncImmersive.t); if (b.classList.contains('tabs-peek')) syncImmersive.t = setTimeout(() => { b.classList.remove('tabs-peek'); requestAnimationFrame(fitChat); }, 6000);
-});
+setTimeout(() => { $('#c-back').innerHTML = ic('back', 22); }, 0);
+$('#c-back').addEventListener('click', () => { location.hash = '#inicio'; });
 function fitChat() {
   if (!document.body.classList.contains('chat-on')) return;
   const l = $('#c-list'), d = $('#c-dock'); if (!l || !d || !l.offsetParent) return;
   const vh = visualViewport?.height || innerHeight, top = l.getBoundingClientRect().top + scrollY;
-  const low = document.body.classList.contains('kb') || (document.body.classList.contains('immersive') && !document.body.classList.contains('tabs-peek'));
+  const low = document.body.classList.contains('kb') || document.body.classList.contains('immersive');
   const h = Math.max(96, Math.round(vh - d.getBoundingClientRect().height - (low ? 30 : 100) - top - 8));
   l.style.height = h + 'px';
 }
@@ -2977,7 +2973,7 @@ function renderBadges() {
   const spinNow = !!(S.me && mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid) && !S.assignment?.revealed);
   put($('.tab[data-v=ruleta]'), spinNow ? '!' : 0);
   let myTurn = 0; try { myTurn = S.me ? GAMES.active() : 0; } catch { } put($('.tab[data-v=juegos]'), myTurn);
-  const mb = $('#c-mute'); if (mb) { const off = nprefs().chat === false, k = off ? 'off' : 'on'; if (mb.dataset.k !== k) { mb.dataset.k = k; mb.innerHTML = ic(off ? 'belloff' : 'bell', 18); } }
+  const mb = $('#c-mute'); if (mb) { const off = nprefs().chat === false, k = off ? 'off' : 'on'; if (mb.dataset.k !== k) { mb.dataset.k = k; mb.innerHTML = ic(off ? 'belloff' : 'bell', 20); mb.classList.toggle('on', !off); } }
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
 
@@ -3223,38 +3219,39 @@ document.addEventListener('click', e => {
 
 /* ---------- íconos (trazos limpios en vez de emojis en menús y botones de opciones) ---------- */
 const SVGI = {
-  star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
-  edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>',
-  trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
-  reply: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 016 6v4"/>',
-  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/>',
+  back: '<path d="m15 18-6-6 6-6"/>',
+  star: '<path d="M11.52 2.3a.53.53 0 0 1 .96 0l2.31 4.68a2.12 2.12 0 0 0 1.6 1.16l5.16.76a.53.53 0 0 1 .3.9l-3.74 3.64a2.12 2.12 0 0 0-.61 1.88l.88 5.14a.53.53 0 0 1-.77.56l-4.62-2.43a2.12 2.12 0 0 0-1.97 0L6.4 21.01a.53.53 0 0 1-.77-.56l.88-5.14a2.12 2.12 0 0 0-.61-1.88L2.16 9.8a.53.53 0 0 1 .29-.9l5.17-.76a2.12 2.12 0 0 0 1.6-1.16z"/>',
+  edit: '<path d="M21.17 6.81a2.83 2.83 0 0 0-4-4L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/>',
+  reply: '<path d="M9 17l-5-5 5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
+  copy: '<rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   shirt: '<path d="M8 3l4 2 4-2 5 4-3 4-2-1v11H8V10l-2 1-3-4z"/>',
-  shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
-  bell: '<path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 21h4"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  bell: '<path d="M10.27 21a1.94 1.94 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/>',
   phone: '<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 8v6m-3-3l3 3 3-3"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.7-2.5 2-2.5 4"/><path d="M12 17h.01"/>',
-  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9m-4 4l3 3"/>',
   undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/>',
   userx: '<circle cx="10" cy="8" r="4"/><path d="M3 21a7 7 0 0114 0"/><path d="M17 8l4 4m0-4l-4 4"/>',
   book: '<path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5"/>',
   refresh: '<path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 4v7h-7"/>',
-  chat: '<path d="M4 5h16v11H9l-5 4z"/>',
+  chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/>',
   logout: '<path d="M15 4h4v16h-4"/><path d="M10 16l-4-4 4-4"/><path d="M6 12h10"/>',
-  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
-  send: '<path d="M4 12l16-8-6 16-2.5-6.5z"/><path d="M11.5 13.5L20 4"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/>',
+  send: '<path d="M14.54 21.69a.5.5 0 0 0 .94-.03l6.5-19a.5.5 0 0 0-.64-.64l-19 6.5a.5.5 0 0 0-.03.94l7.93 3.18a2 2 0 0 1 1.11 1.11z"/><path d="M21.85 2.15 10.91 13.09"/>',
   dice: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r=".9" fill="currentColor"/><circle cx="15" cy="15" r=".9" fill="currentColor"/><circle cx="15" cy="9" r=".9" fill="currentColor"/><circle cx="9" cy="15" r=".9" fill="currentColor"/>',
-  belloff: '<path d="M6 16V11a6 6 0 019-5.2M18 11v5l2 2H8"/><path d="M10 21h4M3 3l18 18"/>',
+  belloff: '<path d="M10.27 21a1.94 1.94 0 0 0 3.46 0"/><path d="M17 17H4a1 1 0 0 1-.74-1.67C4.59 13.96 6 12.5 6 8a6 6 0 0 1 .26-1.74"/><path d="M8.67 2.7A6 6 0 0 1 18 8c0 2.4.4 4.05 1 5.2"/><path d="m2 2 20 20"/>',
   check: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/>',
   xcircle: '<circle cx="12" cy="12" r="9"/><path d="M9 9l6 6m0-6l-6 6"/>',
-  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
-  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   download: '<path d="M12 4v11m-5-5l5 5 5-5"/><path d="M5 20h14"/>',
   link: '<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>',
   whatsapp: '<path d="M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-4-1z"/><path d="M9 9.5c.3 2.2 2.3 4.2 4.5 4.5l1-1.2 1.8.8-.3 1.4c-3.6.4-7.4-3.4-7-7l1.4-.3.8 1.8z"/>',
   share: '<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.6M8.2 13.2l7.6 4.6"/>',
 };
-const ic = (n, sz = 20) => `<svg class="ic" viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SVGI[n] || ''}</svg>`;
+const ic = (n, sz = 20) => `<svg class="ic" viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SVGI[n] || ''}</svg>`;
 // Hoja de opciones reutilizable (mismo estilo en toda la app): sheet({ title, sub, head, items:[{k, icon, label, hint, danger}] }) → Promise con la clave elegida
 function sheet({ title = '', sub = '', head = '', items = [] }) {
   return new Promise(res => {

@@ -757,14 +757,9 @@ body.adm-view #helper,body.kb #helper{display:none!important}
 
 /* modo pantalla completa en chat y juegos: la barra de pestañas se recoge */
 .tabs{transition:transform .28s ease,opacity .2s}
-body.immersive:not(.tabs-peek) .tabs{transform:translate(-50%,calc(100% + 30px));opacity:0;pointer-events:none}
-#tabs-handle{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(4px + env(safe-area-inset-bottom));z-index:51;width:64px;height:22px;border-radius:999px;border:1px solid var(--line);background:rgba(10,25,18,.92);color:var(--gold);place-items:center;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.4)}
-body.immersive #tabs-handle{display:grid}
-body.immersive.tabs-peek #tabs-handle{bottom:calc(84px + env(safe-area-inset-bottom))}
-body.immersive.tabs-peek #tabs-handle svg{transform:rotate(180deg)}
-body.kb #tabs-handle{display:none!important}
-body.chat-on.immersive:not(.tabs-peek) #c-dock{bottom:calc(30px + env(safe-area-inset-bottom))}
-body.immersive:not(.tabs-peek) #helper{bottom:calc(110px + env(safe-area-inset-bottom))}
+body.immersive .tabs{display:none!important}
+body.chat-on.immersive #c-dock{bottom:calc(30px + env(safe-area-inset-bottom))}
+body.immersive #helper{bottom:calc(110px + env(safe-area-inset-bottom))}
 
 /* ===== Sala de juegos: mesa de dominó (rediseño) ===== */
 .mesa{position:relative;display:flex!important;align-items:center;align-content:center!important;justify-content:center;min-height:190px;padding:12px!important;border-radius:26px;border:8px solid transparent!important;
@@ -843,3 +838,16 @@ body.immersive:not(.tabs-peek) #helper{bottom:calc(110px + env(safe-area-inset-b
 .pd b{font-size:.82rem;text-align:center;line-height:1.15}
 .pd-p{font-size:.75rem;font-weight:800;color:var(--gold)}
 .pd-b{position:absolute;top:-12px;font-size:22px}
+
+/* Cabecera del chat y botones de volver */
+.chead{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+.chead-t{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.2}.chead-t b{font-size:1rem}
+.chead-t>span{font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.backbtn{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:2px;min-width:42px;height:42px;padding:0 10px 0 6px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02));color:var(--cream,#f6efe0);font:inherit;font-weight:700;font-size:.88rem;text-decoration:none;cursor:pointer;transition:transform .12s,background .2s}
+.backbtn:active{transform:scale(.94)}.backbtn .ic{flex:none}
+.bellbtn{width:42px;height:42px;border-radius:14px;color:var(--muted);transition:.2s}
+.bellbtn.on{color:#1b140a;background:linear-gradient(160deg,#f7d98b,#e2a93b);border-color:transparent;box-shadow:0 4px 12px rgba(226,169,59,.35)}
+body.chat-on #v-buzon>.sec-title{display:none}
+#c-count:not(:empty)::after{content:" · "}
+.gdel{width:42px;height:42px;color:#f19a9a}
+#c-mute.bellbtn{color:var(--muted)}#c-mute.bellbtn.on{color:#2b1a00}#c-mute.bellbtn.on .ic{stroke-width:2.2}

@@ -112,7 +112,7 @@
     <h2 class="sec-title">Grupo</h2>
     <div class="seg" id="buz-seg"><button data-b="c" class="on">💬 Chat</button><button data-b="s">💡 Ideas</button><button data-b="f">📸 Fotos</button></div>
     <div id="buz-c">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><p class="muted small" style="margin:0 0 8px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Usa @ para mencionar</p><span style="display:flex;gap:8px;align-items:center"><span class="muted small" id="c-count" style="white-space:nowrap"></span><button class="iconbtn" id="c-mute" style="width:40px;height:40px;font-size:16px" title="Silenciar notificaciones del chat" aria-label="Silenciar chat">🔔</button></span></div>
+      <div class="chead"><button type="button" class="backbtn" id="c-back" aria-label="Volver"></button><div class="chead-t"><b>Chat del grupo</b><span><span id="c-count"></span>usa @ para mencionar</span></div><button class="iconbtn bellbtn" id="c-mute" title="Silenciar notificaciones del chat" aria-label="Silenciar chat"></button></div>
       <div id="c-gate"></div>
       <div id="c-wrap" style="display:none">
         <div class="chatbox" id="c-list"></div>
@@ -395,7 +395,6 @@
 <div class="modal" id="csel" style="z-index:95"><div class="sheet" id="csel-s" style="padding:14px"></div></div>
 <div id="toast"></div>
 <div id="helper" hidden><div class="hb-bub" id="helper-b" role="status"></div><button class="hb-btn" id="helper-btn" type="button" aria-label="Consejos">💡</button></div>
-<button type="button" id="tabs-handle" aria-label="Mostrar el menú"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button>
 <div id="cfg-bar" hidden><span>Tienes cambios sin guardar</span><button type="button" class="btn sm" data-cfg="undo">Descartar</button><button type="button" class="btn sm gold" data-cfg="save">Guardar</button></div>
 <div id="datafail" hidden>⚠️ No pudimos cargar los datos <button type="button" class="btn sm gold" id="datafail-btn">Reintentar</button></div>
 <div id="offline" hidden>📡 Sin conexión · lo que hagas se enviará al volver</div>
