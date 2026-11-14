@@ -67,8 +67,8 @@ const S = {
   event: {}, drawMeta: null, participants: [], activities: [], wishes: [], questions: [], qCount: 0,
   uid: null, me: null, authReady: false, assignment: null, isAdmin: false, assignments: {},
   wishPid: null, spinning: false, rot: 0, segs: [], qSubOn: false,
-  myPicks: [], publicPicks: [], rsvps: [], myVotes: {}, signups: [], adminVotes: [], actId: null, revealed: {}, suggestions: [], sugVotes: [], sugAuthors: {}, buz: 'c',
-  att: {}, myCreated: new Set(), myThanks: null, thanksFromRec: null, wishPick: null, chatReacts: [], replyTo: null, photos: [], live: null, myLive: {}, memories: [], anonVotesLive: [], triviaLive: [], notices: [], profiles: {}, hintsIn: [], hintsSent: [], myAngelGuess: null, angelGuesses: [], reveal: null, giftStatus: {}, incoming: null, myGuess: null, guesses: [], chat: [], chatSeen: 0
+  myPicks: [], publicPicks: [], rsvps: [], myVotes: {}, myQuiz: {}, quizPlay: {}, adminQuiz: [], signups: [], adminVotes: [], actId: null, revealed: {}, suggestions: [], sugVotes: [], sugAuthors: {}, buz: 'c',
+  att: {}, myCreated: new Set(), myThanks: null, thanksFromRec: null, wishPick: null, chatReacts: [], replyTo: null, photos: [], live: null, myLive: {}, memories: [], anonVotesLive: [],  notices: [], profiles: {}, hintsIn: [], hintsSent: [], myAngelGuess: null, angelGuesses: [], reveal: null, giftStatus: {}, incoming: null, myGuess: null, guesses: [], chat: [], chatSeen: 0
 };
 // Arranque instantáneo: si ya habías entrado en este teléfono, se muestra tu sesión con los datos guardados
 // mientras Firebase la confirma por detrás (sin la ruedita de "cargando" cada vez que abres la app).
@@ -271,6 +271,7 @@ function startUserSubs(user) {
     unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('uid', '==', user.uid)), s => { S.myPicks = rows(s); render(); }, ufail('myPicks')));
     unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('public', '==', true)), s => { S.publicPicks = rows(s); render(); }, ufail('publicPicks')));
     unsubUser.push(onSnapshot(query(collection(db, 'votes'), where('uid', '==', user.uid)), s => { S.myVotes = Object.fromEntries(rows(s).map(v => [v.act, v.choice])); render(); }, ufail('myVotes')));
+    unsubUser.push(onSnapshot(query(collection(db, 'quizAns'), where('uid', '==', user.uid)), s => { S.myQuiz = Object.fromEntries(rows(s).map(v => [v.act, v.a])); render(); }, ufail('myQuiz')));
     unsubUser.push(onSnapshot(collection(db, 'activitySignups'), s => { S.signups = rows(s); render(); }, ufail('signups')));
     unsubUser.push(onSnapshot(collection(db, 'suggestions'), s => { S.suggestions = rows(s); render(); }, ufail('suggestions')));
     unsubUser.push(onSnapshot(collection(db, 'sugVotes'), s => { S.sugVotes = rows(s); render(); }, ufail('sugVotes')));
@@ -303,7 +304,7 @@ onAuthStateChanged(auth, user => {
   unsubUser.forEach(u => u()); unsubUser = [];
   if ((user ? user.uid : null) !== S.uid) { S.wishPid = null; S.revealed = {}; S.rot = 0; const wc = $('#wheel'); if (wc) { wc.style.transition = 'none'; wc.style.transform = ''; requestAnimationFrame(() => { wc.style.transition = ''; }); } }
   S.uid = user ? user.uid : null; S.me = S.uid ? P(S.uid) || null : null; S.assignment = null; S.wishes = [];
-  S.myPicks = []; S.publicPicks = []; S.rsvps = []; S.myVotes = {}; S.signups = []; S.revealed = {}; if (!S.isAdmin) S.suggestions = []; S.hintsIn = []; S.hintsSent = []; S.myAngelGuess = null; S.myThanks = null; S.wishPick = null; S.replyTo = null; S.myLive = {}; if (unsubPhotos) { unsubPhotos(); unsubPhotos = null; } S.photos = []; if (!S.isOwner) { S.reveal = null; S.angelGuesses = []; }
+  S.myPicks = []; S.publicPicks = []; S.rsvps = []; S.myVotes = {}; S.myQuiz = {}; S.quizPlay = {}; S.signups = []; S.revealed = {}; if (!S.isAdmin) S.suggestions = []; S.hintsIn = []; S.hintsSent = []; S.myAngelGuess = null; S.myThanks = null; S.wishPick = null; S.replyTo = null; S.myLive = {}; if (unsubPhotos) { unsubPhotos(); unsubPhotos = null; } S.photos = []; if (!S.isOwner) { S.reveal = null; S.angelGuesses = []; }
   S.giftStatus = {}; S.incoming = null; S.myGuess = null; S.chat = []; if (!S.isAdmin) S.att = {};
   S.authReady = true; setTimeout(maybeForcePin, 0);
   subRetries = 0;
@@ -359,6 +360,7 @@ function startAdminSubs() {
   }
   if (can('actividades')) {
     sub(collection(adb, 'votes'), s => { S.adminVotes = rows(s); render(); }, 'votes');
+    sub(collection(adb, 'quizAns'), s => { S.adminQuiz = rows(s); render(); }, 'quiz-adm');
     sub(collection(adb, 'activitySignups'), s => { S.signups = rows(s); render(); }, 'signups-adm');
   }
   sub(collection(adb, 'suggestions'), s => { S.suggestions = rows(s); render(); }, 'sug-adm');
@@ -2139,6 +2141,7 @@ function renderAdmin() {
     if (a.kind === 'assign') { meta = a.assignedAt ? `🎲 Repartido a ${Number(a.assignedN) || 0} · ${a.secret ? 'secreto' : 'público'}` : '🎲 Sin repartir'; btns = `<button class="btn sm gold" data-assign="${esc(a.id)}">${a.assignedAt ? 'Repartir de nuevo' : '🎲 Repartir'}</button>`; }
     if (a.kind === 'vote') { const n = S.adminVotes.filter(v => v.act === a.id).length; meta = `🗳️ ${n} ${n === 1 ? 'voto' : 'votos'} · ${a.resultsOpen ? 'resultados publicados' : 'resultados ocultos'}`; btns = `<button class="btn sm gold" data-results="${esc(a.id)}">${a.resultsOpen ? 'Ocultar resultados' : '📊 Publicar resultados'}</button>`; }
     if (a.kind === 'signup') { const n = S.signups.filter(x => x.act === a.id).length; meta = `📝 ${n} de ${(a.items || []).length} apuntados`; }
+    if (a.kind === 'quiz') { const n = S.adminQuiz.filter(x => x.act === a.id).length; meta = `❓ ${(a.qs || []).length} preguntas · ${n} ${n === 1 ? 'respondió' : 'respondieron'} · ${a.resultsOpen ? 'resultados publicados' : 'resultados ocultos'}`; btns = `<button class="btn sm gold" data-results="${esc(a.id)}">${a.resultsOpen ? 'Ocultar resultados' : '📊 Publicar resultados'}</button>`; }
     return `<div class="item" style="flex-wrap:wrap"><span style="font-size:22px">${esc(a.emoji)}</span><div class="grow"><div class="t">${esc(a.title)}</div>
       <div class="muted small">${esc(fmtDate(a.date))}${a.time ? ' · ' + esc(fmtTime(a.time)) : ''}</div>${meta ? `<div class="muted small" style="margin-top:4px">${meta}</div>` : ''}
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${btns}<button class="btn sm" data-aedit="${esc(a.id)}">✏️ Editar</button><a class="btn sm" href="#actividad-${esc(a.id)}" style="text-decoration:none">👁️ Ver</a></div></div>
@@ -2460,15 +2463,19 @@ const PRESETS = {
     desc: 'Cada quien recibe un personaje bíblico en secreto. Ven vestido o con un detalle de tu personaje y los demás tendrán que adivinar quién eres. ¡No le digas a nadie lo que te tocó!' },
   vestido: { title: 'Mejor vestido navideño', emoji: '👗', kind: 'vote', voteTarget: 'participants', desc: 'Vota por la persona que venga mejor vestida. El ganador se anuncia en la fiesta y se lleva un premio sorpresa.' },
   karaoke: { title: 'Karaoke de villancicos', emoji: '🎤', kind: 'assign', secret: false, items: 'Noche de paz\nCampana sobre campana\nLos peces en el río\nEl burrito sabanero\nFeliz Navidad\nAsómate a la ventana\nArbolito\nNiño Jesús\nLa marimorena\nBlanca Navidad', desc: 'A cada quien le toca un villancico para cantar. ¡Ensaya en la ducha!' },
+  trivia: { title: 'Trivia navideña', emoji: '❓', kind: 'quiz', items: "¿Cuál es la capital de República Dominicana? | Santiago | *Santo Domingo | La Romana | Puerto Plata\n¿Cómo se llama la montaña más alta del Caribe? | Loma Quita Espuela | *Pico Duarte | Monte Cristi | Loma de la Galleta\n\"La bandera\" dominicana es arroz, habichuelas y carne | *Verdadero | Falso\nLas habichuelas con dulce se comen en Navidad | Verdadero | *Falso\n¿Qué día se celebra la Independencia dominicana? | 6 de enero | 16 de agosto | *27 de febrero | 24 de diciembre\nEl merengue es el baile nacional de República Dominicana | *Verdadero | Falso\n¿Qué se come típicamente en la Nochebuena dominicana? | Sushi | *Puerco asado | Pizza | Hot dog\n¿Qué bebida caliente es típica en Navidad en RD? | *Té de jengibre | Café frío | Limonada | Morir soñando\nLa playa de Bávaro queda en Punta Cana | *Verdadero | Falso\nEl Faro a Colón está en Santo Domingo | *Verdadero | Falso\n¿En qué ciudad está el Monumento a los Héroes de la Restauración? | Higüey | *Santiago | Barahona | Baní\n¿En qué ciudad nació Jesús? | Nazaret | Jerusalén | *Belén | Egipto\n¿Cuántos Reyes Magos dice la tradición que llegaron? | 2 | *3 | 4 | 12\n¿Qué día se celebra el Día de Reyes? | 25 de diciembre | 1 de enero | *6 de enero | 14 de febrero\n¿Quién fue el primer hombre según la Biblia? | Noé | Moisés | *Adán | Abraham\n¿Cuál es el primer libro de la Biblia? | Éxodo | *Génesis | Mateo | Apocalipsis\n¿Cuál fue el primer milagro de Jesús? | Caminar sobre el agua | *Convertir agua en vino | Multiplicar los panes | Calmar la tormenta\n¿Quién construyó el arca? | Moisés | *Noé | David | Jonás\n¿Quién venció al gigante Goliat? | Sansón | Salomón | *David | Pedro\n¿Quién abrió el Mar Rojo? | Elías | *Moisés | Josué | Pablo\nSanta Claus vive en el Polo Sur | Verdadero | *Falso\n¿Cómo se llama el reno de la nariz roja? | Bambi | *Rudolph | Pancho | Rayo\n¿Cuál es el primer mes del año? | Diciembre | *Enero | Febrero | Marzo\nEl sol es una estrella | *Verdadero | Falso\n¿De qué color era el caballo blanco de Napoleón? | Negro | Marrón | *Blanco | Gris\n¿Cuántos meses del año tienen 28 días? | Solo febrero | 2 | 6 | *Todos\n¿Qué pesa más: un kilo de algodón o un kilo de hierro? | El hierro | El algodón | *Pesan lo mismo\n¿Cuántas patas tiene un gallo? | *2 | 4 | 3 | 6\nSi estás en una carrera y pasas al segundo, ¿en qué lugar quedas? | Primero | *Segundo | Tercero | Último\n¿Qué tiene dientes pero no come? | Un perro | *Un peine | Un bebé | Una silla",
+    desc: 'Preguntas fáciles (y algunas con truco 😄) sobre RD, la Navidad y la Biblia. Responde desde tu teléfono; el organizador publica el ranking en la fiesta.' },
   regalo: { title: 'Mejor regalo de la noche', emoji: '🏆', kind: 'vote', voteTarget: 'participants', desc: 'Después del intercambio, vota por quien dio el regalo más creativo.' }
 };
 const aForm = $('#a-form');
 function updKind() {
   const k = aForm.kind.value, vt = aForm.voteTarget.value;
   $('#a-vt-f').style.display = k === 'vote' ? '' : 'none';
-  $('#a-items-f').style.display = (k === 'assign' || k === 'signup' || (k === 'vote' && vt === 'options')) ? '' : 'none';
+  $('#a-items-f').style.display = (k === 'assign' || k === 'signup' || k === 'quiz' || (k === 'vote' && vt === 'options')) ? '' : 'none';
+  $('#a-quiz-h').style.display = k === 'quiz' ? '' : 'none';
+  aForm.items.style.minHeight = k === 'quiz' ? '220px' : '';
   $('#a-secret-f').style.display = k === 'assign' ? '' : 'none';
-  $('#a-items-l').textContent = k === 'assign' ? 'Lo que se va a repartir (uno por línea)' : k === 'signup' ? 'Cosas para apuntarse (una por línea)' : 'Opciones de la votación (una por línea)';
+  $('#a-items-l').textContent = k === 'quiz' ? 'Preguntas (una por línea)' : k === 'assign' ? 'Lo que se va a repartir (uno por línea)' : k === 'signup' ? 'Cosas para apuntarse (una por línea)' : 'Opciones de la votación (una por línea)';
 }
 aForm.kind.addEventListener('change', updKind); aForm.voteTarget.addEventListener('change', updKind);
 function fillActForm(a, editing) {
@@ -2477,7 +2484,8 @@ function fillActForm(a, editing) {
   { const d = a.openAt ? new Date(a.openAt) : null; aForm.openDate.value = d ? d.toLocaleDateString('en-CA') : ''; aForm.openTime.value = d ? d.toTimeString().slice(0, 5) : ''; }
   if (a.emoji) aForm.emoji.value = a.emoji;
   aForm.kind.value = a.kind || 'none'; aForm.voteTarget.value = a.voteTarget || 'participants';
-  aForm.items.value = Array.isArray(a.items) ? a.items.join('\n') : (a.items || '');
+  aForm.items.value = a.kind === 'quiz' && a.qs ? triviaText((a.qs || []).map(q => ({ ...q, c: -1 }))) : Array.isArray(a.items) ? a.items.join('\n') : (a.items || '');
+  if (a.kind === 'quiz' && editing && a.id) getDoc(doc(adb, 'quizKeys', a.id)).then(d => { const c = d.data()?.c || []; if (aForm.id.value === a.id) aForm.items.value = triviaText((a.qs || []).map((q, i) => ({ ...q, c: c[i] ?? -1 }))); }).catch(() => { });
   aForm.secret.checked = a.secret !== false;
   aForm.id.value = editing ? a.id : '';
   $('#a-submit').textContent = editing ? 'Guardar cambios' : 'Agregar actividad';
@@ -2500,6 +2508,12 @@ aForm.addEventListener('submit', async e => {
   if (!o.title || !o.date) return;
   if (o.openAt != null && isNaN(o.openAt)) return toast('La hora de apertura no es válida');
   if (o.kind === 'assign' && !o.items.length) return toast('Escribe lo que se va a repartir');
+  let quizKey = null;
+  if (o.kind === 'quiz') {
+    const list = parseTrivia(f.items.value).slice(0, 60).map(t => ({ q: t.q.slice(0, 200), o: t.o.map(x => x.slice(0, 80)), c: t.c }));
+    if (!list.length) return toast('Escribe al menos una pregunta: Pregunta | opción | *correcta');
+    o.qs = list.map(({ q, o: op }) => ({ q, o: op })); quizKey = list.map(t => t.c); o.items = [];
+  }
   if ((o.kind === 'signup' || (o.kind === 'vote' && o.voteTarget === 'options')) && !o.items.length) return toast('Escribe al menos una opción');
   try {
     if (id) {
@@ -2510,10 +2524,15 @@ aForm.addEventListener('submit', async e => {
       const b = writeBatch(adb);
       su.forEach(x => b.delete(doc(adb, 'activitySignups', x.id)));
       b.set(doc(adb, 'activities', id), o, { merge: true });
+      if (quizKey) b.set(doc(adb, 'quizKeys', id), { c: quizKey });
       if (old?.kind === 'assign' && old.secret !== o.secret)
         (await getDocs(query(collection(adb, 'activityPicks'), where('act', '==', id)))).forEach(d => b.set(d.ref, { public: !o.secret }, { merge: true }));
       await b.commit(); toast('Actividad actualizada ✏️');
-    } else { S.selfEditAt = Date.now(); await setDoc(doc(collection(adb, 'activities')), { ...o, at: serverTimestamp() }); toast('Actividad agregada 📅'); }
+    } else {
+      S.selfEditAt = Date.now(); const ref = doc(collection(adb, 'activities'));
+      if (quizKey) await setDoc(doc(adb, 'quizKeys', ref.id), { c: quizKey });
+      await setDoc(ref, { ...o, at: serverTimestamp() }); toast('Actividad agregada 📅');
+    }
     fillActForm({}, false); $('#a-fold').open = false;
     setTimeout(() => $('#a-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   } catch (err) { toast(authErr(err)); }
@@ -2534,7 +2553,15 @@ async function assignAct(a) {
 }
 async function toggleResults(a) {
   try {
-    if (a.resultsOpen) { await setDoc(doc(adb, 'activities', a.id), { resultsOpen: false }, { merge: true }); return toast('Resultados ocultos'); }
+    if (a.resultsOpen) { await setDoc(doc(adb, 'activities', a.id), { resultsOpen: false, key: [] }, { merge: true }); return toast('Resultados ocultos'); }
+    if (a.kind === 'quiz') {
+      const key = (await getDoc(doc(adb, 'quizKeys', a.id))).data()?.c || [];
+      const ans = S.adminQuiz.filter(x => x.act === a.id && P(x.uid));
+      const results = ans.map(x => ({ key: x.uid, label: pName(x.uid), emoji: pEmoji(x.uid), count: (x.a || []).filter((v, i) => v === key[i]).length, t: ms(x.at) }))
+        .sort((x, y) => y.count - x.count || x.t - y.t).map(({ t, ...r }) => r);
+      if (!(await confirmBox('¿Publicar resultados?', `${ans.length} ${ans.length === 1 ? 'persona respondió' : 'personas respondieron'}. Todos verán el ranking y las respuestas correctas, y ya no se podrá responder.`, 'Publicar'))) return;
+      await setDoc(doc(adb, 'activities', a.id), { resultsOpen: true, results, key, votesN: ans.length }, { merge: true }); toast('Resultados publicados 🏆'); confetti(80); return;
+    }
     const vs = S.adminVotes.filter(v => v.act === a.id);
     const opts = a.voteTarget === 'participants' ? S.participants.map(p => ({ key: p.id, label: p.name, emoji: p.emoji })) : (a.items || []).map(t => ({ key: t, label: t, emoji: '' }));
     const results = opts.map(o => ({ ...o, count: vs.filter(v => v.choice === o.key).length })).filter(r => r.count || a.voteTarget !== 'participants').sort((x, y) => y.count - x.count);
@@ -2551,8 +2578,9 @@ $('#a-list').addEventListener('click', async e => {
   if (!(await confirmBox('¿Borrar esta actividad?', 'Se borrará con sus asignaciones, votos y confirmaciones.', 'Borrar'))) return;
   try {
     const b = writeBatch(adb); b.delete(doc(adb, 'activities', a.id));
-    for (const c of ['activityPicks', 'rsvps', 'votes', 'activitySignups'])
+    for (const c of ['activityPicks', 'rsvps', 'votes', 'activitySignups', 'quizAns'])
       (await getDocs(query(collection(adb, c), where('act', '==', a.id)))).forEach(d => b.delete(d.ref));
+    if (a.kind === 'quiz') b.delete(doc(adb, 'quizKeys', a.id));
     await b.commit(); toast('Actividad borrada');
   } catch (err) { toast(authErr(err)); }
 });
@@ -2593,11 +2621,11 @@ $('#q-adm').addEventListener('click', async e => {
 });
 
 /* ---------- actividades ---------- */
-const KIND = { assign: ['🎭', 'Asignación'], vote: ['🗳️', 'Votación'], signup: ['📝', 'Apúntate'] };
+const KIND = { assign: ['🎭', 'Asignación'], vote: ['🗳️', 'Votación'], signup: ['📝', 'Apúntate'], quiz: ['❓', 'Trivia'] };
 function kindTag(a) {
   const k = KIND[a.kind]; const mine = a.kind === 'assign' && S.myPicks.some(p => p.act === a.id);
   const t = [k ? `<span class="tag">${k[0]} ${k[1]}</span>` : '', mine ? '<span class="tag gold">✨ Te tocó algo</span>' : '',
-    a.kind === 'vote' && a.resultsOpen ? '<span class="tag gold">🏆 Resultados</span>' : ''].join('');
+    (a.kind === 'vote' || a.kind === 'quiz') && a.resultsOpen ? '<span class="tag gold">🏆 Resultados</span>' : ''].join('');
   return t ? `<div class="tags">${t}</div>` : '';
 }
 const actWhen = a => `${fmtDate(a.date)}${a.time ? ' · ' + fmtTime(a.time) : ''}`;
@@ -2625,6 +2653,39 @@ function voteOptions(a) {
 }
 const openWhen = a => { const d = new Date(a.openAt); return fmtDate(d.toLocaleDateString('en-CA')) + ' a las ' + hm(d); };
 const leftTo = t => { const m = Math.max(1, Math.round((t - Date.now()) / 6e4)); return m < 60 ? `Faltan ${m} min` : m < 1440 ? `Faltan ${Math.round(m / 60)} h` : `Faltan ${Math.ceil(m / 1440)} días`; };
+/* ---------- ❓ trivia como actividad ---------- */
+function quizHTML(a) {
+  const qs = a.qs || [], my = S.myQuiz[a.id], N = qs.length;
+  let h = `<div class="h2row"><h2>❓ ${a.resultsOpen ? 'Resultados' : 'Trivia'}</h2><span class="muted small">${N} preguntas</span></div>`;
+  if (a.resultsOpen && a.results) {
+    const key = a.key || [], max = Math.max(1, N);
+    h += `<div class="stack">${a.results.slice(0, 15).map((r, i) => `<div class="bar ${i === 0 && r.count ? 'win' : ''}"><i style="width:${(Number(r.count) || 0) / max * 100}%"></i><span>${['🥇', '🥈', '🥉'][i] || i + 1 + '.'} ${esc(r.emoji || '')} ${esc(r.label)}</span><span>${Number(r.count) || 0}/${N}</span></div>`).join('') || '<div class="card empty">Nadie respondió 😅</div>'}</div>`;
+    if (S.me) h += `<div class="h2row"><h2>Las respuestas</h2>${my ? `<span class="tag gold">Acertaste ${my.filter((v, i) => v === key[i]).length}/${N}</span>` : ''}</div>
+      <div class="stack">${qs.map((q, i) => { const ok = my && my[i] === key[i]; return `<div class="qrev ${my ? (ok ? 'ok' : 'no') : ''}"><div class="qr-n">${i + 1}</div><div class="grow"><b>${esc(q.q)}</b>
+        <div class="small">✅ ${esc(q.o[key[i]] ?? '—')}${my && !ok ? `<br><span class="muted">Tú: ${esc(q.o[my[i]] ?? 'sin responder')}</span>` : ''}</div></div></div>`; }).join('')}</div>`;
+    return h;
+  }
+  if (!S.me) return h + needLogin('Entra con tu PIN para jugar la trivia.');
+  if (my) return h + `<div class="card qdone"><div class="qd-e">🎉</div><b>¡Listo! Respondiste las ${N} preguntas</b><p class="muted small">Los resultados y las respuestas correctas se publican cuando el organizador lo decida. ¡Suerte!</p></div>`;
+  if (!N) return h + '<div class="card empty">Todavía no hay preguntas.</div>';
+  const st = S.quizPlay[a.id];
+  if (!st) return h + `<div class="card qstart"><div class="qd-e">🧠</div><b>${N} preguntas fáciles (o eso creemos 😅)</b><p class="muted small">Elige una respuesta en cada una. Al terminar se envían y ya no se pueden cambiar.</p><button class="btn gold" data-qstart>¡Empezar!</button></div>`;
+  const i = st.i, q = qs[i];
+  return h + `<div class="qcard" style="--p:${i / N * 100}%"><div class="qc-top"><span>Pregunta ${i + 1} de ${N}</span>${i ? '<button class="btn sm ghost" data-qback>‹ Atrás</button>' : ''}</div><div class="qc-bar"><i></i></div>
+    <div class="qc-q">${esc(q.q)}</div><div class="qc-o">${q.o.map((o, k) => `<button class="qopt c${k + 1} ${st.a[i] === k ? 'on' : ''}" data-qa="${k}"><b>${'ABCD'[k]}</b><span>${esc(o)}</span></button>`).join('')}</div></div>`;
+}
+async function quizClick(a, b) {
+  const N = (a.qs || []).length;
+  if (b.dataset.qstart != null) { S.quizPlay[a.id] = { i: 0, a: [] }; return renderActDetail(); }
+  const st = S.quizPlay[a.id]; if (!st) return;
+  if (b.dataset.qback != null) { st.i = Math.max(0, st.i - 1); return renderActDetail(); }
+  st.a[st.i] = +b.dataset.qa; b.classList.add('on');
+  if (st.i < N - 1) { setTimeout(() => { st.i++; renderActDetail(); }, 220); return; }
+  try {
+    await setDoc(doc(db, 'quizAns', `${esc(a.id)}__${esc(S.uid)}`), { act: a.id, uid: S.uid, a: Array.from({ length: N }, (_, k) => st.a[k] ?? -1), at: serverTimestamp() });
+    delete S.quizPlay[a.id]; confetti(90); toast('¡Respuestas enviadas! 🎉');
+  } catch (err) { toast(err?.code?.includes('permission') ? 'La trivia ya cerró.' : authErr(err)); }
+}
 function renderActDetail() {
   const root = $('#act-root'); if (!root || !S.actId) return;
   const a = S.activities.find(x => x.id === S.actId);
@@ -2669,7 +2730,8 @@ function renderActDetail() {
         <p class="muted small center" style="margin-top:10px">${my ? '✅ Ya votaste. Puedes cambiar tu voto' : 'Los demás participantes no ven tu voto. Puedes cambiarlo'} hasta que el organizador publique los resultados.</p>`
         : `<div class="card empty"><span class="e">🗳️</span>Todavía no hay opciones para votar.</div>`;
     }
-  } else if (a.kind === 'signup') {
+  } else if (a.kind === 'quiz') h += quizHTML(a);
+  else if (a.kind === 'signup') {
     const items = a.items || [], su = S.signups.filter(x => x.act === a.id);
     h += `<div class="h2row"><h2>📝 Apúntate</h2><span class="muted small">${su.length}/${items.length}</span></div>`;
     if (!S.me) h += needLogin('Entra con tu PIN para apuntarte.');
@@ -2684,6 +2746,8 @@ function renderActDetail() {
 }
 $('#act-root').addEventListener('click', async e => {
   const a = S.activities.find(x => x.id === S.actId); if (!a) return;
+  const qb = e.target.closest('[data-qa],[data-qstart],[data-qback]');
+  if (qb) return quizClick(a, qb);
   const t = e.target.closest('[data-reveal],[data-vote],[data-sign],[data-unsign]'); if (!t) return;
   try {
     if (t.dataset.reveal) { S.revealed[a.id] = !S.revealed[a.id]; if (S.revealed[a.id]) confetti(70); renderActDetail(); }
@@ -3021,7 +3085,6 @@ async function openParty() {
   try { qs = (await getDocs(collection(adb, 'questions'))).docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at)); } catch { }
   try { ag = (await getDocs(collection(adb, 'angelGuess'))).docs.map(d => ({ id: d.id, ...d.data() })); } catch { }
   let authors = {}; try { (await getDocs(collection(adb, 'questionAuthors'))).forEach(d => { authors[d.id] = d.data().uid; }); } catch { }
-  const T = await loadTrivia();
   const choice = await new Promise(res => {
     const s2 = openModal(`<h3>📺 Abrir el modo fiesta</h3><p class="muted">Al abrirlo ya nadie podrá mandar pistas ni cambiar su sospecha.</p>
       <div class="stack" style="margin-top:14px"><button class="btn gold" data-a="cont">▶️ Continuar donde quedé</button>
@@ -3039,25 +3102,10 @@ async function openParty() {
   } catch (e) { console.warn(e); }
   PARTY_SUBS.forEach(u => u()); PARTY_SUBS = [
     onSnapshot(collection(adb, 'anonVotes'), s => { S.anonVotesLive = s.docs.map(d => d.data()); if (PARTY) paintParty(); }, () => { }),
-    onSnapshot(collection(adb, 'triviaAns'), s => { S.triviaLive = s.docs.map(d => d.data()); if (PARTY) paintParty(); }, () => { })];
+  ];
   const c = S.event, slides = [];
   const big = (e, t, sub = '') => `<div class="pe">${e}</div><div class="pt">${t}</div>${sub ? `<div class="ps">${sub}</div>` : ''}`;
   slides.push({ html: () => big('🎁', esc(c.eventName || 'Angelito de Navidad'), `¡Bienvenidos! · ${S.participants.length} participantes`) });
-  // trivia
-  if (T.length) {
-    slides.push({ html: () => big('🎲', 'Trivia navideña', '📱 Respondan desde su teléfono. ¡Gana el más rápido y certero!') });
-    T.forEach((t, qi) => slides.push({ steps: 2, step: 0,
-      onEnter: s => { if (!s.step) (PARTY.opened ||= {})[qi] = Date.now(); setLive(s.step ? { mode: 'trivia', qi, q: t.q, o: t.o, open: false, correct: t.c, n: qi + 1, total: T.length } : { mode: 'trivia', qi, q: t.q, o: t.o, open: true, n: qi + 1, total: T.length }); },
-      onStep: s => { setLive({ mode: 'trivia', qi, q: t.q, o: t.o, open: false, correct: t.c, n: qi + 1, total: T.length }); confetti(50); },
-      html: s => { const an = S.triviaLive.filter(a => a.qi === qi); const okN = an.filter(a => a.a === t.c);
-        return `<div class="ps">Pregunta ${qi + 1} de ${T.length}</div><div class="pq" style="margin:2vh 0">${esc(t.q)}</div>
-          <div class="ptv">${t.o.map((o, i) => `<div class="${s.step && i === t.c ? 'ok' : ''}"><b class="gold">${'ABCD'[i]}</b> ${esc(o)}${s.step ? ` <span class="muted">· ${an.filter(a => a.a === i).length}</span>` : ''}</div>`).join('')}</div>
-          <div class="ps" style="margin-top:3vh">${s.step ? `✅ Acertaron: ${okN.sort((a, b) => ms(a.t) - ms(b.t)).slice(0, 8).map(a => esc(P(a.uid)?.first || '')).join(', ') || 'nadie 😅'}` : `📱 ${an.length} ${an.length === 1 ? 'respuesta' : 'respuestas'} · toca para ver la correcta`}</div>`; } }));
-    slides.push({ onEnter: () => { setLive({ mode: 'none' }); confetti(160); }, html: () => {
-      const sc = {}; S.triviaLive.forEach(a => { const t = T[a.qi]; if (!t) return; const x = sc[a.uid] ||= { n: 0, t: 0 }; if (a.a === t.c) { x.n++; x.t += Math.max(0, ms(a.t) - (PARTY?.opened?.[a.qi] || 0)); } });
-      const rk = Object.entries(sc).filter(([u]) => P(u)).sort((a, b) => b[1].n - a[1].n || a[1].t - b[1].t).slice(0, 5);
-      return `<div class="pe">🏆</div><div class="pt">Ranking de la trivia</div>${rk.length ? `<div class="pbars">${rk.map(([u, x], i) => `<div class="pbar"><i style="width:${x.n / (rk[0][1].n || 1) * 100}%"></i><span>${['🥇', '🥈', '🥉', '4.', '5.'][i]} ${esc(pEmoji(u))} ${esc(pName(u))}</span><b>${x.n}</b></div>`).join('')}</div>` : '<div class="ps">Nadie respondió 😅</div>'}`; } });
-  }
   // parejas
   const pairs = Object.entries(S.assignments).filter(([g, a]) => P(g) && P(a.recipient)).map(([g, a]) => ({ g, r: a.recipient }));
   shuffle(pairs);
@@ -3483,20 +3531,6 @@ document.addEventListener('click', async e => {
 });
 
 /* ---------- 🎲 trivia + 🕵️ quién escribió (en vivo) ---------- */
-const TRIVIA_DEFAULT = [
-  ['¿En qué país nació la tradición del árbol de Navidad moderno?', 'Alemania', 'Francia', 'Italia', 'España', 0],
-  ['¿Cómo se llama el reno de nariz roja?', 'Cometa', 'Rodolfo', 'Trueno', 'Bailarín', 1],
-  ['¿Qué día se celebra el Día de Reyes?', '25 de diciembre', '1 de enero', '6 de enero', '31 de diciembre', 2],
-  ['¿Qué plato no puede faltar en una Nochebuena dominicana?', 'Sushi', 'Paella', 'Pizza', 'Puerco asado', 3],
-  ['¿Cómo se llaman los Reyes Magos?', 'Melchor, Gaspar y Baltasar', 'Pedro, Pablo y Juan', 'Mateo, Marcos y Lucas', 'José, David y Salomón', 0],
-  ['Según la tradición, ¿en qué ciudad nació Jesús?', 'Nazaret', 'Belén', 'Jerusalén', 'Roma', 1],
-  ['¿De qué colores es el traje de Santa Claus?', 'Verde y dorado', 'Azul y blanco', 'Rojo y blanco', 'Morado y negro', 2],
-  ['¿Bajo qué planta se besan las parejas en Navidad?', 'Pino', 'Laurel', 'Flor de pascua', 'Muérdago', 3],
-  ['¿Qué flor roja, originaria de México, es símbolo de la Navidad?', 'Flor de Pascua', 'Rosa', 'Tulipán', 'Girasol', 0],
-  ['¿Qué fecha es la Nochebuena?', '25 de diciembre', '24 de diciembre', '31 de diciembre', '6 de enero', 1],
-  ['En RD, ¿qué es el "angelito"?', 'Un postre', 'Un villancico', 'El intercambio de regalos secreto', 'Un adorno', 2],
-  ['¿Qué se suele comer a las 12 de la noche del 31 en muchos países latinos?', '12 aceitunas', '12 dulces', '12 galletas', '12 uvas', 3]
-].map(([q, a, b, c, d, k]) => ({ q, o: [a, b, c, d], c: k }));
 function parseTrivia(txt) {
   return txt.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
     const parts = l.split('|').map(x => x.trim()); if (parts.length < 3) return null;
@@ -3505,14 +3539,6 @@ function parseTrivia(txt) {
   }).filter(x => x && x.o.length >= 2);
 }
 const triviaText = list => list.map(t => [t.q, ...t.o.map((o, i) => (i === t.c ? '*' : '') + o)].join(' | ')).join('\n');
-let triviaCache = null;
-async function loadTrivia() { try { const s = await getDoc(doc(adb, 'secret', 'trivia')); triviaCache = s.exists() && Array.isArray(s.data().list) && s.data().list.length ? s.data().list : TRIVIA_DEFAULT; } catch { triviaCache = TRIVIA_DEFAULT; } return triviaCache; }
-$('#tv-load').addEventListener('click', async () => { $('#tv-text').value = triviaText(await loadTrivia()); });
-$('#tv-default').addEventListener('click', () => { $('#tv-text').value = triviaText(TRIVIA_DEFAULT); });
-$('#tv-save').addEventListener('click', async () => {
-  const list = parseTrivia($('#tv-text').value); if (!list.length) return toast('Escribe al menos una pregunta');
-  try { await setDoc(doc(adb, 'secret', 'trivia'), { list }); triviaCache = list; toast(`🎲 ${list.length} ${list.length === 1 ? 'pregunta guardada' : 'preguntas guardadas'}`); } catch (err) { toast(authErr(err)); }
-});
 async function setLive(o) { try { await setDoc(doc(adb, 'party', 'live'), { ...o, ts: Date.now() }); } catch (e) { console.warn('live', e); } }
 
 // teléfonos: tarjeta en vivo
@@ -3548,19 +3574,17 @@ document.addEventListener('click', async e => {
 async function saveMemories() {
   if (!S.isOwner) return;
   if (!(await confirmBox('¿Guardar los recuerdos del año?', S.reveal ? 'Todos podrán verlos en Inicio, incluidas las parejas.' : 'Todavía no hiciste la gran revelación, así que las parejas NO se incluirán (para no arruinar la sorpresa). Puedes volver a guardar después de revelar.', 'Guardar'))) return;
-  await loadTrivia();
   const c = S.event, year = (c.eventDate || '').slice(0, 4) || String(new Date().getFullYear());
   toast('Guardando recuerdos… 📖');
   const get = async n => { try { return (await getDocs(collection(adb, n))).docs.map(d => ({ id: d.id, ...d.data() })); } catch { return []; } };
-  const [chat, sugs, sv, wishes, photos, tr] = await Promise.all(['chat', 'suggestions', 'sugVotes', 'wishes', 'photos', 'triviaAns'].map(get));
+  const [chat, sugs, sv, wishes, photos] = await Promise.all(['chat', 'suggestions', 'sugVotes', 'wishes', 'photos'].map(get));
   const nm = id => P(id)?.name || '—';
   const pairs = S.reveal ? Object.entries(S.assignments).filter(([g]) => P(g)).map(([g, a]) => ({ g: nm(g), r: nm(a.recipient) })) : [];
   const votes = S.activities.filter(a => a.kind === 'vote').map(a => {
     const vs = S.adminVotes.filter(v => v.act === a.id); const cnt = {}; vs.forEach(v => cnt[v.choice] = (cnt[v.choice] || 0) + 1);
     const best = Object.entries(cnt).sort((x, y) => y[1] - x[1])[0]; return best ? { title: a.title, winner: a.voteTarget === 'participants' ? nm(best[0]) : best[0], n: best[1] } : null;
   }).filter(Boolean);
-  const score = {}; tr.forEach(x => { const t = triviaCache[x.qi]; if (t && x.a === t.c) score[x.uid] = (score[x.uid] || 0) + 1; });
-  const tw = Object.entries(score).sort((a, b) => b[1] - a[1])[0];
+  const qz = S.activities.find(a => a.kind === 'quiz' && a.resultsOpen && a.results?.[0]?.count), tw = qz ? [qz.results[0].key, qz.results[0].count] : null;
   const rc = {}; chat.forEach(m => { rc[m.id] = Object.keys(m.r || {}).length; });
   const topChat = chat.filter(m => rc[m.id]).sort((a, b) => rc[b.id] - rc[a.id]).slice(0, 3).map(m => ({ text: m.text.slice(0, 200), who: nm(m.uid), n: rc[m.id] }));
   const vc = {}; sv.forEach(v => vc[v.sug] = (vc[v.sug] || 0) + 1);
@@ -3601,7 +3625,7 @@ $('#ny-go').addEventListener('click', async () => {
     if ($('#ny-txt', s2).value.trim().toUpperCase() !== 'NUEVO AÑO') { $('#ny-err', s2).textContent = 'Escribe NUEVO AÑO exactamente.'; return; }
     const btn = s2.querySelector('[data-a=ok]'); busy(btn, true);
     const cols = ['assignments', 'giftStatus', 'giftIncoming', 'guesses', 'angelGuess', 'hints', 'hintsSent', 'reveal', 'wishes', 'wishImg', 'wishPick', 'games', 'gameWins', 'attendance', 'questions', 'questionAuthors',
-      'suggestions', 'suggestionAuthors', 'sugVotes', 'activities', 'activityPicks', 'votes', 'activitySignups', 'rsvps', 'notices', 'thanks', 'anonVotes', 'triviaAns', 'party'];
+      'suggestions', 'suggestionAuthors', 'sugVotes', 'activities', 'activityPicks', 'votes', 'activitySignups', 'quizAns', 'quizKeys', 'rsvps', 'notices', 'thanks', 'anonVotes', 'triviaAns', 'party'];
     const wipeMedia = $('#ny-chat', s2).checked; if (wipeMedia) cols.push('chat', 'chatReacts', 'photos');
     try {
       { const b0 = writeBatch(adb); b0.delete(doc(adb, 'config', 'draw')); await b0.commit(); }

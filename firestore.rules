@@ -278,6 +278,20 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/activities/$(request.resource.data.act)).data.get('resultsOpen', false) == false;
       allow delete: if can('actividades') || goneAfter(resource.data.uid);
     }
+    // Trivia: las respuestas correctas solo las ve quien maneja actividades; cada quien responde una vez.
+    match /quizKeys/{id} {
+      allow read, write: if can('actividades') && okId(id);
+    }
+    match /quizAns/{id} {
+      allow read: if can('actividades') || (signedIn() && resource.data.uid == me());
+      allow create: if isParticipant() && request.resource.data.uid == me()
+        && id == request.resource.data.act + '__' + me()
+        && request.resource.data.keys().hasOnly(['act', 'uid', 'a', 'at']) && tsOk(request.resource.data)
+        && request.resource.data.a is list && request.resource.data.a.size() <= 60
+        && get(/databases/$(database)/documents/activities/$(request.resource.data.act)).data.get('kind', '') == 'quiz'
+        && get(/databases/$(database)/documents/activities/$(request.resource.data.act)).data.get('resultsOpen', false) == false;
+      allow delete: if can('actividades') || goneAfter(resource.data.uid);
+    }
     match /activitySignups/{id} {
       allow read: if member();
       allow create: if isParticipant() && request.resource.data.uid == me()

@@ -161,11 +161,7 @@
         <p class="muted small" style="margin-top:6px">Para el día del evento: conecta el teléfono o la computadora al TV y presenta con animación la revelación de cada angelito, los anónimos, las votaciones y las adivinanzas. Toca la pantalla (o la flecha →) para avanzar.</p>
         <button class="btn gold" id="party-open" style="margin-top:12px">📺 Abrir modo fiesta</button>
         <button class="btn" id="party-unlock" style="margin-top:8px" hidden>🔓 Reabrir pistas y sospechas <span class="muted small" style="display:block;font-weight:400">Si abriste el modo fiesta solo para ensayar</span></button>
-        <details style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">🎲 Preguntas de la trivia</summary>
-          <p class="muted small" style="margin-top:8px">Una por línea: <code>Pregunta | opción | *correcta | opción | opción</code> (marca la correcta con *). Nadie más las puede ver.</p>
-          <textarea class="in" id="tv-text" style="min-height:160px;margin-top:8px" placeholder="Toca 'Cargar' para ver las actuales"></textarea>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" id="tv-load">Cargar</button><button class="btn sm" id="tv-default">Usar las de ejemplo</button><button class="btn sm gold" id="tv-save">Guardar</button></div>
-        </details>
+        
       </div>
 
       <div class="card admin-sec" data-grp="ajustes" data-ord="3" data-perm="owner">
@@ -301,6 +297,7 @@
           <button class="chip" type="button" data-preset="biblicos">📖 Personajes bíblicos</button>
           <button class="chip" type="button" data-preset="vestido">👗 Mejor vestido</button>
           <button class="chip" type="button" data-preset="karaoke">🎤 Karaoke de villancicos</button>
+          <button class="chip" type="button" data-preset="trivia">❓ Trivia navideña</button>
           <button class="chip" type="button" data-preset="regalo">🏆 Mejor regalo</button>
         </div>
         <form class="stack" id="a-form" style="margin-top:12px">
@@ -308,7 +305,7 @@
           <div class="row3">
             <label class="field"><span>Actividad</span><input class="in" name="title" maxlength="60" required placeholder="Cena y fotos"></label>
             <label class="field"><span>Ícono</span><select class="in" name="emoji">
-              <option>🎁</option><option>🍽️</option><option>🎄</option><option>🎶</option><option>🎤</option><option>📸</option><option>🎲</option><option>🥂</option><option>⛪</option><option>📖</option><option>👗</option><option>🏆</option><option>🛍️</option><option>🍪</option><option>🎅</option><option>✨</option>
+              <option>🎁</option><option>🍽️</option><option>🎄</option><option>🎶</option><option>🎤</option><option>📸</option><option>🎲</option><option>🥂</option><option>⛪</option><option>📖</option><option>👗</option><option>🏆</option><option>🛍️</option><option>🍪</option><option>🎅</option><option>✨</option><option>❓</option><option>🧠</option>
             </select></label>
           </div>
           <div class="row">
@@ -333,11 +330,12 @@
             <option value="assign">🎭 Asignación al azar (personajes, canciones, colores…)</option>
             <option value="vote">🗳️ Votación</option>
             <option value="signup">📝 Lista para apuntarse (cada quien toma un puesto)</option>
+            <option value="quiz">❓ Trivia (preguntas con respuesta correcta)</option>
           </select></label>
           <label class="field" id="a-vt-f"><span>¿Qué se vota?</span><select class="in" name="voteTarget">
             <option value="participants">A los participantes</option><option value="options">Opciones que yo escribo</option>
           </select></label>
-          <label class="field" id="a-items-f"><span id="a-items-l">Opciones (una por línea)</span><textarea class="in" name="items" style="min-height:120px"></textarea></label>
+          <label class="field" id="a-items-f"><span id="a-items-l">Opciones (una por línea)</span><small class="muted" id="a-quiz-h" style="display:none">Así: <code>Pregunta | opción | *correcta | opción</code> · marca la correcta con <b>*</b> · de 2 a 4 opciones (sirve para verdadero o falso). Solo el organizador ve las respuestas.</small><textarea class="in" name="items" style="min-height:120px"></textarea></label>
           <label class="chk" id="a-secret-f"><input type="checkbox" name="secret" checked> Secreto: cada quien ve solo lo suyo</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn gold" type="submit" id="a-submit">Agregar actividad</button><button class="btn" type="button" id="a-cancel" style="display:none">Cancelar edición</button></div>
         </form></details>
