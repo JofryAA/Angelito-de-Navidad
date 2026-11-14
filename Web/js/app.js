@@ -1617,7 +1617,9 @@ function mentionQuery() { const i = $('#c-text'), v = i.value.slice(0, i.selecti
 function renderMentionBar() {
   const box = $('#c-mention'); if (!box) return;
   const q = mentionQuery(); if (q == null) { box.innerHTML = ''; box.hidden = true; return; }
-  const nq = normName(q), list = S.participants.filter(p => p.id !== S.uid && normName(p.name).includes(nq)).slice(0, 8);
+  // coincide si el nombre o el apellido EMPIEZA con lo escrito ("@as" → Asael, no Nicole Cuevas); primero los que empiezan por el nombre
+  const nq = normName(q), rank = p => { const w = normName(p.name).split(/\s+/); return w[0].startsWith(nq) ? 0 : w.some(x => x.startsWith(nq)) ? 1 : 9; };
+  const list = S.participants.filter(p => p.id !== S.uid && rank(p) < 9).sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name)).slice(0, 8);
   const all = 'todos'.startsWith(nq);
   box.hidden = !list.length && !all;
   box.innerHTML = (all ? '<button type="button" data-ment="all" class="mall">📣 @todos</button>' : '') + list.map(p => `<button type="button" data-ment="${esc(p.id)}">${esc(p.emoji)} ${esc(mLabel(p))}</button>`).join('');
