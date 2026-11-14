@@ -279,8 +279,8 @@ export function initGames(X) {
     if (g.status === 'playing' && !g.handOver && g.players[g.turn] === me() && G.seenTurn !== key) { G.seenTurn = key; if (navigator.vibrate) try { navigator.vibrate(60); } catch { } if (document.hidden) X.notify?.('🎲 ¡Te toca jugar!', g.title || 'Dominó', '#juegos'); }
     maybeBot();
   }
-  /* ----- reloj de turno: 30 s por jugada, con su barra ----- */
-  const TURN_MS = (typeof window !== 'undefined' && window.__turnMs) || 30000;
+  /* ----- reloj de turno: dominó 1 minuto, los demás 30 s, con su barra ----- */
+  const turnMs = () => (typeof window !== 'undefined' && window.__turnMs) || (G.cur?.type === 'domino' ? 60000 : 30000); // dominó: 1 minuto; los demás: 30 s
   const live = g => g && g.status === 'playing' && !g.handOver && Array.isArray(g.players);
   function armClock() {
     const g = G.cur;
@@ -289,11 +289,11 @@ export function initGames(X) {
     if (key === G.turnKey) return;
     G.turnKey = key; G.turnStart = Date.now(); clearTimeout(G.clockT); clearTimeout(G.dogT);
     const seat = g.players[g.turn];
-    if (seat === me()) G.clockT = setTimeout(() => { if (G.turnKey === key) autoMove(); }, TURN_MS);
-    else if (g.host === me() && !isBot(seat)) G.clockT = setTimeout(() => { if (G.turnKey === key) skipTurn(seat); }, TURN_MS + 6000); // si la persona no está, se salta su turno
+    if (seat === me()) G.clockT = setTimeout(() => { if (G.turnKey === key) autoMove(); }, turnMs());
+    else if (g.host === me() && !isBot(seat)) G.clockT = setTimeout(() => { if (G.turnKey === key) skipTurn(seat); }, turnMs() + 6000); // si la persona no está, se salta su turno
     if (g.host === me() && isBot(seat)) { const dog = () => { if (G.turnKey !== key) return; maybeBot(true); G.dogT = setTimeout(dog, 5000); }; G.dogT = setTimeout(dog, 5000); } // por si el 🤖 se quedó sin jugar
   }
-  const clockBar = () => `<i class="tbar" style="animation-duration:${TURN_MS / 1000}s;animation-delay:-${Math.min(TURN_MS - 1, Math.max(0, Date.now() - (G.turnStart || Date.now()))) / 1000}s"></i>`;
+  const clockBar = (T = turnMs()) => `<i class="tbar" style="animation-duration:${T / 1000}s;animation-delay:-${Math.min(T - 1, Math.max(0, Date.now() - (G.turnStart || Date.now()))) / 1000}s"></i>`;
   function autoMove() { // se acabó tu tiempo: la app juega por ti
     const g = G.cur; if (!live(g) || g.players[g.turn] !== me()) return;
     toast('⏰ Se acabó el tiempo: jugamos por ti');
