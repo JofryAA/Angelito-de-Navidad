@@ -412,6 +412,14 @@ a.btn{text-decoration:none}
 .tab{letter-spacing:-.01em}@media(max-width:390px){.tab{font-size:.58rem}}
 .ideaform{display:flex;flex-direction:column;gap:10px;padding:16px}.ideaform textarea{min-height:64px}
 .idearow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.signsw{display:flex;align-items:center;gap:10px;flex:1;min-width:0;max-width:330px;padding:6px 8px 6px 6px;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.18);color:inherit;font:inherit;text-align:left;cursor:pointer;min-height:48px;transition:border-color .2s,background .2s}
+.signsw .ss-av{width:36px;height:36px;flex:none;border-radius:12px;display:grid;place-items:center;font-size:19px;background:var(--card);border:1px solid var(--line)}
+.signsw .ss-t{flex:1;min-width:0;line-height:1.2}.signsw .ss-t b{display:block;font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.signsw .ss-t small{display:block;font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.signsw .ss-tg{width:44px;height:26px;flex:none;border-radius:99px;background:rgba(255,255,255,.14);position:relative;transition:background .2s}
+.signsw .ss-tg i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);transition:transform .2s}
+.signsw.on{border-color:rgba(236,188,92,.6);background:rgba(236,188,92,.12)}.signsw.on .ss-av{background:rgba(236,188,92,.2);border-color:rgba(236,188,92,.5)}
+.signsw.on .ss-t b{color:var(--gold)}.signsw.on .ss-tg{background:var(--gold)}.signsw.on .ss-tg i{transform:translateX(18px)}
+.idearow{gap:10px}
 .signchip{padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:inherit;font:inherit;font-size:.82rem;font-weight:700}
 .signchip.on{border-color:var(--gold);color:var(--gold);background:rgba(236,188,92,.14)}
 .sugrow{display:flex;gap:12px;align-items:center}.sug{padding:12px 14px}.sug .meta{margin-top:6px}
@@ -2791,7 +2799,8 @@ function renderSuggestions() {
   else if (!$('#s-form')) fb.innerHTML = `<form class="card ideaform" id="s-form">
       <b>💡 Propón una idea para el angelito</b>
       <textarea class="in" id="s-text" maxlength="600" rows="2" placeholder="Que juguemos dominó después de la cena…" required></textarea>
-      <div class="idearow"><button type="button" class="signchip" id="s-sign" aria-label="Mostrar mi nombre"><span id="s-hint">🕶️ Anónima</span></button><button class="btn gold sm" type="submit" id="s-go">Enviar</button></div></form>`;
+      <div class="idearow"><button type="button" class="signsw" id="s-sign" role="switch" aria-checked="false" aria-label="Firmar con mi nombre"><span class="ss-av" id="s-av">🕶️</span><span class="ss-t"><b id="s-hint">Anónima</b><small id="s-sub">Nadie sabrá quién fue</small></span><span class="ss-tg" aria-hidden="true"><i></i></span></button><button class="btn gold sm" type="submit" id="s-go">Enviar</button></div></form>`;
+  try { if (localStorage.getItem('angelito:signIdeas') === '1') setSign(true); } catch { }
   const list = $('#s-list');
   if (!S.me && !S.isAdmin) { list.innerHTML = ''; return; }
   const votes = id => S.sugVotes.filter(v => v.sug === id);
@@ -2808,9 +2817,15 @@ function renderSuggestions() {
 }
 $('#s-formbox').addEventListener('click', e => {
   if (!e.target.closest('#s-sign')) return;
-  const t = $('#s-sign'); t.classList.toggle('on'); const on = t.classList.contains('on');
-  $('#s-hint').textContent = on ? `${S.me.emoji} Con mi nombre` : '🕶️ Anónima';
+  const on = !$('#s-sign').classList.contains('on'); setSign(on);
+  try { localStorage.setItem('angelito:signIdeas', on ? '1' : '0'); } catch { }
 });
+function setSign(on) {
+  const t = $('#s-sign'); if (!t) return; t.classList.toggle('on', on); t.setAttribute('aria-checked', String(on));
+  $('#s-av').textContent = on ? (S.me?.emoji || '🙂') : '🕶️';
+  $('#s-hint').textContent = on ? 'Con mi nombre' : 'Anónima';
+  $('#s-sub').textContent = on ? `Firmada: ${shortName(S.me) || 'tú'}` : 'Nadie sabrá quién fue';
+}
 $('#s-formbox').addEventListener('submit', async e => {
   e.preventDefault(); if (e.target.id !== 's-form') return;
   const text = $('#s-text').value.trim(); if (!text) return;
