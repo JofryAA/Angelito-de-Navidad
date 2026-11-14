@@ -699,3 +699,5 @@ body.kb.chat-on .top,body.kb.chat-on #v-buzon>.sec-title,body.kb.chat-on #buz-se
 @media(prefers-reduced-motion:reduce){#helper.pend .hb-btn,.hb-bub{animation:none}}
 body.adm-view #helper,body.kb #helper{display:none!important}
 .helpsteps{margin:10px 0 0 18px;line-height:1.7}.helpsteps b{color:var(--cream)}
+
+.xck{font-size:.84rem;line-height:1.4;padding:9px 12px;border-radius:12px;margin-top:6px}.xck.err{background:rgba(226,72,63,.16);border:1px solid rgba(226,72,63,.45);color:#ffd0cb}.xck.warn{background:rgba(236,188,92,.12);border:1px solid rgba(236,188,92,.4)}.xck.ok{background:rgba(70,160,110,.14);border:1px solid rgba(70,160,110,.4)}

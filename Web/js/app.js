@@ -2213,21 +2213,55 @@ $('#p-list').addEventListener('click', async e => {
 });
 // Restricciones: pares { a: quien regala, b: a quien no le puede salir, both: también al revés }
 function blockedSet() { const s = new Set(); for (const r of S.drawRules || []) { s.add(r.a + '>' + r.b); if (r.both) s.add(r.b + '>' + r.a); } return s; }
-function drawRing(ids) {
-  const bad = blockedSet(), ok = (x, y) => x !== y && !bad.has(x + '>' + y);
-  for (let t = 0; t < 4000; t++) { // al azar: con pocas restricciones sale al primer intento
-    const r = shuffle([...ids]);
-    if (r.every((x, i) => ok(x, r[(i + 1) % r.length]))) return Object.fromEntries(r.map((x, i) => [x, r[(i + 1) % r.length]]));
-  }
-  // búsqueda completa (muchas restricciones): arma la cadena paso a paso, volviendo atrás si se tranca
-  const n = ids.length, path = [ids[0]], used = new Set(path); let steps = 0;
+// ---- Sorteo con restricciones: método seguro ----
+// 1) Primero se busca UNA sola cadena (A→B→C→…→A): al azar y, si cuesta, paso a paso eligiendo siempre a quien
+//    tiene menos opciones (así no se tranca).
+// 2) Si no existe una cadena única, se usa un emparejamiento perfecto (método exacto de caminos de aumento):
+//    sigue siendo un sorteo válido —todos dan y reciben una vez, nadie se toca a sí mismo y se respetan TODAS
+//    las restricciones—, aunque pueda formar varios círculos.
+// 3) Si ni eso existe, es matemáticamente imposible, y drawCheck dice exactamente por qué y a quién afecta.
+function drawRing(ids) { return drawPlan(ids).next; }
+function drawPlan(ids) {
+  const bad = blockedSet(), ok = (x, y) => x !== y && !bad.has(x + '>' + y), n = ids.length;
+  const outs = Object.fromEntries(ids.map(x => [x, ids.filter(y => ok(x, y))]));
+  const ins = Object.fromEntries(ids.map(y => [y, ids.filter(x => ok(x, y))]));
+  const zeroOut = ids.filter(x => !outs[x].length), zeroIn = ids.filter(y => !ins[y].length);
+  if (n < 2 || zeroOut.length || zeroIn.length) return { next: null, zeroOut, zeroIn, outs };
+  const ring = r => Object.fromEntries(r.map((x, i) => [x, r[(i + 1) % r.length]]));
+  for (let t = 0; t < 3000; t++) { const r = shuffle([...ids]); if (r.every((x, i) => ok(x, r[(i + 1) % n]))) return { next: ring(r), cycle: true, outs }; }
+  const start = ids.reduce((m, x) => outs[x].length < outs[m].length ? x : m, ids[0]);
+  const path = [start], used = new Set(path); let steps = 0;
   const go = () => {
-    if (++steps > 200000) return false;
-    if (path.length === n) return ok(path[n - 1], path[0]);
-    for (const y of shuffle(ids.filter(z => !used.has(z)))) if (ok(path[path.length - 1], y)) { path.push(y); used.add(y); if (go()) return true; path.pop(); used.delete(y); }
+    if (++steps > 300000) return false;
+    const last = path[path.length - 1];
+    if (path.length === n) return ok(last, start);
+    const cand = shuffle(outs[last].filter(z => !used.has(z)))
+      .sort((a, b) => outs[a].filter(z => !used.has(z)).length - outs[b].filter(z => !used.has(z)).length);
+    for (const y of cand) { path.push(y); used.add(y); if (go()) return true; path.pop(); used.delete(y); }
     return false;
   };
-  return go() ? Object.fromEntries(path.map((x, i) => [x, path[(i + 1) % n]])) : null;
+  if (go()) return { next: ring(path), cycle: true, outs };
+  // emparejamiento perfecto exacto (Kuhn): a cada quien un destinatario distinto permitido
+  const match = {}; // destinatario -> quien le regala
+  const aug = (x, seen) => { for (const y of shuffle([...outs[x]])) { if (seen.has(y)) continue; seen.add(y); if (!match[y] || aug(match[y], seen)) { match[y] = x; return true; } } return false; };
+  const fails = []; for (const x of shuffle([...ids])) if (!aug(x, new Set())) fails.push(x);
+  if (fails.length) return { next: null, fails, outs };
+  return { next: Object.fromEntries(Object.entries(match).map(([y, x]) => [x, y])), cycle: false, outs };
+}
+// Revisión para el organizador: ¿se puede sortear? ¿alguien queda con tan pocas opciones que adivinaría quién le tocó?
+function drawCheck(ids = S.participants.map(p => p.id)) {
+  const nm = id => shortName(P(id)) || '?', plan = drawPlan(ids), msgs = [];
+  if (!plan.next) {
+    if (plan.zeroOut?.length) msgs.push(['err', `A ${plan.zeroOut.map(nm).join(', ')} no le puede salir nadie.`]);
+    if (plan.zeroIn?.length) msgs.push(['err', `${plan.zeroIn.map(nm).join(', ')} no le puede salir a nadie.`]);
+    if (plan.fails?.length) msgs.push(['err', `Hay demasiadas restricciones entre ${plan.fails.map(nm).join(', ')} y los demás: no alcanza para que todos tengan a alguien distinto.`]);
+    if (!msgs.length) msgs.push(['err', 'Con estas restricciones no hay forma de sortear.']);
+  } else {
+    if (!plan.cycle) msgs.push(['warn', 'Se puede sortear, pero no en una sola cadena: algunos se regalarán entre ellos en grupitos. Sigue siendo válido.']);
+    const tight = ids.filter(x => plan.outs[x].length <= 2 && ids.length > 3);
+    if (tight.length) msgs.push(['warn', `Pocas opciones: a ${tight.map(x => `${nm(x)} (${plan.outs[x].length})`).join(', ')} casi le podrían adivinar quién le toca.`]);
+  }
+  return { ok: !!plan.next, msgs };
 }
 function renderDrawRules() {
   if (!S.isOwner || !$('#x-list')) return;
@@ -2238,6 +2272,10 @@ function renderDrawRules() {
   $('#x-count').textContent = rules.length || '';
   $('#x-list').innerHTML = rules.length ? rules.map((r, i) => `<div class="prow" style="align-items:center"><div style="flex:1;min-width:0">${esc(P(r.a).emoji)} <b>${esc(shortName(P(r.a)))}</b> ${r.both ? '⇄' : '→'} 🚫 ${esc(P(r.b).emoji)} <b>${esc(shortName(P(r.b)))}</b><div class="muted small">${r.both ? 'No se tocan entre ellos' : `A ${esc(shortName(P(r.a)))} no le sale ${esc(shortName(P(r.b)))}`}</div></div><button class="x" data-xdel="${i}" aria-label="Quitar">✕</button></div>`).join('')
     : '<p class="muted small">Sin restricciones: cualquiera le puede salir a cualquiera.</p>';
+  const ck = rules.length ? drawCheck() : { ok: true, msgs: [] };
+  if (ck.ok && !ck.msgs.length && rules.length) ck.msgs.push(['ok', '✅ Todo bien: el sorteo se puede hacer respetando estas restricciones.']);
+  $('#x-list').insertAdjacentHTML('beforeend', ck.msgs.map(([k, m]) => `<div class="xck ${k}">${k === 'err' ? '⛔ ' : k === 'warn' ? '⚠️ ' : ''}${esc(m)}</div>`).join(''));
+  $('#d-gen').disabled = !ck.ok; $('#d-gen').title = ck.ok ? '' : 'Arregla las restricciones primero';
 }
 const saveRules = pairs => setDoc(doc(adb, 'drawRules', 'main'), { pairs, at: serverTimestamp() });
 $('#x-form').addEventListener('submit', async e => {
@@ -2249,8 +2287,10 @@ $('#x-form').addEventListener('submit', async e => {
   if (cur.some(r => (r.a === a && r.b === b) || (r.both && r.a === b && r.b === a))) return toast('Esa restricción ya existe');
   if (cur.length >= 60) return toast('Máximo 60 restricciones');
   const pairs = [...cur, { a, b, both }];
-  const keep = S.drawRules; S.drawRules = pairs; const possible = !!drawRing(S.participants.map(p => p.id)); S.drawRules = keep;
-  if (!possible) return toast('🚫 Con esa restricción ya no habría forma de sortear');
+  const keep = S.drawRules; S.drawRules = pairs; const ck = drawCheck(); S.drawRules = keep;
+  if (!ck.ok) return openModal(`<h3>🚫 Esa restricción rompe el sorteo</h3><p class="muted">${esc(ck.msgs.map(m => m[1]).join(' '))}</p><p class="muted small" style="margin-top:8px">No la guardé. Quita otra restricción o pon esta solo en un sentido.</p><div class="actions"><button class="btn gold" data-a="close">Entendido</button></div>`).onclick = e => { if (e.target.closest('[data-a]')) closeModal(); };
+  const warn = ck.msgs.filter(m => m[0] === 'warn').map(m => m[1]);
+  if (warn.length && !(await confirmBox('⚠️ Ojo con esta restricción', warn.join(' '), 'Guardar igual'))) return;
   try { await saveRules(pairs); $('#x-a').value = $('#x-b').value = ''; toast(S.drawMeta ? '✅ Guardada. Vuelve a sortear para aplicarla' : '✅ Restricción guardada'); } catch (err) { toast(authErr(err)); }
 });
 $('#x-list').addEventListener('click', async e => {
@@ -2267,7 +2307,7 @@ $('#d-gen').addEventListener('click', async () => {
   // Una sola cadena: A→B→C→…→A. Nadie se toca a sí mismo, no hay parejas que se regalen mutuamente
   // y se respetan las restricciones del organizador ("a X no le puede salir Y").
   const next = drawRing(ids);
-  if (!next) return toast('🚫 Con estas restricciones no hay forma de sortear. Quita alguna e inténtalo otra vez.');
+  if (!next) return toast('🚫 ' + (drawCheck(ids).msgs[0]?.[1] || 'Con estas restricciones no hay forma de sortear.') + ' Revisa las restricciones.');
   const perm = ids.map(x => next[x]);
   try {
     // 1) primero se invalida el sorteo viejo: si algo falla a medias, la app no lo da por bueno
