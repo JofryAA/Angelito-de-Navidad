@@ -1429,6 +1429,13 @@ addEventListener('popstate', () => {
 });
 function openModal(html) { $('#sheet').innerHTML = html; $('#modal').classList.add('on'); sheetHistory(); return $('#sheet'); }
 function closeModal() { $('#modal').classList.remove('on'); $('#sheet').onclick = null; }
+// En computadora, la tecla Esc cierra la ventanita abierta (como tocar fuera o el botón atrás en el teléfono).
+addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || PARTY) return;
+  if ($('#csel').classList.contains('on')) { e.preventDefault(); $('#csel').classList.remove('on'); return; }
+  if ($('#modal').classList.contains('on') && !S.spinning && !S.forcePin) { e.preventDefault(); closeModal(); }
+});
+const nMsg = n => `${n} ${n === 1 ? 'mensaje' : 'mensajes'}`;
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal' && !S.spinning && !S.forcePin) closeModal(); });
 function confirmBox(title, body, ok = 'Sí, continuar') {
   return new Promise(res => {
@@ -2246,7 +2253,7 @@ function renderQuestions() {
     board.innerHTML = `<div class="card vault"><span class="lock">🔓</span><div class="big">${n}</div><div class="muted">¡El buzón ya está abierto! Entra para leerlos.</div></div>`;
   } else {
     const qs = S.questions;
-    board.innerHTML = qs.length ? `<div class="h2row" style="margin-top:0"><h2>🎉 ¡Se abrió el buzón!</h2><span class="muted small">${qs.length} mensajes</span></div>
+    board.innerHTML = qs.length ? `<div class="h2row" style="margin-top:0"><h2>🎉 ¡Se abrió el buzón!</h2><span class="muted small">${nMsg(qs.length)}</span></div>
       <div class="qgrid">${qs.map((q, i) => `<div class="q" style="--rot:${((i * 37) % 7) - 3}deg;background:${QCOLORS[i % QCOLORS.length]};animation-delay:${Math.min(i, 12) * 60}ms">
         <div class="to">${q.to ? (P(q.to) ? 'Para ' + esc(pName(q.to)) : 'Para alguien del grupo') : 'Para todos'}</div><div class="txt">${esc(q.text)}</div></div>`).join('')}</div>`
       : `<div class="card empty"><span class="e">📭</span>${S.qSubOn ? 'El buzón está abierto pero vacío.' : 'Abriendo el buzón…'}</div>`;
@@ -2466,7 +2473,7 @@ function renderChat() {
   wrap.style.display = can ? '' : 'none';
   $('#c-form').style.display = S.me ? '' : 'none'; $('#c-emo').style.display = S.me ? '' : 'none';
   if (!can) return;
-  $('#c-count').textContent = S.chat.length ? `${S.chat.length} mensajes` : '';
+  $('#c-count').textContent = S.chat.length ? nMsg(S.chat.length) : '';
   const sig = S.chat.map(m => m.id).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join();
   if (sig === chatSig) return; chatSig = sig;
   const l = $('#c-list'), near = l.scrollHeight - l.scrollTop - l.clientHeight < 80;
@@ -2947,7 +2954,7 @@ function renderAdmin() {
     : drawReady() ? `✅ Sorteo listo · <b>${spun} de ${S.participants.length}</b> ya giraron. Las parejas no se muestran aquí.`
       : '⚠️ Los participantes cambiaron después del sorteo. Vuelve a generarlo.';
   $('#d-gen').textContent = hasDraw ? 'Volver a sortear' : 'Generar sorteo';
-  $('#q-count').textContent = `${S.qCount} mensajes en el buzón · ${isRevealed() ? 'abiertos ahora' : 'se abren el ' + (fmtDate(revealDay()) || 'día del evento')}`;
+  $('#q-count').textContent = `${nMsg(S.qCount)} en el buzón · ${isRevealed() ? 'abiertos ahora' : 'se abren el ' + (fmtDate(revealDay()) || 'día del evento')}`;
   $('#a-list').innerHTML = S.activities.map(a => {
     let meta = '', btns = '';
     if (a.kind === 'assign') { meta = a.assignedAt ? `🎲 Repartido a ${Number(a.assignedN) || 0} · ${a.secret ? 'secreto' : 'público'}` : '🎲 Sin repartir'; btns = `<button class="btn sm gold" data-assign="${esc(a.id)}">${a.assignedAt ? 'Repartir de nuevo' : '🎲 Repartir'}</button>`; }
@@ -3297,7 +3304,7 @@ function renderActs() {
     const open = isRevealed(), rd = revealDay(), n = S.qCount || 0;
     const when = open ? '¡Ya está abierto!' : rd ? 'Se abre el ' + fmtDate(rd) : 'Se abre el día del intercambio';
     anon = `<a class="actcard card anoncard" href="#anonimos"><div class="em">💌</div>
-      <div style="flex:1;min-width:0"><div class="when">${esc(when)}</div><h3>Buzón anónimo</h3><span class="badge">${open ? '👀 Leer los ' + n + ' mensajes' : '✍️ Escribe sin que sepan quién · ' + n + ' guardados'}</span></div>
+      <div style="flex:1;min-width:0"><div class="when">${esc(when)}</div><h3>Buzón anónimo</h3><span class="badge">${open ? (n === 1 ? '👀 Leer el mensaje' : '👀 Leer los ' + n + ' mensajes') : '✍️ Escribe sin que sepan quién · ' + n + ' guardados'}</span></div>
       <span class="chev">›</span></a>`;
   }
   $('#acts-root').innerHTML = S.activities.length ? `<div class="stack">${anon}${S.activities.map(a => `
@@ -3703,7 +3710,7 @@ async function openParty() {
   }
   // anónimos
   if (qs.length) {
-    slides.push({ html: () => big('💌', 'Buzón anónimo', `${qs.length} mensajes`) });
+    slides.push({ html: () => big('💌', 'Buzón anónimo', nMsg(qs.length)) });
     qs.forEach((q, i) => slides.push({ steps: 2, step: 0, author: false,
       onEnter: s => setLive({ mode: 'anon', qid: q.id, text: q.text, open: s.step === 0 }),
       onStep: s => { setLive({ mode: 'anon', qid: q.id, text: q.text, open: false }); },
