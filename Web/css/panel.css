@@ -26,3 +26,4 @@ body.adm-view #cfg-bar{bottom:calc(16px + env(safe-area-inset-bottom))}
 
 .ab-link{display:inline-flex;align-items:center;gap:6px}.ab-link .ic{flex:none}
 .ab-t{min-width:0}.ab-t b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+#adm-nav .an-e{font-size:17px;line-height:1}

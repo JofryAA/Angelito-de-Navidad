@@ -46,7 +46,8 @@ export function decoratePanel(root) {
   });
 }
 // Barra de secciones del panel (desplazable, con íconos)
-export const navHTML = (groups, cur) => groups.map(([g, , l]) => `<button class="${g === cur ? 'on' : ''}" data-ag="${g}">${pic(g, 18)}<span>${l}</span></button>`).join('');
+// Con los mismos emojis de la barra de navegación de la app
+export const navHTML = (groups, cur) => groups.map(([g, e, l]) => `<button class="${g === cur ? 'on' : ''}" data-ag="${g}"><span class="an-e">${e}</span><span>${l}</span></button>`).join('');
 
 // Rellena <i data-pic="nombre"> con el ícono SVG correspondiente
 export function fillPics(root = document) { root.querySelectorAll('i[data-pic]').forEach(i => { i.outerHTML = pic(i.dataset.pic, 16); }); }
