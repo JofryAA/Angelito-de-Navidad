@@ -765,3 +765,81 @@ body.immersive.tabs-peek #tabs-handle svg{transform:rotate(180deg)}
 body.kb #tabs-handle{display:none!important}
 body.chat-on.immersive:not(.tabs-peek) #c-dock{bottom:calc(30px + env(safe-area-inset-bottom))}
 body.immersive:not(.tabs-peek) #helper{bottom:calc(110px + env(safe-area-inset-bottom))}
+
+/* ===== Sala de juegos: mesa de dominó (rediseño) ===== */
+.mesa{position:relative;display:flex!important;align-items:center;align-content:center!important;justify-content:center;min-height:190px;padding:12px!important;border-radius:26px;border:8px solid transparent!important;
+  background:
+    radial-gradient(120% 90% at 50% 35%,rgba(255,255,255,.07),transparent 60%) padding-box,
+    repeating-radial-gradient(circle at 30% 20%,rgba(0,0,0,.035) 0 1px,transparent 1px 3px) padding-box,
+    radial-gradient(circle at 50% 45%,#1d7a4c 0%,#13603a 45%,#0b3f26 100%) padding-box,
+    linear-gradient(145deg,#8a5a2e,#5a3518 35%,#3e230f 65%,#7a4b24) border-box;
+  box-shadow:inset 0 0 0 2px rgba(255,220,150,.12),inset 0 0 40px rgba(0,0,0,.55),0 10px 30px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.4)}
+.mesa::before{content:'';position:absolute;inset:6px;border-radius:18px;border:1px dashed rgba(236,188,92,.16);pointer-events:none}
+.mesa-empty{display:flex;align-items:center;justify-content:center;min-height:160px;color:rgba(255,255,255,.55);font-size:.9rem;letter-spacing:.02em}
+.snake{flex:none;width:100%}
+.dmt{border-radius:calc(var(--s)*.16);box-shadow:inset 0 1px 0 #fff,inset 0 -2px 0 rgba(90,70,30,.14),0 3px 5px rgba(0,0,0,.45)}
+.dmt .dmh{padding:calc(var(--s)*.13)!important}
+.dmt .dmh i{width:78%}
+.dmt.h b{margin:calc(var(--s)*.16) 0!important}.dmt.v b{margin:0 calc(var(--s)*.16)!important}
+.dmt.new{animation:dmtin .4s cubic-bezier(.2,1.4,.4,1)}
+@keyframes dmtin{from{transform:scale(1.35) translateY(-8px);opacity:0}to{transform:none;opacity:1}}
+.glog{display:flex;align-items:center;justify-content:center;gap:6px;margin:12px auto!important;padding:6px 14px;border-radius:999px;background:rgba(0,0,0,.25);border:1px solid var(--line);width:fit-content;font-size:.9rem}
+.seat{background:linear-gradient(170deg,rgba(255,255,255,.06),rgba(255,255,255,.02))!important;backdrop-filter:blur(4px)}
+.seat.turn{background:linear-gradient(170deg,rgba(236,188,92,.18),rgba(236,188,92,.04))!important}
+.score2{background:linear-gradient(90deg,rgba(0,0,0,.35),rgba(0,0,0,.2),rgba(0,0,0,.35))!important;border:1px solid var(--line)}
+.score2>div.mine{background:rgba(236,188,92,.16);box-shadow:inset 0 0 0 1px rgba(236,188,92,.35)}
+.hand{gap:10px!important}
+.hand .dmn.big .dh{grid-template-columns:repeat(3,9px)!important;grid-template-rows:repeat(3,9px)!important;gap:3px!important;padding:5px!important}
+@media(max-width:400px){.hand .dmn.big .dh{grid-template-columns:repeat(3,7px)!important;grid-template-rows:repeat(3,7px)!important;gap:2.5px!important;padding:4px!important}}
+
+/* ===== Sala de juegos: portada ===== */
+.ghero{position:relative;display:flex;align-items:center;gap:12px;overflow:hidden;padding:20px 18px;border-radius:24px;margin-bottom:14px;
+  background:radial-gradient(circle at 85% 20%,rgba(255,214,120,.35),transparent 45%),linear-gradient(135deg,#7a1f2b 0%,#a8342f 40%,#d9822b 100%);
+  box-shadow:0 12px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.2)}
+.ghero::after{content:'';position:absolute;inset:0;background:radial-gradient(circle,rgba(255,255,255,.18) 1px,transparent 1.5px) 0 0/16px 16px;opacity:.35;pointer-events:none}
+.ghero-t{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;gap:4px;color:#fff}
+.ghero-t small{font-size:.7rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;opacity:.85}
+.ghero-t b{font-family:var(--serif,inherit);font-size:1.55rem;line-height:1.1}
+.ghero-t span{font-size:.85rem;opacity:.92;max-width:30ch}
+.ghero-art{position:relative;z-index:1;width:96px;height:90px;flex:none}
+.ghero-art .dmn{position:absolute;transform-origin:center}
+.ghero-art .hero1{left:6px;top:4px;transform:rotate(-14deg);animation:gfloat 3.2s ease-in-out infinite}
+.ghero-art .hero2{left:36px;top:16px;transform:rotate(12deg);animation:gfloat 3.2s ease-in-out -1.6s infinite}
+.ghero-art .dmn.big,.ghero-art .dmn{padding:3px 2px;border-radius:8px}
+.ghero-art .dh{grid-template-columns:repeat(3,7px)!important;grid-template-rows:repeat(3,7px)!important;gap:2.5px!important;padding:3px!important}
+@keyframes gfloat{50%{translate:0 -6px}}
+.gcreate2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}
+@media(min-width:720px){.gcreate2{grid-template-columns:repeat(4,1fr)}}
+.gc2{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-height:178px;padding:14px;border-radius:22px;border:1px solid rgba(255,255,255,.12);color:#fff;font:inherit;text-align:left;cursor:pointer;overflow:hidden;
+  box-shadow:0 10px 22px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.18);transition:transform .15s}
+.gc2::before{content:'';position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.12)}
+.gc2:active{transform:scale(.96)}
+@media(hover:hover){.gc2:hover{transform:translateY(-3px)}}
+.g-dom{background:linear-gradient(150deg,#1f8a57,#0d4f31)}
+.g-hang{background:linear-gradient(150deg,#6d4bd8,#3a248a)}
+.g-c4{background:linear-gradient(150deg,#2c6fd6,#163d86)}
+.g-ttt{background:linear-gradient(150deg,#e2557a,#9b2448)}
+.gc2-art{position:relative;height:58px;display:flex;align-items:center}
+.gc2-art .dmn{transform:rotate(-8deg) scale(1.15);transform-origin:left center}
+.gc2-tx{display:flex;flex-direction:column;gap:2px}.gc2-tx b{font-size:1.1rem}.gc2-tx span{font-size:.76rem;opacity:.85}
+.gc2-ft{margin-top:auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px;width:100%}
+.gc2-tag{font-size:.68rem;font-weight:800;padding:3px 8px;border-radius:999px;background:rgba(0,0,0,.25)}
+.gc2-live{font-size:.68rem;font-weight:800;padding:3px 8px;border-radius:999px;background:#ffd36b;color:#3a2600;animation:abpulse 1.6s infinite}
+.gc2-go{margin-left:auto;font-size:.8rem;font-weight:800;padding:6px 12px;border-radius:999px;background:#fff;color:#1b140a;box-shadow:0 3px 8px rgba(0,0,0,.25)}
+.gc2-letters{display:flex;gap:5px}.gc2-letters i{font-style:normal;display:grid;place-items:center;width:30px;height:38px;border-radius:8px;background:#fff;color:#3a248a;font-weight:900;font-size:1.2rem;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.gc2-letters i:nth-child(2){background:rgba(255,255,255,.25);color:#fff}
+.gc2-c4{display:grid;grid-template-columns:repeat(4,20px);gap:4px;padding:6px;border-radius:10px;background:#0f2f6b;box-shadow:inset 0 2px 4px rgba(0,0,0,.4)}
+.gc2-c4 i{width:20px;height:20px;border-radius:50%;background:#0a2152}.gc2-c4 i.R{background:radial-gradient(circle at 35% 30%,#ff8a8a,#e0202f)}.gc2-c4 i.Y{background:radial-gradient(circle at 35% 30%,#fff2a0,#f2c200)}
+.gc2-ttt{display:grid;grid-template-columns:repeat(3,17px);gap:3px}
+.gc2-ttt i{font-style:normal;display:grid;place-items:center;width:17px;height:17px;border-radius:4px;background:rgba(255,255,255,.18);font-weight:900;font-size:.8rem;line-height:1}
+.gtip{text-align:center;font-size:.8rem;color:var(--muted);margin:0 0 18px}
+.gm{border-left:3px solid var(--gold)}
+.gm-e{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:rgba(236,188,92,.12);font-size:26px!important}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:8px;margin:4px 0 12px}
+.pd{position:relative;flex:1;max-width:130px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px 10px;border-radius:18px 18px 10px 10px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02))}
+.pd1{min-height:150px;background:linear-gradient(180deg,rgba(236,188,92,.35),rgba(236,188,92,.06));border-color:rgba(236,188,92,.5)}
+.pd2{min-height:122px}.pd3{min-height:104px}
+.pd-a{font-size:30px}.pd1 .pd-a{font-size:38px}
+.pd b{font-size:.82rem;text-align:center;line-height:1.15}
+.pd-p{font-size:.75rem;font-weight:800;color:var(--gold)}
+.pd-b{position:absolute;top:-12px;font-size:22px}

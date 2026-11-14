@@ -48,7 +48,7 @@ export function applyMove(g, seat, hand, tile, side) {
   if (tile == null) {
     if (can.length) throw new Error('Tienes ficha para jugar');
     patch.passes = (g.passes || 0) + 1;
-    patch.last = { seat, pass: true };
+    patch.last = { seat, pass: true, root: g.last?.root || 0 };
   } else {
     if (!hand.includes(tile)) throw new Error('No tienes esa ficha');
     if (!can.includes(tile)) throw new Error('Esa ficha no cabe');
@@ -60,7 +60,7 @@ export function applyMove(g, seat, hand, tile, side) {
     patch.counts = g.counts.slice(); patch.counts[i] = newHand.length;
     patch.pips = g.pips.slice(); patch.pips[i] = handPips(newHand);
     patch.passes = 0; patch.mustOpen = null;
-    patch.last = { seat, tile, side }; patch.locker = i; // quién puso la última ficha (el que 'tranca' si nadie más puede jugar)
+    patch.last = { seat, tile, side, root: !chain.length ? 0 : (g.last?.root || 0) + (side === 'l' ? 1 : 0) }; patch.locker = i; // quién puso la última ficha (el que 'tranca' si nadie más puede jugar)
     if (!newHand.length) { // ¡dominó!
       const total = patch.pips.reduce((a, b) => a + b, 0) + (capicua ? 25 : 0);
       return { patch: { ...patch, ...endHand(g, teamOf(g, i), i, total, capicua ? 'capicua' : 'domino') }, hand: newHand };
@@ -110,23 +110,35 @@ export function botChoice(hand, chain, mustOpen) {
 
 /* Mesa en serpentín: fila, al llegar al borde baja con una ficha parada y regresa.
    Devuelve posiciones en unidades (1 unidad = medio dominó). */
-export function snakeLayout(chain, cols) {
-  cols = Math.max(6, cols | 0);
-  const out = []; let dir = 1, x = 0, yc = 1, maxY = 2, prevDbl = false;
-  for (let k = 0; k < chain.length; k++) {
-    const t = chain[k], dbl = isDouble(t), w = dbl ? 1 : 2;
+// Un brazo de la culebra: avanza hacia la derecha desde x0 y, al llegar al borde, baja y vuelve.
+function snakeArm(list, cols, x0) {
+  const out = []; let dir = 1, x = x0, yc = 1, prevDbl = false;
+  for (const { t, k } of list) {
+    const dbl = isDouble(t), w = dbl ? 1 : 2;
     if ((dir > 0 && x + w > cols) || (dir < 0 && x - w < 0)) { // vuelta: ficha parada hacia abajo
       const cx = dir > 0 ? x - 1 : x, top = yc + (prevDbl ? 1 : 0.5);
       out.push({ t, k, x: cx, y: top, w: 1, h: 2, v: true, a: +t[0], b: +t[1] });
-      yc = top + 1.5; maxY = Math.max(maxY, yc + 1); prevDbl = false;
+      yc = top + 1.5; prevDbl = false;
       dir = -dir; x = dir < 0 ? cx : cx + 1;
       continue;
     }
     if (dbl) out.push({ t, k, x: dir > 0 ? x : x - 1, y: yc - 1, w: 1, h: 2, v: true, a: +t[0], b: +t[1] });
     else out.push({ t, k, x: dir > 0 ? x : x - 2, y: yc - 0.5, w: 2, h: 1, v: false, a: dir > 0 ? +t[0] : +t[1], b: dir > 0 ? +t[1] : +t[0] });
-    x += dir * w; maxY = Math.max(maxY, yc + 1); prevDbl = dbl;
+    x += dir * w; prevDbl = dbl;
   }
-  return { tiles: out, rows: maxY };
+  return out;
+}
+// La mesa arranca en el centro: la primera ficha (root) queda en medio y la culebra crece hacia ambos lados.
+export function snakeLayout(chain, cols, root = 0) {
+  cols = Math.max(8, cols | 0); root = Math.min(Math.max(0, root | 0), Math.max(0, chain.length - 1));
+  if (!chain.length) return { tiles: [], rows: 0 };
+  const rw = isDouble(chain[root]) ? 1 : 2, x0 = Math.floor((cols - rw) / 2);
+  const right = snakeArm(chain.slice(root).map((t, i) => ({ t, k: root + i })), cols, x0);
+  // brazo izquierdo: se calcula como espejo (fichas volteadas) y se refleja en X y en Y
+  const left = snakeArm(chain.slice(0, root).reverse().map((t, i) => ({ t: t[1] + t[0], k: root - 1 - i })), cols, cols - x0)
+    .map(o => ({ ...o, x: cols - o.x - o.w, y: 2 - o.y - o.h, a: o.b, b: o.a }));
+  const all = [...left, ...right], minY = Math.min(...all.map(o => o.y)), maxY = Math.max(...all.map(o => o.y + o.h));
+  return { tiles: all.map(o => ({ ...o, y: o.y - minY })), rows: maxY - minY };
 }
 
 /* X y O */
@@ -219,11 +231,11 @@ const GINFO = {
 const PIPS = { 0: [], 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
 const half = v => `<span class="dh">${Array.from({ length: 9 }, (_, k) => `<i class="${PIPS[v].includes(k) ? 'on' : ''}"></i>`).join('')}</span>`;
 const halfS = v => `<span class="dmh">${Array.from({ length: 9 }, (_, k) => `<i class="${PIPS[v].includes(k) ? 'on' : ''}"></i>`).join('')}</span>`;
-function snakeHTML(chain, width) {
-  if (!chain.length) return '<span class="muted small" style="margin:auto">La mesa está vacía · sale la primera ficha</span>';
-  const S = Math.max(24, Math.min(38, Math.floor(width / 11))), cols = Math.floor(width / S);
-  const { tiles, rows } = snakeLayout(chain, cols), off = Math.max(0, (width - cols * S) / 2);
-  return `<div class="snake" style="height:${rows * S}px">${tiles.map(o => `<span class="dmt ${o.v ? 'v' : 'h'} ${o.k === 0 || o.k === chain.length - 1 ? 'end' : ''} ${o.k === LAST.k ? 'new' : ''}" style="left:${off + o.x * S}px;top:${o.y * S}px;width:${o.w * S - 2}px;height:${o.h * S - 2}px">${halfS(o.a)}<b></b>${halfS(o.b)}</span>`).join('')}</div>`;
+function snakeHTML(chain, width, root) {
+  if (!chain.length) return '<span class="mesa-empty">La mesa está vacía · sale la primera ficha</span>';
+  const S = Math.max(26, Math.min(46, Math.floor(width / 13))), cols = Math.floor(width / S);
+  const { tiles, rows } = snakeLayout(chain, cols, root), off = Math.max(0, (width - cols * S) / 2);
+  return `<div class="snake" style="height:${rows * S}px;--s:${S}px">${tiles.map(o => `<span class="dmt ${o.v ? 'v' : 'h'} ${o.k === 0 || o.k === chain.length - 1 ? 'end' : ''} ${o.k === LAST.k ? 'new' : ''} ${o.k === root ? 'root' : ''}" style="left:${off + o.x * S}px;top:${o.y * S}px;width:${o.w * S - 3}px;height:${o.h * S - 3}px">${halfS(o.a)}<b></b>${halfS(o.b)}</span>`).join('')}</div>`;
 }
 const LAST = { k: -1 };
 export const tileHTML = (t, cls = '', attrs = '') => `<span class="dmn ${isDouble(t) ? 'dbl' : ''} ${cls}" ${attrs}>${half(+t[0])}<b></b>${half(+t[1])}</span>`;
@@ -353,7 +365,7 @@ export function initGames(X) {
     return skipTurn(me());
   }
   function skipTurn(seat) {
-    return tx((t, g) => { if (!live(g) || g.players[g.turn] !== seat) return; upd(t, g, { turn: (g.turn + 1) % g.players.length, last: { seat, timeout: true }, idle: (g.idle || 0) + 1, ...(g.type === 'domino' && !(g.chain || []).length ? { mustOpen: null } : {}) }); });
+    return tx((t, g) => { if (!live(g) || g.players[g.turn] !== seat) return; upd(t, g, { turn: (g.turn + 1) % g.players.length, last: { seat, timeout: true, root: g.last?.root || 0 }, idle: (g.idle || 0) + 1, ...(g.type === 'domino' && !(g.chain || []).length ? { mustOpen: null } : {}) }); });
   }
   const teamOfSeat = (g, s) => { const i = g.players.indexOf(s); return i < 0 ? -1 : g.mode === 'parejas' ? i % 2 : i; };
 
@@ -570,18 +582,22 @@ export function initGames(X) {
       return `<a class="card gm clk" href="#juego-${esc(g.id)}"><div class="gm-e">${GINFO[g.type]?.e || '🎮'}</div><div class="grow"><b>${esc(g.title || GINFO[g.type]?.name)}</b>
         <div class="muted small">${g.players.map(s => esc(seatEmoji(s))).join(' ')} · ${g.players.length}/${g.max} ${g.status === 'lobby' ? (full ? '· llena' : '· esperando') : '· jugando'}</div></div>
         <span class="btn sm ${inIt ? '' : 'gold'}">${inIt ? (g.status === 'playing' ? 'Seguir' : 'Ver') : g.status === 'lobby' && !full ? 'Unirme' : 'Mirar'}</span></a>`; };
-    return `<div class="gcreate">
-        <button class="gc" data-gpick="domino"><span class="gc-e">${tileHTML('63')}</span><b>Dominó</b><span>En parejas o cada quien</span></button>
-        <button class="gc" data-gpick="ahorcado"><span class="gc-e">🔤</span><b>Ahorcado</b><span>Cultura, Biblia y más</span></button>
-        <button class="gc" data-gpick="c4"><span class="gc-e">🔴🟡</span><b>4 en línea</b><span>1 contra 1</span></button>
-        <button class="gc" data-gpick="ttt"><span class="gc-e">❌⭕</span><b>X y O</b><span>1 contra 1</span></button>
+    const nOpen = t => open.filter(g => g.type === t).length;
+    const card = (t, cls, art, name, sub, tag) => `<button class="gc2 ${cls}" data-gpick="${t}"><span class="gc2-art">${art}</span><span class="gc2-tx"><b>${name}</b><span>${sub}</span></span><span class="gc2-ft"><span class="gc2-tag">${tag}</span>${nOpen(t) ? `<span class="gc2-live">${nOpen(t)} esperando</span>` : ''}<span class="gc2-go">Jugar ▸</span></span></button>`;
+    return `<div class="ghero"><div class="ghero-t"><small>Sala de juegos</small><b>¿Quién se atreve?</b><span>Gana partidas, suma puntos y llega a la cima de la tabla 🏆</span></div><div class="ghero-art">${tileHTML('66', 'hero1')}${tileHTML('65', 'hero2')}</div></div>
+      <div class="gcreate2">
+        ${card('domino', 'g-dom', tileHTML('63'), 'Dominó', 'En parejas o cada quien', '+3 pts')}
+        ${card('ahorcado', 'g-hang', '<span class="gc2-letters"><i>A</i><i>_</i><i>O</i></span>', 'Ahorcado', 'Cultura, Biblia y más', '+2 pts')}
+        ${card('c4', 'g-c4', '<span class="gc2-c4">' + 'RYRY.RY.'.split('').map(c => `<i class="${c}"></i>`).join('') + '</span>', '4 en línea', '1 contra 1', '+2 pts')}
+        ${card('ttt', 'g-ttt', '<span class="gc2-ttt"><i>✕</i><i>○</i><i></i><i></i><i>✕</i><i>○</i><i></i><i></i><i>✕</i></span>', 'X y O', '1 contra 1', '+1 pt')}
       </div>
-      <p class="muted small center" style="margin:-4px 0 16px">¿No llegan todos? Completa la mesa con 🤖.</p>
+      <p class="gtip">🤖 ¿No llegan todos? Completa la mesa con robots.</p>
       ${live.filter(g => mineIds.has(g.id)).length ? `<div class="h2row"><h2>Tus partidas</h2></div><div class="stack">${live.filter(g => mineIds.has(g.id)).map(row).join('')}</div>` : ''}
       <div class="h2row"><h2>Mesas abiertas</h2></div>
       <div class="stack">${open.map(row).join('') || '<div class="card empty"><span class="e">🎲</span>No hay mesas abiertas. ¡Crea una y que se unan!</div>'}</div>
       ${live.filter(g => !mineIds.has(g.id)).length ? `<div class="h2row"><h2>Jugando ahora</h2></div><div class="stack">${live.filter(g => !mineIds.has(g.id)).map(row).join('')}</div>` : ''}
       <div class="h2row"><h2>🏆 Tabla de campeones</h2></div>
+      ${ranks.length >= 2 ? `<div class="podium">${[1, 0, 2].filter(k => ranks[k]).map(k => `<div class="pd pd${k + 1}"><span class="pd-a">${esc(X.pEmoji(ranks[k][0]))}</span><b>${esc(X.P(ranks[k][0]) ? X.shortName(X.P(ranks[k][0])) : X.pName(ranks[k][0]))}</b><span class="pd-p">${ranks[k][1].pts} pts</span><span class="pd-b">${medal[k]}</span></div>`).join('')}</div>` : ''}
       <div class="card">${ranks.length ? ranks.slice(0, 15).map(([uid, o], k) => `<div class="rk ${uid === me() ? 'me' : ''}"><span class="rk-n">${medal[k] || k + 1}</span><span class="rk-a">${esc(X.pEmoji(uid))}</span><span class="grow"><b>${esc(X.pName(uid))}</b><div class="muted small">${o.domino ? `🎲 ${o.domino} ` : ''}${o.ahorcado ? `🔤 ${o.ahorcado} ` : ''}${o.ttt ? `❌ ${o.ttt} ` : ''}${o.c4 ? `🔴 ${o.c4}` : ''}</div></span><b class="rk-p">${o.pts}</b></div>`).join('')
         : '<p class="muted small center">Todavía nadie ha ganado. Dominó vale 3 puntos, ahorcado y 4 en línea 2, y X y O 1.</p>'}</div>`;
   }
@@ -618,7 +634,7 @@ export function initGames(X) {
     const R = g.result, why = { domino: '¡Dominó!', capicua: '¡Capicúa! (+25)', tranque: '¡Tranque! Gana quien tiene menos puntos en fichas', 'tranque-empate': '¡Tranque con empate! Gana quien trancó', empate: 'Tranque empatado' };
     const winnerTxt = R ? (R.team < 0 ? why.empate : `${g.mode === 'parejas' ? 'Pareja ' + (R.team ? 'B' : 'A') : esc(seatName(g.players[R.team]))} gana ${R.pts} puntos · ${why[R.why]}`) : '';
     return `${sc}${seatsHTML(g)}
-      <div class="mesa" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth()))}</div>
+      <div class="mesa" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth(), g.last?.root || 0))}</div>
       <p class="glog">${last}</p>
       ${g.handOver ? `<div class="card center hover"><div style="font-size:36px">${R?.team < 0 ? '🤝' : '🎉'}</div><b>${winnerTxt}</b>
           ${g.status === 'done' ? `<p style="margin-top:8px">🏆 ${(g.winners || []).length ? 'Ganan ' + g.winners.map(s => esc(seatName(s))).join(' y ') : 'Ganaron los 🤖'}</p>` : ''}
@@ -668,7 +684,7 @@ export function initGames(X) {
     if (g.status !== 'lobby' && !g.players.includes(me()) && g.max <= 2) return head + `<div class="card empty"><span class="e">🔒</span>Esta partida es solo de ${g.players.map(s => esc(seatName(s))).join(' y ')}<div class="qa" style="justify-content:center"><a class="btn" href="#juegos">Volver</a></div></div>`;
     return head + (g.type === 'domino' ? dominoHTML(g) : g.type === 'ttt' ? tttHTML(g) : g.type === 'c4' ? c4HTML(g) : hangHTML(g));
   }
-  const mesaWidth = () => Math.max(260, (($('#g-root')?.clientWidth) || 360) - 20);
+  const mesaWidth = () => Math.max(250, (($('#g-root')?.clientWidth) || 360) - 42);
   let rzT; addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => { if (G.cur?.type === 'domino' && document.querySelector('#g-mesa')) renderView(); }, 150); });
   function renderView() {
     const root = $('#g-root'); if (!root) return;
