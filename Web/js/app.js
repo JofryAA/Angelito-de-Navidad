@@ -1240,10 +1240,10 @@ function renderWishes() {
       <div class="t">${esc(w.text)}</div>
       ${w.hasImg ? (S.wishImgs[w.id] ? `<button class="wimg" data-wimg="${esc(w.id)}" style="background:url('${S.wishImgs[w.id]}') center/cover" aria-label="Ver foto"></button>` : '<div class="wimg ld"></div>') : ''}
       ${w.price ? `<span class="badge">≈ ${esc(w.price)}</span>` : ''}
-      ${mine ? `<div class="wacts"><button class="btn sm ghost" data-wtop="${esc(w.id)}">${w.top ? '☆ Quitar favorito' : '⭐ Es el que más quiero'}</button><button class="btn sm ghost" data-wedit="${esc(w.id)}">✏️ Editar</button></div>` : ''}
+
       ${isRec ? `<div><button class="btn sm ${S.wishPick?.wishId === w.id ? 'gold' : ''}" data-wpick="${esc(w.id)}" style="margin-top:8px">${S.wishPick?.wishId === w.id ? '🛒 Apartado por ti (solo tú lo ves)' : '🛒 Este lo compro yo'}</button></div>` : ''}
       ${/^https?:\/\//i.test(w.link || '') ? `<div><a class="link" href="${esc(w.link)}" target="_blank" rel="noopener">🔗 Ver referencia</a></div>` : ''}
-    </div>${w.uid === S.uid ? `<button class="x" data-del="${esc(w.id)}" data-own="1" aria-label="Borrar">✕</button>` : ''}</div>`).join('')
+    </div>${w.uid === S.uid ? `<button class="wmore" data-wmore="${esc(w.id)}" aria-label="Opciones del deseo"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>` : ''}</div>`).join('')
     : `<div class="card empty"><span class="e">🌟</span>${mine ? 'Tu lista está vacía. ¡Agrega lo que te gustaría!' : esc(pName(S.wishPid)) + ' todavía no ha pedido nada.'}</div>`}</div>
   ${mine ? `<form class="card stack" id="w-form" style="margin-top:16px">
     <b>Agregar un deseo</b>
@@ -3146,6 +3146,27 @@ $('#r-thanks').addEventListener('submit', async e => {
 });
 
 /* ---------- ⭐ deseo favorito + 🛒 lo compro yo ---------- */
+// Menú de opciones de un deseo propio (como en las apps: un solo botón ⋮ con todo adentro)
+function wishMenu(id) {
+  const w = S.wishes.find(x => x.id === id && x.uid === S.uid); if (!w) return;
+  const ic = d => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const s2 = openModal(`<div class="wm-h"><div class="muted small">Tu deseo</div><b>${esc(w.text)}</b></div>
+    <div class="wm-list">
+      <button class="wm-row" data-k="top">${ic('<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>')}<span><b>${w.top ? 'Quitar de favorito' : 'Marcar como favorito'}</b><small>${w.top ? 'Ya no aparecerá como el que más quieres' : 'Tu angelito sabrá que es el que más quieres'}</small></span></button>
+      <button class="wm-row" data-k="edit">${ic('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>')}<span><b>Editar</b><small>Cambia el texto, el enlace o el precio</small></span></button>
+      <button class="wm-row danger" data-k="del">${ic('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>')}<span><b>Eliminar</b><small>Se quita de tu lista</small></span></button>
+    </div><div class="actions"><button class="btn" data-k="x">Cancelar</button></div>`);
+  s2.onclick = async e => {
+    const k = e.target.closest('[data-k]')?.dataset.k; if (!k) return; closeModal();
+    if (k === 'top') return toggleTop(id);
+    if (k === 'edit') return setTimeout(() => editWish(id), 180);
+    if (k === 'del') {
+      if (!(await confirmBox('¿Eliminar este deseo?', 'Se quitará de tu lista.', 'Eliminar'))) return;
+      const b = writeBatch(db); b.delete(doc(db, 'wishes', id)); if (w.hasImg) b.delete(doc(db, 'wishImg', id));
+      try { await b.commit(); toast('Deseo eliminado'); } catch (err) { toast(authErr(err)); }
+    }
+  };
+}
 // ✏️ Editar un deseo propio (texto, enlace y precio). La foto se cambia borrándolo y creándolo de nuevo.
 function editWish(id) {
   const w = S.wishes.find(x => x.id === id && x.uid === S.uid); if (!w) return;
@@ -3181,7 +3202,7 @@ async function togglePick(id) {
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-wtop]'); if (t) return toggleTop(t.dataset.wtop);
-  const ed = e.target.closest('[data-wedit]'); if (ed) return editWish(ed.dataset.wedit);
+  const mo = e.target.closest('[data-wmore]'); if (mo) return wishMenu(mo.dataset.wmore);
   const p = e.target.closest('[data-wpick]'); if (p) return togglePick(p.dataset.wpick);
 });
 
