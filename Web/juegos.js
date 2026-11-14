@@ -60,7 +60,7 @@ export function applyMove(g, seat, hand, tile, side) {
     patch.counts = g.counts.slice(); patch.counts[i] = newHand.length;
     patch.pips = g.pips.slice(); patch.pips[i] = handPips(newHand);
     patch.passes = 0; patch.mustOpen = null;
-    patch.last = { seat, tile, side };
+    patch.last = { seat, tile, side }; patch.locker = i; // quién puso la última ficha (el que 'tranca' si nadie más puede jugar)
     if (!newHand.length) { // ¡dominó!
       const total = patch.pips.reduce((a, b) => a + b, 0) + (capicua ? 25 : 0);
       return { patch: { ...patch, ...endHand(g, teamOf(g, i), i, total, capicua ? 'capicua' : 'domino') }, hand: newHand };
@@ -72,9 +72,13 @@ export function applyMove(g, seat, hand, tile, side) {
     pips.forEach((p, k) => { tp[teamOf(g, k)] += p; });
     const min = Math.min(...tp), who = tp.map((v, k) => v === min ? k : -1).filter(k => k >= 0);
     const total = pips.reduce((a, b) => a + b, 0);
-    if (who.length > 1) return { patch: { ...patch, ...endHand(g, -1, g.starter, 0, 'empate') }, hand: newHand };
-    const t = who[0]; let best = -1; pips.forEach((p, k) => { if (teamOf(g, k) === t && (best < 0 || p < pips[best])) best = k; });
-    return { patch: { ...patch, ...endHand(g, t, best, total, 'tranque') }, hand: newHand };
+    // Empate en puntos: gana quien trancó (su pareja, o él mismo). Si él no está entre los empatados, el primero que le sigue en la mesa.
+    const locker = patch.locker ?? g.locker ?? g.starter ?? 0;
+    let t = who[0];
+    if (who.length > 1) { const lt = teamOf(g, locker); if (who.includes(lt)) t = lt; else for (let d = 1; d <= n; d++) { const c = teamOf(g, (locker + d) % n); if (who.includes(c)) { t = c; break; } } }
+    let best = -1; pips.forEach((p, k) => { if (teamOf(g, k) === t && (best < 0 || p < pips[best])) best = k; });
+    if (who.length > 1 && teamOf(g, locker) === t) best = locker; // sale quien trancó
+    return { patch: { ...patch, ...endHand(g, t, best, total, who.length > 1 ? 'tranque-empate' : 'tranque') }, hand: newHand };
   }
   patch.turn = (i + 1) % n;
   return { patch, hand: newHand };
@@ -507,7 +511,7 @@ export function initGames(X) {
     const sc = g.mode === 'parejas' ? `<div class="score2"><div class="${teamOfSeat(g, me()) === 0 ? 'mine' : ''}"><span>Pareja A</span><b>${g.scores?.[0] || 0}</b></div><span class="muted small">a ${g.target}</span><div class="${teamOfSeat(g, me()) === 1 ? 'mine' : ''}"><span>Pareja B</span><b>${g.scores?.[1] || 0}</b></div></div>`
       : `<div class="score2 solo">${g.players.map((s, i) => `<div class="${s === me() ? 'mine' : ''}"><span>${esc(s === me() ? 'Tú' : seatName(s))}</span><b>${g.scores?.[i] || 0}</b></div>`).join('')}<span class="muted small">a ${g.target}</span></div>`;
     const last = g.last ? (g.last.timeout ? `⏰ A ${esc(seatName(g.last.seat))} se le acabó el tiempo` : g.last.pass ? `${esc(seatName(g.last.seat))} pasó` : `${esc(g.last.seat === me() ? 'Jugaste' : seatName(g.last.seat) + ' jugó')}`) : g.mustOpen && !chain.length ? `Sale ${esc(seatName(g.players[g.turn]))} con el doble ${g.mustOpen[0]}` : '';
-    const R = g.result, why = { domino: '¡Dominó!', capicua: '¡Capicúa! (+25)', tranque: '¡Tranque!', empate: 'Tranque empatado: nadie suma' };
+    const R = g.result, why = { domino: '¡Dominó!', capicua: '¡Capicúa! (+25)', tranque: '¡Tranque! Gana quien tiene menos puntos en fichas', 'tranque-empate': '¡Tranque con empate! Gana quien trancó', empate: 'Tranque empatado' };
     const winnerTxt = R ? (R.team < 0 ? why.empate : `${g.mode === 'parejas' ? 'Pareja ' + (R.team ? 'B' : 'A') : esc(seatName(g.players[R.team]))} gana ${R.pts} puntos · ${why[R.why]}`) : '';
     return `${sc}${seatsHTML(g)}
       <div class="mesa" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth()))}</div>
