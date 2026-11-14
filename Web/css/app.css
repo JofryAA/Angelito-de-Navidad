@@ -745,3 +745,12 @@ body.adm-view #helper,body.kb #helper{display:none!important}
 
 .mrow .me-e .ic{color:var(--gold)}.mrow .me-e{display:grid;place-items:center}
 .msg .tm .edt{font-style:italic;opacity:.85}
+
+/* botones con íconos de trazo */
+.btn-ic{display:inline-flex;align-items:center;justify-content:center;gap:8px}.btn-ic .ic{flex:none}
+.cbtn{color:var(--muted)}.cbtn:hover,.cbtn:active{color:var(--gold)}
+.sendbtn{flex:none;width:46px;height:46px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;background:rgba(255,255,255,.06);color:var(--muted);cursor:pointer;transition:background .2s,color .2s,transform .15s,box-shadow .2s}
+#c-form.ready .sendbtn{background:linear-gradient(135deg,var(--red),var(--red2));color:#fff;border-color:transparent;box-shadow:0 6px 18px rgba(226,72,63,.45)}
+.sendbtn:active{transform:scale(.92)}
+#c-mute{color:var(--gold);display:grid;place-items:center}
+.rsvp .rs-i{display:grid;place-items:center;margin-bottom:4px}.rsvp .rs-i .ic{color:var(--muted)}.rsvp button.on .rs-i .ic{color:currentColor}

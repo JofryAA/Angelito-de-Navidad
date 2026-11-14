@@ -1471,7 +1471,7 @@ function renderAttendance() {
     const late = c.rsvpDeadline && todayStr() > c.rsvpDeadline;
     let h = `<div class="card" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:1.1rem">🎉 ¿Vas al angelito?</b><span class="cnts"><span class="cnt ok">${sm.going} van</span>${sm.notGoing ? `<span class="cnt no">${sm.notGoing} no</span>` : ''}</span></div>
       ${c.rsvpDeadline ? `<p class="muted small" style="margin-top:4px">${late ? '⚠️ La fecha para confirmar ya pasó' : 'Confirma antes del ' + esc(fmtDate(c.rsvpDeadline))}</p>` : ''}
-      <div class="rsvp" style="grid-template-columns:1fr 1fr;margin-top:12px"><button class="${me.status === 'si' ? 'on' : ''}" data-att="si"><span>✅</span>Sí, voy</button><button class="${me.status === 'no' ? 'on' : ''}" data-att="no"><span>❌</span>No puedo</button></div>`;
+      <div class="rsvp" style="grid-template-columns:1fr 1fr;margin-top:12px"><button class="${me.status === 'si' ? 'on' : ''}" data-att="si"><span class="rs-i">${ic('check', 26)}</span>Sí, voy</button><button class="${me.status === 'no' ? 'on' : ''}" data-att="no"><span class="rs-i">${ic('xcircle', 26)}</span>No puedo</button></div>`;
     if (me.status === 'si' && c.contribAmount) {
       h += `<div class="prize" style="margin:14px 0 0;flex-wrap:wrap"><span style="font-size:22px">💵</span><div style="flex:1;min-width:180px"><b>Aporte: ${esc(c.contribAmount)}</b>${c.contribInfo ? `<div class="small" style="margin-top:2px">${esc(c.contribInfo)}</div>` : ''}
         <div class="small" style="margin-top:6px">${me.confirmed ? '✅ <b>El organizador confirmó tu aporte.</b> ¡Gracias!' : me.paid ? '⏳ Marcaste que ya lo diste. Falta que el organizador lo confirme.' : '💤 Todavía no has dado tu aporte.'}</div></div>
@@ -1646,11 +1646,12 @@ function diceHint() {
   let n = 0; try { n = +localStorage.getItem('angelito:diceUsed') || 0; } catch { }
   const show = n < 3 && !!S.me; $('#c-dicehint').hidden = true; $('#c-dice').classList.toggle('glow', n < 3);
 }
-$('#c-text').addEventListener('input', () => diceHint());
+$('#c-text').addEventListener('input', () => { diceHint(); syncSend(); });
+const syncSend = () => $('#c-form')?.classList.toggle('ready', !!($('#c-text').value.trim() || S.chatDraftImg));
 // (el texto de ayuda del chat es fijo: "Escribe un mensaje…")
 $('#c-form').addEventListener('submit', async e => {
   e.preventDefault(); const i = $('#c-text'), img = S.chatDraftImg, text = i.value.trim() || (img ? '📷 Foto' : ''); if (!text || !S.me) return;
-  S.chatDraftImg = null; renderChatImgPrev();
+  S.chatDraftImg = null; renderChatImgPrev(); setTimeout(syncSend, 0);
   i.value = '';
   const rt = S.replyTo; S.replyTo = null; renderReplyBar();
   const ments = mentionsIn(text); renderMentionBar();
@@ -1679,7 +1680,7 @@ $('#c-file').addEventListener('change', async e => {
   catch { toast('No se pudo leer esa foto'); }
 });
 function renderChatImgPrev() {
-  const b = $('#c-imgprev'); b.hidden = !S.chatDraftImg;
+  const b = $('#c-imgprev'); b.hidden = !S.chatDraftImg; syncSend();
   b.innerHTML = S.chatDraftImg ? `<div class="cip"><img src="${S.chatDraftImg}" alt=""><span>Foto lista · escribe algo (opcional) y envía</span><button type="button" class="x" data-cipx aria-label="Quitar foto">✕</button></div>` : '';
 }
 $('#c-imgprev').addEventListener('click', e => { if (e.target.closest('[data-cipx]')) { S.chatDraftImg = null; renderChatImgPrev(); } });
@@ -1834,7 +1835,7 @@ function mapsUrl() {
 function renderQuick() {
   const box = $('#h-quick'); if (!box) return;
   const cl = calLinks(), mp = mapsUrl();
-  box.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap"><button class="btn" id="q-inv" style="flex:1">🖼️ Invitación</button>${cl ? '<button class="btn" id="q-cal" style="flex:1">📅 Calendario</button>' : ''}${mp ? `<a class="btn" href="${esc(mp)}" target="_blank" rel="noopener" style="flex:1;text-decoration:none">📍 Cómo llegar</a>` : ''}</div>`;
+  box.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap"><button class="btn btn-ic" id="q-inv" style="flex:1">${ic('image', 18)} Invitación</button>${cl ? `<button class="btn btn-ic" id="q-cal" style="flex:1">${ic('calendar', 18)} Calendario</button>` : ''}${mp ? `<a class="btn" href="${esc(mp)}" target="_blank" rel="noopener" style="flex:1;text-decoration:none">📍 Cómo llegar</a>` : ''}</div>`;
 }
 document.addEventListener('click', e => {
   if (!e.target.closest('#q-cal')) return; const cl = calLinks(); if (!cl) return;
@@ -2956,7 +2957,7 @@ function renderBadges() {
   const spinNow = !!(S.me && mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid) && !S.assignment?.revealed);
   put($('.tab[data-v=ruleta]'), spinNow ? '!' : 0);
   let myTurn = 0; try { myTurn = S.me ? GAMES.active() : 0; } catch { } put($('.tab[data-v=juegos]'), myTurn);
-  const mb = $('#c-mute'); if (mb) mb.textContent = nprefs().chat === false ? '🔕' : '🔔';
+  const mb = $('#c-mute'); if (mb) { const off = nprefs().chat === false, k = off ? 'off' : 'on'; if (mb.dataset.k !== k) { mb.dataset.k = k; mb.innerHTML = ic(off ? 'belloff' : 'bell', 18); } }
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
 
@@ -3220,6 +3221,18 @@ const SVGI = {
   refresh: '<path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 4v7h-7"/>',
   chat: '<path d="M4 5h16v11H9l-5 4z"/>',
   logout: '<path d="M15 4h4v16h-4"/><path d="M10 16l-4-4 4-4"/><path d="M6 12h10"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  send: '<path d="M4 12l16-8-6 16-2.5-6.5z"/><path d="M11.5 13.5L20 4"/>',
+  dice: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r=".9" fill="currentColor"/><circle cx="15" cy="15" r=".9" fill="currentColor"/><circle cx="15" cy="9" r=".9" fill="currentColor"/><circle cx="9" cy="15" r=".9" fill="currentColor"/>',
+  belloff: '<path d="M6 16V11a6 6 0 019-5.2M18 11v5l2 2H8"/><path d="M10 21h4M3 3l18 18"/>',
+  check: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/>',
+  xcircle: '<circle cx="12" cy="12" r="9"/><path d="M9 9l6 6m0-6l-6 6"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  download: '<path d="M12 4v11m-5-5l5 5 5-5"/><path d="M5 20h14"/>',
+  link: '<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>',
+  whatsapp: '<path d="M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-4-1z"/><path d="M9 9.5c.3 2.2 2.3 4.2 4.5 4.5l1-1.2 1.8.8-.3 1.4c-3.6.4-7.4-3.4-7-7l1.4-.3.8 1.8z"/>',
+  share: '<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.6M8.2 13.2l7.6 4.6"/>',
 };
 const ic = (n, sz = 20) => `<svg class="ic" viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SVGI[n] || ''}</svg>`;
 // Hoja de opciones reutilizable (mismo estilo en toda la app): sheet({ title, sub, head, items:[{k, icon, label, hint, danger}] }) → Promise con la clave elegida
@@ -3283,44 +3296,83 @@ function renderReplyBar() {
 document.addEventListener('click', e => { if (e.target.closest('#c-reply-x')) { S.replyTo = null; renderReplyBar(); } });
 
 /* ---------- 🖼️ tarjeta de invitación ---------- */
+// Invitación (1080×1350, para WhatsApp e Instagram). Se dibuja al momento: la cuenta de días siempre es la de HOY.
 async function makeInvite() {
   const c = S.event, W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-  const x = cv.getContext('2d');
-  try { await document.fonts.load('900 90px Fraunces'); await document.fonts.load('700 40px "DM Sans"'); } catch { }
-  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#b42f28'); g.addColorStop(.55, '#6e1915'); g.addColorStop(1, '#0d2219'); x.fillStyle = g; x.fillRect(0, 0, W, H);
-  x.fillStyle = 'rgba(255,255,255,.06)'; for (let i = -H; i < W; i += 56) { x.save(); x.translate(i, 0); x.rotate(Math.PI / 4); x.fillRect(0, 0, 22, H * 2); x.restore(); }
-  x.fillStyle = 'rgba(255,255,255,.8)'; for (let i = 0; i < 90; i++) { x.beginPath(); x.arc(Math.random() * W, Math.random() * H, Math.random() * 4 + 1, 0, 7); x.fill(); }
-  x.fillStyle = '#ecbc5c'; x.fillRect(W - 170, 0, 90, H);
-  x.textAlign = 'center'; x.font = '200px serif'; x.fillText('🎁', W / 2 - 40, 330);
-  x.fillStyle = '#ffd99a'; x.font = '700 38px "DM Sans", sans-serif'; x.fillText('ESTÁS INVITADO AL', W / 2 - 40, 430);
+  const x = cv.getContext('2d'), cx = W / 2;
+  try { await Promise.all([document.fonts.load('900 90px Fraunces'), document.fonts.load('700 40px "DM Sans"'), document.fonts.load('500 40px "DM Sans"')]); } catch { }
+  // fondo: rojo profundo con luz arriba y nieve suave
+  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#a3221d'); g.addColorStop(.6, '#5a110f'); g.addColorStop(1, '#0b1f17'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  const rg = x.createRadialGradient(cx, 260, 40, cx, 260, 620); rg.addColorStop(0, 'rgba(255,215,140,.28)'); rg.addColorStop(1, 'rgba(255,215,140,0)'); x.fillStyle = rg; x.fillRect(0, 0, W, H);
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280; // nieve igual en cada tarjeta
+  for (let i = 0; i < 110; i++) { x.fillStyle = `rgba(255,255,255,${.25 + rnd() * .55})`; x.beginPath(); x.arc(rnd() * W, rnd() * H, rnd() * 3.2 + .8, 0, 7); x.fill(); }
+  // marco dorado fino
+  x.strokeStyle = 'rgba(236,188,92,.55)'; x.lineWidth = 3; x.beginPath(); x.roundRect(40, 40, W - 80, H - 80, 36); x.stroke();
+  // regalo dibujado (no emoji: se ve igual en todos los teléfonos)
+  const gx = cx, gy = 172, gw = 170, gh = 120;
+  x.fillStyle = '#e8463c'; x.beginPath(); x.roundRect(gx - gw / 2, gy, gw, gh, 16); x.fill();
+  x.fillStyle = '#ff5a4f'; x.beginPath(); x.roundRect(gx - gw / 2 - 12, gy - 36, gw + 24, 44, 12); x.fill();
+  x.fillStyle = '#f2c35f'; x.fillRect(gx - 14, gy - 36, 28, gh + 36); x.fillRect(gx - gw / 2 - 12, gy - 20, gw + 24, 17);
+  x.strokeStyle = '#f2c35f'; x.lineWidth = 13; x.lineCap = 'round';
+  x.beginPath(); x.ellipse(gx - 38, gy - 62, 36, 22, -.5, 0, 7); x.stroke(); x.beginPath(); x.ellipse(gx + 38, gy - 62, 36, 22, .5, 0, 7); x.stroke();
+  x.fillStyle = '#f2c35f'; x.beginPath(); x.arc(gx, gy - 44, 14, 0, 7); x.fill();
+  // textos
+  x.textAlign = 'center';
+  x.fillStyle = '#ffd99a'; x.font = '700 30px "DM Sans", sans-serif'; x.fillText('E S T Á S   I N V I T A D O   A L', cx, 365);
   const title = c.eventName || 'Angelito de Navidad'; x.fillStyle = '#fff7ec';
-  let fs = 110; x.font = `900 ${fs}px Fraunces, serif`; while (x.measureText(title).width > W - 260 && fs > 60) { fs -= 6; x.font = `900 ${fs}px Fraunces, serif`; }
-  const words = title.split(' '); let lines = [''], li = 0; words.forEach(w => { const t = (lines[li] + ' ' + w).trim(); if (x.measureText(t).width > W - 260) { lines.push(w); li++; } else lines[li] = t; });
-  lines.slice(0, 3).forEach((l, i) => x.fillText(l, W / 2 - 40, 560 + i * (fs + 6)));
-  let y = 560 + Math.min(lines.length, 3) * (fs + 6) + 40;
-  x.font = '600 44px "DM Sans", sans-serif'; x.fillStyle = '#fff';
-  const start = c.eventAt ? new Date(ms(c.eventAt)) : c.eventDate ? new Date(c.eventDate) : null;
-  if (start && !isNaN(start)) { x.fillText('📅 ' + cap(start.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' })), W / 2 - 40, y); y += 70; x.fillText('⏰ ' + hm(start), W / 2 - 40, y); y += 70; }
-  if (c.place) { x.fillText('📍 ' + c.place.slice(0, 40), W / 2 - 40, y); y += 70; }
-  if (c.budget) { x.fillText('💰 ' + c.budget, W / 2 - 40, y); y += 70; }
-  if (start) { const d = Math.ceil((start - Date.now()) / 864e5); if (d > 0) { x.fillStyle = 'rgba(0,0,0,.28)'; x.beginPath(); x.roundRect(W / 2 - 340, y + 10, 600, 150, 36); x.fill(); x.fillStyle = '#ecbc5c'; x.font = '900 80px Fraunces, serif'; x.fillText(`¡Faltan ${d} días!`, W / 2 - 40, y + 115); y += 190; } }
-  x.fillStyle = '#ffd99a'; x.font = '600 34px "DM Sans", sans-serif'; x.fillText('Regístrate y arma tu lista de deseos:', W / 2 - 40, H - 140);
-  x.fillStyle = '#fff'; x.font = '700 36px "DM Sans", sans-serif'; x.fillText(location.host || 'angelito', W / 2 - 40, H - 85);
+  let fs = 96; x.font = `900 ${fs}px Fraunces, serif`;
+  const wrap = () => { const ws = title.split(' '), ls = ['']; ws.forEach(w => { const t = (ls[ls.length - 1] + ' ' + w).trim(); if (x.measureText(t).width > W - 200 && ls[ls.length - 1]) ls.push(w); else ls[ls.length - 1] = t; }); return ls; };
+  let lines = wrap(); while (lines.length > 2 && fs > 60) { fs -= 6; x.font = `900 ${fs}px Fraunces, serif`; lines = wrap(); }
+  lines.slice(0, 2).forEach((l, i) => x.fillText(l, cx, 470 + i * (fs + 4)));
+  let y = 470 + Math.min(lines.length, 2) * (fs + 4) + 10;
+  // datos en una cuadrícula de 2 columnas
+  const start = c.eventAt ? new Date(ms(c.eventAt)) : c.eventDate ? new Date(c.eventDate.length <= 10 ? c.eventDate + 'T00:00' : c.eventDate) : null;
+  const rows = [];
+  if (start && !isNaN(start)) { rows.push(['FECHA', cap(start.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'long' }))]); if (start.getHours() || start.getMinutes()) rows.push(['HORA', hm(start)]); }
+  if (c.place) rows.push(['LUGAR', c.place]);
+  if (c.budget) rows.push(['REGALO DE', c.budget]);
+  if (rows.length) {
+    const L = 120, R = W - 120, colW = (R - L) / 2, nr = Math.ceil(rows.length / 2), ch = nr * 112 + 24;
+    x.fillStyle = 'rgba(0,0,0,.28)'; x.beginPath(); x.roundRect(L, y, R - L, ch, 30); x.fill(); x.strokeStyle = 'rgba(255,255,255,.12)'; x.lineWidth = 2; x.stroke();
+    x.fillStyle = 'rgba(255,255,255,.1)'; if (rows.length > 1) x.fillRect(L + colW, y + 24, 2, ch - 48); for (let r = 1; r < nr; r++) x.fillRect(L + 30, y + 12 + r * 112, R - L - 60, 2);
+    rows.forEach(([k, v], i) => {
+      const col = rows.length === 1 ? 0 : i % 2, row = Math.floor(i / 2), tx = rows.length === 1 ? cx : L + colW * col + colW / 2, ty = y + 58 + row * 112;
+      x.textAlign = 'center'; x.fillStyle = '#ecbc5c'; x.font = '700 22px "DM Sans", sans-serif'; x.fillText(k, tx, ty);
+      let f2 = 38; x.font = `600 ${f2}px "DM Sans", sans-serif`; while (x.measureText(v).width > colW - 40 && f2 > 24) { f2 -= 2; x.font = `600 ${f2}px "DM Sans", sans-serif`; }
+      let t = v; while (x.measureText(t).width > colW - 40 && t.length > 4) t = t.slice(0, -2) + '…';
+      x.fillStyle = '#fff'; x.fillText(t, tx, ty + 46);
+    });
+    y += ch + 30;
+  }
+  // cuenta regresiva por días de calendario (hoy → el día del evento)
+  if (start && !isNaN(start)) {
+    const d0 = new Date(); d0.setHours(0, 0, 0, 0); const d1 = new Date(start); d1.setHours(0, 0, 0, 0);
+    const d = Math.round((d1 - d0) / 864e5), room = H - 170 - y;
+    const big = d > 1 ? String(d) : d === 1 ? '¡Mañana!' : d === 0 ? '¡Es hoy!' : '';
+    if (big && room > 120) {
+      const bs = Math.min(d > 1 ? 150 : 100, room - (d > 1 ? 60 : 10));
+      x.textAlign = 'center'; x.fillStyle = '#ecbc5c'; x.font = `900 ${bs}px Fraunces, serif`; x.fillText(big, cx, y + bs * .85);
+      if (d > 1) { x.fillStyle = '#ffe6bd'; x.font = '600 34px "DM Sans", sans-serif'; x.fillText('días para el angelito', cx, y + bs * .85 + 50); }
+    }
+  }
+  // pie
+  x.textAlign = 'center'; x.fillStyle = 'rgba(255,255,255,.75)'; x.font = '500 28px "DM Sans", sans-serif'; x.fillText('Entra, inscríbete y arma tu lista de deseos', cx, H - 118);
+  x.fillStyle = '#fff'; x.font = '700 36px "DM Sans", sans-serif'; x.fillText(location.host || 'angelito', cx, H - 72);
   return cv;
 }
 async function shareInvite() {
-  toast('Creando tu tarjeta… 🖼️');
+  toast('Creando tu invitación…');
   const cv = await makeInvite();
   const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
   const file = new File([blob], 'invitacion-angelito.png', { type: 'image/png' });
   const text = `🎁 ¡Estás invitado al ${S.event.eventName || 'angelito'}! Entra aquí: ${location.origin + location.pathname}`;
   if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], text }); return; } catch (e) { if (e?.name === 'AbortError') return; } }
   const url = URL.createObjectURL(blob);
-  openModal(`<h3>🖼️ Tu invitación</h3><p class="muted small">Mantén presionada la imagen para guardarla o compartirla.</p><img src="${url}" alt="Invitación" style="width:100%;border-radius:16px;margin-top:10px">
-    <div class="qa" style="justify-content:center;margin-top:12px"><a class="btn sm" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a><button class="btn sm" data-a="copy">📋 Copiar enlace</button></div>
-    <div class="actions"><a class="btn gold" href="${url}" download="invitacion-angelito.png" style="text-decoration:none">⬇️ Descargar</a><button class="btn" data-a="x">Cerrar</button></div>`).onclick = async e => {
+  openModal(`<h3>Tu invitación</h3><p class="muted small">Se crea al momento con los días que faltan hoy. Mantén presionada la imagen para guardarla.</p><img src="${url}" alt="Invitación" style="width:100%;border-radius:16px;margin-top:10px;box-shadow:0 14px 40px rgba(0,0,0,.45)">
+    <div class="qa" style="justify-content:center;margin-top:12px"><a class="btn sm btn-ic" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener" style="text-decoration:none">${ic('whatsapp', 18)} WhatsApp</a><button class="btn sm btn-ic" data-a="copy">${ic('link', 18)} Copiar enlace</button></div>
+    <div class="actions"><a class="btn gold btn-ic" href="${url}" download="invitacion-angelito.png" style="text-decoration:none">${ic('download', 18)} Descargar</a><button class="btn" data-a="x">Cerrar</button></div>`).onclick = async e => {
     const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
-    if (a === 'copy') { try { await navigator.clipboard.writeText(text); toast('📋 Enlace copiado'); } catch { toast(location.origin + location.pathname); } return; }
+    if (a === 'copy') { try { await navigator.clipboard.writeText(text); toast('Enlace copiado'); } catch { toast(location.origin + location.pathname); } return; }
     closeModal(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 }
