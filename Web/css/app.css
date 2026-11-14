@@ -683,3 +683,19 @@ body.kb.chat-on .top,body.kb.chat-on #v-buzon>.sec-title,body.kb.chat-on #buz-se
 #sheet .stack>.btn{width:100%;justify-content:center}
 .pfil{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
 #cfg-form>button[type=submit]{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+
+/* 💡 ayudante flotante */
+#helper{position:fixed;right:14px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:45;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+#helper>*{pointer-events:auto}
+.hb-btn{width:48px;height:48px;border-radius:50%;border:1px solid rgba(236,188,92,.5);background:radial-gradient(circle at 35% 30%,#3a3320,#1b2a20);font-size:24px;display:grid;place-items:center;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.45);transition:transform .2s}
+.hb-btn:active{transform:scale(.92)}
+#helper.pend .hb-btn{animation:hbGlow 2.6s ease-in-out infinite}
+@keyframes hbGlow{0%,100%{box-shadow:0 8px 22px rgba(0,0,0,.45),0 0 0 0 rgba(236,188,92,.0)}50%{box-shadow:0 8px 22px rgba(0,0,0,.45),0 0 0 8px rgba(236,188,92,.18)}}
+.hb-bub{display:none;max-width:min(300px,calc(100vw - 32px));background:#16281f;border:1px solid rgba(236,188,92,.45);border-radius:18px 18px 6px 18px;padding:12px 12px 10px;box-shadow:0 14px 36px rgba(0,0,0,.5);animation:hbIn .25s ease-out}
+#helper.open .hb-bub{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start}
+.hb-e{font-size:24px;line-height:1.1}.hb-t{font-size:.9rem;line-height:1.35;font-weight:600}
+.hb-a{grid-column:1/-1;display:flex;gap:6px;align-items:center;margin-top:6px}.hb-a .x{margin-left:auto;width:36px;height:36px}
+@keyframes hbIn{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){#helper.pend .hb-btn,.hb-bub{animation:none}}
+body.adm-view #helper,body.kb #helper{display:none!important}
+.helpsteps{margin:10px 0 0 18px;line-height:1.7}.helpsteps b{color:var(--cream)}

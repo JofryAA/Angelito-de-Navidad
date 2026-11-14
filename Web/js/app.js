@@ -527,7 +527,7 @@ function maybeAskNotif() {
   if (!S.me || S.forcePin || !canNotify() || Notification.permission !== 'default' || askT) return;
   if (isIOS() && !isStandalone()) return;
   let last = 0; try { last = +localStorage.getItem(ASK_KEY) || 0; } catch { }
-  if (Date.now() - last < 3 * 864e5) return;
+  if (Date.now() - last < 6 * 3600e3) return; // si no aceptó, se vuelve a preguntar la próxima vez que abra la app
   const busyNow = () => S.spinning || (typeof PARTY !== 'undefined' && PARTY) || location.hash.startsWith('#juego-') || location.hash === '#ruleta'
     || document.body.classList.contains('kb') || $('#modal').classList.contains('on') || $('#csel').classList.contains('on') || !!tourT;
   const tryAsk = () => {
@@ -820,6 +820,7 @@ function route() {
   if (v === 'buzon') setBuz(S.buz);
   $$('.view').forEach(el => el.classList.toggle('on', el.id === 'v-' + v));
   $$('.tab').forEach(el => el.classList.toggle('on', el.dataset.v === (v === 'actividad' ? 'actividades' : v === 'anonimos' ? 'actividades' : v)));
+  try { renderHelper(); } catch { }
   document.body.classList.toggle('adm-view', v === 'admin');
   $('#gear').style.background = v === 'admin' ? 'var(--cream)' : '';
   if (v === 'ruleta') requestAnimationFrame(drawWheel);
@@ -851,8 +852,60 @@ function applyMods() {
   const hr = $('#h-acts').previousElementSibling; if (hr) hr.style.display = mod('agenda') ? '' : 'none';
 }
 function renderGames() { if ($('#v-juegos').classList.contains('on')) GAMES.render(); }
+/* ---------- 💡 ayudante flotante ----------
+   Un bombillito en la esquina con UN consejo a la vez según lo que te falta (avisos, talla, deseos, ruleta…)
+   y, si ya está todo, invita a compartir ideas. Se asoma solo una vez al entrar y se esconde solo; nunca tapa nada importante. */
+function helperTips() {
+  if (!S.me) return [];
+  const c = S.event, a = S.att[S.uid] || {}, t = [];
+  if (canNotify() && Notification.permission !== 'granted' && !(isIOS() && !isStandalone())) t.push(['🔔', Notification.permission === 'denied' ? 'Tus avisos están bloqueados. Toca y te explico cómo activarlos' : '¿Te avisamos de los mensajes y de tu angelito? Actívalos aquí', 'notif', 'Activar']);
+  if (mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid) && !S.assignment?.revealed) t.push(['🎡', '¡Ya puedes girar la ruleta y ver a quién le regalas!', '#ruleta', 'Girar']);
+  if (mod('asistencia') && !a.status) t.push(['🎉', '¿Vas al angelito? Confírmalo en un toque', 'att', 'Confirmar']);
+  if (mod('perfil') && profDone() < 4) t.push(['👕', 'Pon tu talla y tus gustos para que tu angelito acierte', 'perfil', 'Completar']);
+  if (mod('deseos') && !S.wishes.some(w => w.uid === S.uid)) t.push(['🎁', 'Escribe 2 o 3 ideas de regalo en tu lista de deseos', '#deseos', 'Escribir']);
+  const unread = typeof chatUnread === 'function' ? chatUnread() : 0;
+  if (mod('chat') && unread) t.push(['💬', `Tienes ${unread} ${unread === 1 ? 'mensaje nuevo' : 'mensajes nuevos'} en el chat`, '#chat', 'Leer']);
+  if (!isInstalled() && !(isIOS() && isStandalone())) t.push(['📲', 'Pon el Angelito en tu pantalla de inicio: abre al instante', 'install', 'Instalar']);
+  if (mod('sugerencias')) t.push(['💡', '¿Tienes una idea para el angelito? Compártela aquí', '#sugerencias', 'Compartir']);
+  return t;
+}
+let helpI = 0, helpT = null;
+function renderHelper() {
+  const el = $('#helper'); if (!el) return;
+  const busy = !S.me || S.forcePin || S.spinning || (typeof PARTY !== 'undefined' && PARTY) || location.hash.startsWith('#juego-') || location.hash === '#admin' || ($('#v-buzon')?.classList.contains('on') && S.buz === 'c') || document.body.classList.contains('kb'); // en el chat no estorba al escribir
+  const tips = helperTips();
+  el.hidden = busy || !tips.length; if (el.hidden) { el.classList.remove('open'); return; }
+  el.classList.toggle('pend', tips[0][2] !== '#sugerencias'); // brilla solo si hay algo pendiente de verdad
+  if (el.classList.contains('open')) fillHelper(tips);
+  // se asoma una vez por sesión, un rato después de entrar y en un momento tranquilo
+  let shown = false; try { shown = sessionStorage.getItem('angelito:helper') === '1'; } catch { }
+  if (!shown && !helpT && !$('#modal').classList.contains('on')) helpT = setTimeout(() => { helpT = null; if ($('#modal').classList.contains('on') || $('#helper').hidden) return; try { sessionStorage.setItem('angelito:helper', '1'); } catch { } openHelper(true); }, 6000);
+}
+function fillHelper(tips) {
+  const [e, txt, go, cta] = tips[helpI % tips.length];
+  $('#helper-b').innerHTML = `<span class="hb-e">${e}</span><span class="hb-t">${esc(txt)}</span><span class="hb-a"><button class="btn sm gold" data-hgo="${esc(go)}">${esc(cta)}</button>${tips.length > 1 ? '<button class="btn sm ghost" data-hnext>Otro ›</button>' : ''}<button class="x" data-hclose aria-label="Cerrar">✕</button></span>`;
+}
+function openHelper(auto) {
+  const tips = helperTips(); if (!tips.length) return;
+  fillHelper(tips); $('#helper').classList.add('open');
+  clearTimeout(openHelper.t); if (auto) openHelper.t = setTimeout(() => $('#helper').classList.remove('open'), 9000);
+}
+$('#helper').addEventListener('click', e => {
+  const el = $('#helper'); clearTimeout(openHelper.t);
+  if (e.target.closest('[data-hclose]')) { el.classList.remove('open'); helpI++; return; }
+  if (e.target.closest('[data-hnext]')) { helpI++; fillHelper(helperTips()); return; }
+  const g = e.target.closest('[data-hgo]')?.dataset.hgo;
+  if (g) {
+    el.classList.remove('open'); helpI++;
+    if (g === 'notif') enableNotifications(); else if (g === 'perfil') openProfile(); else if (g === 'install') installApp();
+    else if (g === 'att') { location.hash = 'inicio'; setTimeout(() => $('#h-att')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300); }
+    else location.hash = g.slice(1);
+    return;
+  }
+  if (e.target.closest('#helper-btn')) { if (el.classList.contains('open')) el.classList.remove('open'); else openHelper(false); }
+});
 function renderAll() {
-  for (const f of [applyMods, renderUser, renderHome, renderWheel, renderWishes, renderActs, renderActDetail, renderQuestions, renderSuggestions, renderMyAngel, renderProgress, renderAttendance, renderAppCard, renderNotices, renderBadges, renderHints, renderThanks, renderPhotos, renderLive, renderMemCard, renderPartyLive, saveBoot, renderQuick, renderRevealBtn, renderNoticeAdmin, checkEvents, renderChat, renderGames, renderProfCard, renderUserDot, renderNext, renderAdmin]) { try { f(); } catch (e) { console.error('render', f.name, e); } }
+  for (const f of [renderHelper, applyMods, renderUser, renderHome, renderWheel, renderWishes, renderActs, renderActDetail, renderQuestions, renderSuggestions, renderMyAngel, renderProgress, renderAttendance, renderAppCard, renderNotices, renderBadges, renderHints, renderThanks, renderPhotos, renderLive, renderMemCard, renderPartyLive, saveBoot, renderQuick, renderRevealBtn, renderNoticeAdmin, checkEvents, renderChat, renderGames, renderProfCard, renderUserDot, renderNext, renderAdmin]) { try { f(); } catch (e) { console.error('render', f.name, e); } }
 }
 const GAMES = initGames({ db, fs: { doc, collection, onSnapshot, query, orderBy, limit, setDoc, getDoc, writeBatch, runTransaction }, S, esc, toast, $, openModal, closeModal, confirmBox, render, confetti,
   P, pName, pEmoji, shortName, authErr, can, needLogin: t => needLogin(t), notify: (t, b, u) => notifyCat('juegos', t, b, u) });
@@ -987,7 +1040,7 @@ function renderTodo() {
   if (mod('deseos')) items.push([S.wishes.some(w => w.uid === S.uid), 'Escribe tu lista de deseos', '#deseos']);
 
   if (mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid)) items.unshift([!!S.assignment?.revealed, '🎡 Gira la ruleta y descubre a quién le regalas', '#ruleta']);
-  if (canNotify() && Notification.permission !== 'denied' && !(isIOS() && !isStandalone())) items.push([Notification.permission === 'granted', '🔔 Activa los avisos para enterarte de todo', 'notif']);
+  if (canNotify() && !(isIOS() && !isStandalone())) items.push([Notification.permission === 'granted', '🔔 Activa los avisos para enterarte de todo', 'notif']);
   if (!isInstalled()) items.push([false, '📲 Pon el angelito en tu pantalla de inicio', 'install']);
   if (!items.length) { box.innerHTML = ''; return; }
   const done = items.filter(x => x[0]).length;
@@ -2553,13 +2606,25 @@ async function registerPush() {
     if (S.pushFail <= 3) setTimeout(registerPush, 20000 * S.pushFail);
   }
 }
+// El navegador ya no deja preguntar si se bloquearon: se explica cómo permitirlas desde el teléfono.
+function notifHelp() {
+  const inst = isStandalone();
+  openModal(`<div style="text-align:center"><div style="font-size:44px">🔕</div><h3>Los avisos están bloqueados</h3></div>
+    <p class="muted">Así te enteras de mensajes, pistas de tu angelito y cambios del evento. Para permitirlos:</p>
+    <ol class="helpsteps">${inst
+      ? '<li>Mantén presionado el ícono del <b>Angelito</b> en tu pantalla</li><li>Toca <b>ⓘ Información de la app</b></li><li>Entra a <b>Notificaciones</b> y actívalas</li>'
+      : '<li>Toca el <b>🔒</b> (o ⓘ) al lado de la dirección, arriba</li><li>Entra a <b>Permisos</b> o <b>Configuración del sitio</b></li><li>En <b>Notificaciones</b> elige <b>Permitir</b></li><li>Vuelve aquí y recarga</li>'}</ol>
+    <div class="actions"><button class="btn" data-a="close">Luego</button><button class="btn gold" data-a="reload">Ya las permití</button></div>`)
+    .onclick = e => { const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return; closeModal(); if (a === 'reload') { if (Notification.permission === 'granted') { registerPush(); toast('🔔 ¡Listo!'); render(); } else location.reload(); } };
+}
 async function enableNotifications() {
   if (!canNotify()) {
     return openModal(`<h3>🔔 Notificaciones</h3><p class="muted">${isIOS() ? 'En iPhone primero instala la app: toca <b>Compartir</b> ⬆️ y luego <b>"Agregar a inicio"</b>. Después ábrela desde el ícono y activa las notificaciones.' : 'Este navegador no permite notificaciones.'}</p><div class="actions"><button class="btn gold" data-a="ok">Entendido</button></div>`).onclick = e => { if (e.target.closest('[data-a]')) closeModal(); };
   }
+  if (Notification.permission === 'denied') return notifHelp();
   const r = await Notification.requestPermission();
   if (r === 'granted') { toast('🔔 ¡Listo! Te avisaremos de lo importante'); registerPush(); notifyUser('🔔 Notificaciones activadas', 'Así se verán los avisos del angelito.'); }
-  else toast('No se activaron. Puedes activarlas desde los ajustes del navegador.');
+  else if (r === 'denied') notifHelp(); else toast('Cuando quieras, actívalas desde el 💡 o en tu menú → Notificaciones.');
   render();
 }
 function installApp() {
