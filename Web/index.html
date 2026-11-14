@@ -267,6 +267,16 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
           <button class="btn primary" id="d-gen">Generar sorteo</button>
         </div>
+        <details class="fold" id="x-fold" style="margin-top:16px"><summary><b>🚫 Restricciones de la ruleta</b> <span class="badge" id="x-count"></span></summary>
+          <p class="muted small" style="margin-top:8px">Elige a quién <b>no</b> le puede salir alguien (por ejemplo, esposos o quienes viven juntos). Solo tú las ves; el sorteo las respeta.</p>
+          <form class="stack" id="x-form" style="margin-top:10px">
+            <div class="row"><label class="field"><span>A esta persona…</span><select class="in" id="x-a" required></select></label>
+            <label class="field"><span>…no le puede salir</span><select class="in" id="x-b" required></select></label></div>
+            <label class="chk"><input type="checkbox" id="x-both" checked> En los dos sentidos (tampoco al revés)</label>
+            <button class="btn" type="submit">🚫 Agregar restricción</button>
+          </form>
+          <div class="stack" id="x-list" style="margin-top:10px;gap:8px"></div>
+        </details>
       </div>
 
       <div class="card admin-sec" data-grp="actividades" data-ord="1" data-perm="actividades">

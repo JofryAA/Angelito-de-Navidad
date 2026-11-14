@@ -323,6 +323,7 @@ function startAdminSubs() {
   const sub = (q, f, n) => unsubAdm.push(onSnapshot(q, f, fail(n)));
   const rows = s => s.docs.map(d => ({ id: d.id, ...d.data() }));
   if (S.isOwner) {
+    sub(doc(adb, 'drawRules', 'main'), s => { S.drawRules = s.exists() ? (s.data().pairs || []) : []; render(); }, 'drawRules');
     sub(collection(adb, 'assignments'), s => { S.assignments = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); render(); }, 'assignments');
     sub(collection(adb, 'suggestionAuthors'), s => { S.sugAuthors = Object.fromEntries(s.docs.map(d => [d.id, d.data().uid])); render(); }, 'sugauth');
     sub(collection(adb, 'guesses'), s => { S.adminGuesses = rows(s); render(); }, 'guesses-adm');
@@ -562,6 +563,7 @@ async function resetPin(pid, tempPin) {
   fin.set(R('participants', nid), { ...pdata, email, mustChangePin: true }); fin.delete(R('participants', pid));
   if (p.nameKey) fin.set(R('names', p.nameKey), { uid: nid });
   fin.set(R('banned', pid), { at: serverTimestamp() });
+  if ((S.drawRules || []).some(r => r.a === pid || r.b === pid)) fin.set(R('drawRules', 'main'), { pairs: S.drawRules.map(r => ({ ...r, a: r.a === pid ? nid : r.a, b: r.b === pid ? nid : r.b })), at: serverTimestamp() });
   for (const c of ['assignments', 'giftStatus', 'giftIncoming', 'attendance', 'guesses']) {
     const snap = await getDoc(R(c, pid)).catch(() => null);
     if (snap && snap.exists()) { const data = snap.data(); if ('uid' in data) data.uid = nid; put(R(c, nid), data); del(R(c, pid)); }
@@ -1826,7 +1828,7 @@ function applyAdmGroups() {
 function admGo(g) {
   if (cfgDirty && S.admGrp === 'evento' && g !== 'evento') toast('⚠️ Tienes cambios del evento sin guardar');
   S.admGrp = g; try { sessionStorage.setItem('angelito:admGrp', g); } catch { }
-  applyAdmGroups(); renderAdmDash();
+  applyAdmGroups(); renderAdmDash(); renderDrawRules();
   $('#adm-nav [data-ag].on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   const top = $('#adm-nav').getBoundingClientRect().top + scrollY - 8; if (scrollY > top) scrollTo({ top, behavior: 'smooth' });
 }
@@ -1886,7 +1888,7 @@ function renderAdmin() {
   $$('#adm-panel [data-perm]').forEach(el => { el.style.display = (el.dataset.perm === 'owner' ? S.isOwner : can(el.dataset.perm)) ? '' : 'none'; });
   const rr = $('#d-reveal-row'); if (rr) rr.style.display = S.drawMeta ? '' : 'none';
   { const sec = $('#d-gen')?.closest('.admin-sec'), want = (S.drawMeta && drawReady()) ? '3' : '0'; if (sec && sec.dataset.ord !== want) { sec.dataset.ord = want; sortAdm(); } } // sin sorteo, 'Generar sorteo' va primero
-  applyAdmGroups(); renderAdmDash();
+  applyAdmGroups(); renderAdmDash(); renderDrawRules();
   $('#adm-who').textContent = S.isOwner ? 'Organizador principal' : S.staffSelf && S.me ? S.me.name : S.staff?.name || 'Organizador';
   $('#adm-role').textContent = S.isOwner ? 'Panel de control · acceso total' : 'Panel de control · administrador';
   $('#adm-ic').textContent = S.isOwner ? '👑' : S.staffSelf && S.me ? (S.me.emoji || '🛡️') : '🛡️';
@@ -2133,14 +2135,63 @@ $('#p-list').addEventListener('click', async e => {
     await b2.commit(); toast('Participante eliminado');
   } catch (err) { toast(authErr(err)); }
 });
+// Restricciones: pares { a: quien regala, b: a quien no le puede salir, both: también al revés }
+function blockedSet() { const s = new Set(); for (const r of S.drawRules || []) { s.add(r.a + '>' + r.b); if (r.both) s.add(r.b + '>' + r.a); } return s; }
+function drawRing(ids) {
+  const bad = blockedSet(), ok = (x, y) => x !== y && !bad.has(x + '>' + y);
+  for (let t = 0; t < 4000; t++) { // al azar: con pocas restricciones sale al primer intento
+    const r = shuffle([...ids]);
+    if (r.every((x, i) => ok(x, r[(i + 1) % r.length]))) return Object.fromEntries(r.map((x, i) => [x, r[(i + 1) % r.length]]));
+  }
+  // búsqueda completa (muchas restricciones): arma la cadena paso a paso, volviendo atrás si se tranca
+  const n = ids.length, path = [ids[0]], used = new Set(path); let steps = 0;
+  const go = () => {
+    if (++steps > 200000) return false;
+    if (path.length === n) return ok(path[n - 1], path[0]);
+    for (const y of shuffle(ids.filter(z => !used.has(z)))) if (ok(path[path.length - 1], y)) { path.push(y); used.add(y); if (go()) return true; path.pop(); used.delete(y); }
+    return false;
+  };
+  return go() ? Object.fromEntries(path.map((x, i) => [x, path[(i + 1) % n]])) : null;
+}
+function renderDrawRules() {
+  if (!S.isOwner || !$('#x-list')) return;
+  const ppl = [...S.participants].sort((a, b) => a.name.localeCompare(b.name));
+  const opts = '<option value="">Elige…</option>' + ppl.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  for (const id of ['#x-a', '#x-b']) { const el = $(id); if (el.dataset.sig !== opts) { const v = el.value; el.innerHTML = opts; el.dataset.sig = opts; el.value = v; } }
+  const rules = (S.drawRules || []).filter(r => P(r.a) && P(r.b));
+  $('#x-count').textContent = rules.length || '';
+  $('#x-list').innerHTML = rules.length ? rules.map((r, i) => `<div class="prow" style="align-items:center"><div style="flex:1;min-width:0">${esc(P(r.a).emoji)} <b>${esc(shortName(P(r.a)))}</b> ${r.both ? '⇄' : '→'} 🚫 ${esc(P(r.b).emoji)} <b>${esc(shortName(P(r.b)))}</b><div class="muted small">${r.both ? 'No se tocan entre ellos' : `A ${esc(shortName(P(r.a)))} no le sale ${esc(shortName(P(r.b)))}`}</div></div><button class="x" data-xdel="${i}" aria-label="Quitar">✕</button></div>`).join('')
+    : '<p class="muted small">Sin restricciones: cualquiera le puede salir a cualquiera.</p>';
+}
+const saveRules = pairs => setDoc(doc(adb, 'drawRules', 'main'), { pairs, at: serverTimestamp() });
+$('#x-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const a = $('#x-a').value, b = $('#x-b').value, both = $('#x-both').checked;
+  if (!a || !b) return toast('Elige a las dos personas');
+  if (a === b) return toast('Elige dos personas distintas');
+  const cur = (S.drawRules || []).filter(r => P(r.a) && P(r.b));
+  if (cur.some(r => (r.a === a && r.b === b) || (r.both && r.a === b && r.b === a))) return toast('Esa restricción ya existe');
+  if (cur.length >= 60) return toast('Máximo 60 restricciones');
+  const pairs = [...cur, { a, b, both }];
+  const keep = S.drawRules; S.drawRules = pairs; const possible = !!drawRing(S.participants.map(p => p.id)); S.drawRules = keep;
+  if (!possible) return toast('🚫 Con esa restricción ya no habría forma de sortear');
+  try { await saveRules(pairs); $('#x-a').value = $('#x-b').value = ''; toast(S.drawMeta ? '✅ Guardada. Vuelve a sortear para aplicarla' : '✅ Restricción guardada'); } catch (err) { toast(authErr(err)); }
+});
+$('#x-list').addEventListener('click', async e => {
+  const b = e.target.closest('[data-xdel]'); if (!b) return;
+  const pairs = (S.drawRules || []).filter(r => P(r.a) && P(r.b)); pairs.splice(+b.dataset.xdel, 1);
+  try { await saveRules(pairs); toast('Restricción quitada'); } catch (err) { toast(authErr(err)); }
+});
 $('#d-gen').addEventListener('click', async () => {
   const ids = S.participants.map(p => p.id);
   if (ids.length < 3) return toast('Necesitas al menos 3 participantes');
   const msg = S.drawMeta ? 'Se borrarán todos los giros y cada quien tendrá que girar de nuevo. Las inscripciones se cerrarán.' : `Se sortearán ${ids.length} personas y se cerrarán las inscripciones.`;
   if (!(await confirmBox(S.drawMeta ? '¿Volver a sortear?' : '¿Generar el sorteo?', msg, 'Sortear'))) return;
   if (ids.length > 450) return toast('Son demasiadas personas para sortear de una vez');
-  // Una sola cadena: A→B→C→…→A. Nadie se toca a sí mismo y no hay parejas que se regalen mutuamente.
-  const ring = shuffle([...ids]), next = Object.fromEntries(ring.map((x, i) => [x, ring[(i + 1) % ring.length]]));
+  // Una sola cadena: A→B→C→…→A. Nadie se toca a sí mismo, no hay parejas que se regalen mutuamente
+  // y se respetan las restricciones del organizador ("a X no le puede salir Y").
+  const next = drawRing(ids);
+  if (!next) return toast('🚫 Con estas restricciones no hay forma de sortear. Quita alguna e inténtalo otra vez.');
   const perm = ids.map(x => next[x]);
   try {
     // 1) primero se invalida el sorteo viejo: si algo falla a medias, la app no lo da por bueno
