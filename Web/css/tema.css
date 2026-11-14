@@ -207,3 +207,39 @@ body.chat-on #buz-seg{display:none!important}
 #inst-btn .ib-app{color:#fff}
 
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* =================== Tanda 3 =================== */
+/* Nieve por encima del contenido (sin tapar toques), debajo de la barra y de las ventanas */
+#snow{z-index:45!important;opacity:.55!important}
+
+/* Separación uniforme entre tarjetas (nada pegado) */
+#v-inicio>div>.card,#v-inicio>.card,#v-inicio>div>a.card,#v-inicio>div>button.card{margin:0 0 18px!important}
+#v-inicio .anonhome{margin:0 0 18px!important}
+#v-inicio>.hero{margin-bottom:18px}
+.stack{gap:12px}
+.rsvpcard::before,.profcard::before,.anonhome::before{right:-56px!important;top:-56px!important}
+.rsvpcard .bdg,.rsvpcard .tag,.rsvpcard>div:first-child>span{position:relative;z-index:1}
+
+/* ---- Login ---- */
+.sheet.authm{padding:0 0 18px!important;overflow-x:hidden}
+.auth-hd{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:26px 20px 34px;text-align:center;color:#fff;overflow:hidden;
+  background:radial-gradient(circle at 80% 0%,rgba(255,214,120,.4),transparent 45%),linear-gradient(145deg,#a8342f,#7a1f2b 60%,#4e1220)}
+.auth-hd::after{content:'';position:absolute;inset:0;background:radial-gradient(rgba(255,255,255,.22) 1px,transparent 1.5px) 0 0/16px 16px;opacity:.35}
+.auth-hd>*{position:relative;z-index:1}
+.auth-logo{display:grid;place-items:center;width:64px;height:64px;border-radius:20px;font-size:34px;background:rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 8px 20px rgba(0,0,0,.3);animation:bob 3.4s ease-in-out infinite;margin-bottom:6px}
+.auth-hd b{font-family:var(--serif,inherit);font-size:1.45rem;line-height:1.1}
+.auth-hd small{opacity:.85}
+.auth-seg{margin:-20px 18px 16px!important;position:relative;z-index:2;box-shadow:0 8px 20px rgba(0,0,0,.35)}
+.authm #auth-body{padding:0 20px}
+.apick{display:flex;flex-direction:column;align-items:center;gap:2px;width:calc(33.33% - 6px);padding:12px 6px 10px;border-radius:16px;border:1px solid rgba(255,255,255,.08);
+  background:linear-gradient(165deg,#1d4234,#12291f);color:inherit;font:inherit;cursor:pointer;transition:transform .14s,box-shadow .2s;animation:popin .3s both}
+.apick:active{transform:scale(.95)}
+.ap-e{font-size:28px;line-height:1.1}
+.ap-n{font-weight:700;font-size:.85rem;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apick small{font-size:.7rem;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apick.on{background:linear-gradient(145deg,#f7d98b,#e2a93b);color:#2b1a00;border-color:transparent;box-shadow:0 6px 16px rgba(226,169,59,.4)}
+.apick.on small{color:#5a3d00}
+.authm .pick{max-height:260px;gap:8px!important}
+.authm .pinin{text-align:center;font-size:1.6rem!important;letter-spacing:.6em;padding-left:.6em!important;font-weight:800}
+.authm #l-pinbox{animation:upin .3s both}
+.authm .actions{margin-top:16px}

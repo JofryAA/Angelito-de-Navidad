@@ -417,7 +417,7 @@ addEventListener('popstate', () => {
   if ($('#modal').classList.contains('on')) { if (S.spinning || S.forcePin) { sheetHistory(); return; } closeModal(); return; }
   history.back(); // la hoja ya estaba cerrada: este "atrás" era para navegar
 });
-function openModal(html) { $('#sheet').innerHTML = html; $('#modal').classList.add('on'); sheetHistory(); return $('#sheet'); }
+function openModal(html) { $('#sheet').className = 'sheet'; $('#sheet').innerHTML = html; $('#modal').classList.add('on'); sheetHistory(); return $('#sheet'); }
 function closeModal() { $('#modal').classList.remove('on'); $('#sheet').onclick = null; }
 // En computadora, la tecla Esc cierra la ventanita abierta (como tocar fuera o el botón atrás en el teléfono).
 addEventListener('keydown', e => {
@@ -439,7 +439,8 @@ const busy = (btn, on, label) => { btn.disabled = on; if (on) { btn.dataset.l = 
 
 /* ---------- auth UI (participantes) ---------- */
 function openAuth(tab = 'login', then) {
-  const s = openModal(`<div class="seg"><button data-t="login">Entrar</button><button data-t="reg">Registrarme</button><button data-t="org">🛡️ Organizador</button></div><div id="auth-body"></div>`);
+  const s = openModal(`<div class="auth-hd"><span class="auth-logo">🎁</span><b>${esc(S.event?.eventName || 'Angelito de Navidad')}</b><small>Entra con tu nombre y tu PIN</small></div><div class="seg auth-seg"><button data-t="login">Entrar</button><button data-t="reg">Registrarme</button></div><div id="auth-body"></div>`);
+  s.classList.add('authm');
   const show = t => {
     $$('.seg button', s).forEach(b => b.classList.toggle('on', b.dataset.t === t));
     const body = $('#auth-body', s);
@@ -461,7 +462,7 @@ function openAuth(tab = 'login', then) {
     if (t === 'login') {
       let sel = null;
       body.innerHTML = S.participants.length ? `
-        <label class="field"><span>Busca tu nombre</span><input class="in" id="l-q" placeholder="Escribe tu nombre…" autocomplete="off"></label>
+        <label class="field"><span>¿Quién eres?</span><input class="in" id="l-q" placeholder="🔍 Busca tu nombre…" autocomplete="off"></label>
         <div class="pick" id="l-pick" style="margin-top:10px"></div>
         <div id="l-pinbox" style="display:none;margin-top:14px">${pinField('l-pin', 'Tu PIN de 4 números')}</div>
         <div class="err" id="l-err"></div>
@@ -472,7 +473,7 @@ function openAuth(tab = 'login', then) {
       const paint = () => {
         const q = normName($('#l-q', body).value);
         $('#l-pick', body).innerHTML = S.participants.filter(p => !q || String(p.nameKey || '').includes(q))
-          .map(p => `<button class="chip ${sel === p.id ? 'on' : ''}" data-p="${esc(p.id)}">${esc(p.emoji)} ${esc(p.name)}</button>`).join('') || '<p class="muted small">No aparece. ¿Ya te registraste?</p>';
+          .map(p => `<button class="apick ${sel === p.id ? 'on' : ''}" data-p="${esc(p.id)}"><span class="ap-e">${esc(p.emoji)}</span><span class="ap-n">${esc(p.first || p.name)}</span><small>${esc(p.last || '')}</small></button>`).join('') || '<p class="muted small">No aparece. ¿Ya te registraste?</p>';
       };
       paint();
       $('#l-q', body).addEventListener('input', paint);
@@ -756,7 +757,6 @@ function userMenu() {
       ${row('notif', 'bell', 'Notificaciones', 'Elige qué avisos recibir')}
       ${isInstalled() ? '' : row('install', 'phone', 'Instalar la app', 'Ábrela desde tu pantalla de inicio')}
       ${row('help', 'help', 'Ayuda', 'Guía, preguntas frecuentes y soluciones')}
-      ${S.isOwner ? '' : row('org', 'lock', 'Entrar como organizador principal', '')}
     </div>
     <div class="actions"><button class="btn ghost" data-a="out">Cerrar sesión</button><button class="btn gold" data-a="close">Listo</button></div>`);
   s.onclick = async e => {
@@ -998,7 +998,7 @@ function renderHome() {
       <p class="muted">Regístrate con tu nombre, tu apellido y un PIN de 4 números. ${cnt ? `Ya hay <b>${cnt}</b> ${cnt === 1 ? 'inscrito' : 'inscritos'}.` : '¡Sé el primero!'}</p>
       <div class="jb"><button class="btn primary" data-auth="reg">🎁 Registrarme</button><button class="btn" data-auth="login">Ya estoy inscrito</button></div></div>`;
   else jn.innerHTML = '';
-  $('#h-join2').innerHTML = S.authReady && S.me && regOpen() ? `<div class="card join"><div class="je">👨‍👩‍👧</div><div style="flex:1"><b>¿Alguien más quiere participar?</b><div class="muted small">Inscribe a otra persona desde este teléfono.</div></div><button class="btn sm gold" id="join-other">Inscribir</button></div>` : '';
+  $('#h-join2').innerHTML = ''; // la tarjeta "¿Alguien más quiere participar?" ya no se muestra
   renderTodo();
   const upcoming = S.activities.filter(a => !a.date || a.date >= todayStr());
   const homeActs = (upcoming.length ? upcoming : S.activities).slice(0, 3);
