@@ -1,0 +1,21 @@
+name: Notificaciones (app cerrada)
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # cada 5 minutos (GitHub a veces se atrasa unos minutos)
+  workflow_dispatch: {}      # botón "Run workflow" para probar a mano
+concurrency: { group: push, cancel-in-progress: false }
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: push }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install --omit=dev --no-audit --no-fund
+        working-directory: push
+      - run: node send.mjs
+        working-directory: push
+        env:
+          FIREBASE_ADMIN_KEY: ${{ secrets.FIREBASE_ADMIN_KEY }}

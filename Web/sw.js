@@ -47,10 +47,13 @@ try {
     importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js', 'https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
     firebase.initializeApp(cfg);
     const messaging = firebase.messaging();
-    messaging.onBackgroundMessage(p => {
+    messaging.onBackgroundMessage(async p => {
       if (p.notification) return; // Firebase ya la muestra
       const d = p.data || {};
-      self.registration.showNotification(d.title || 'Angelito 🎁', { body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/favicon-64.png', tag: 'angelito', renotify: true, data: { url: d.url || './' } });
+      // si la app está abierta y a la vista, ella misma avisa: no repetir
+      const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      if (open.some(c => c.visibilityState === 'visible')) return;
+      return self.registration.showNotification(d.title || 'Angelito 🎁', { body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/favicon-64.png', tag: 'angelito', renotify: true, data: { url: d.url || './' } });
     });
   }
 } catch (e) { /* sin push */ }

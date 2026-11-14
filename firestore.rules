@@ -523,11 +523,13 @@ service cloud.firestore {
     }
 
     // Token de notificaciones push de cada teléfono.
-    match /fcmTokens/{uid} {
+    // Un registro por teléfono: id = uid_algo. Solo lo lee el servidor de notificaciones (y el principal).
+    match /fcmTokens/{id} {
       allow read: if isOwner();
-      allow create, update: if isParticipant() && me() == uid && request.resource.data.uid == uid
-        && request.resource.data.keys().hasOnly(['uid', 'token', 'at']) && tsOk(request.resource.data) && str(request.resource.data.token, 4096);
-      allow delete: if isOwner() || (signedIn() && me() == uid);
+      allow create, update: if isParticipant() && request.resource.data.uid == me() && (id == me() || id.matches(me() + '_[a-z0-9]+'))
+        && request.resource.data.keys().hasOnly(['uid', 'token', 'at', 'off']) && tsOk(request.resource.data) && str(request.resource.data.token, 4096)
+        && request.resource.data.get('off', []) is list && request.resource.data.get('off', []).size() <= 20;
+      allow delete: if isOwner() || (signedIn() && (id == me() || id.matches(me() + '_[a-z0-9]+')));
     }
   }
 }

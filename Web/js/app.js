@@ -140,6 +140,7 @@ new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) i
 const inFlight = new WeakSet();
 document.addEventListener('submit', e => {
   const f = e.target;
+  if (f.id === 'c-form') return; // en el chat se puede escribir rápido, un mensaje tras otro
   if (inFlight.has(f)) { e.preventDefault(); e.stopImmediatePropagation(); return; }
   inFlight.add(f); setTimeout(() => inFlight.delete(f), 700);
 }, true);
@@ -269,7 +270,12 @@ function startUserSubs(user) {
     unsubUser.push(onSnapshot(doc(db, 'angelGuess', user.uid), s => { S.myAngelGuess = s.exists() ? s.data() : null; render(); }, ufail('angelGuess')));
     unsubUser.push(onSnapshot(doc(db, 'reveal', 'main'), s => { S.reveal = s.exists() ? s.data() : null; syncAngelGuesses(); render(); }, ufail('reveal')));
     unsubUser.push(onSnapshot(doc(db, 'guesses', user.uid), s => { S.myGuess = s.exists() ? s.data() : null; render(); }, ufail('myGuess')));
-    unsubUser.push(onSnapshot(query(collection(db, 'chat'), orderBy('ts', 'desc'), limit(120)), s => { S.chat = rows(s).reverse(); render(); }, ufail('chat')));
+    unsubUser.push(onSnapshot(query(collection(db, 'chat'), orderBy('ts', 'desc'), limit(120)), { includeMetadataChanges: true }, s => {
+      // orden por la hora del SERVIDOR (no la del teléfono, que puede estar adelantada o atrasada); lo que aún no sube va al final con 🕓
+      const t = m => m.pending ? 9e15 + (m.ts || 0) : (ms(m.at) || m.ts || 0);
+      S.chat = s.docs.map(d => ({ id: d.id, ...d.data(), pending: !!d.metadata?.hasPendingWrites })).sort((a, b) => t(a) - t(b));
+      S.chatLive = !s.metadata?.fromCache; render();
+    }, ufail('chat')));
 }
 onAuthStateChanged(auth, user => {
   try { if (user) localStorage.setItem('angelito:lastUid', user.uid); else localStorage.removeItem('angelito:lastUid'); } catch { }
@@ -577,7 +583,7 @@ async function resetPin(pid, tempPin) {
   (await q('votes', 'choice', pid)).forEach(d => { if (d.data().uid !== pid) put(d.ref, { ...d.data(), choice: nid }); });
   (await q('sugVotes', 'uid', pid)).forEach(d => { put(R('sugVotes', `${d.data().sug}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
   (await q('chatReacts', 'uid', pid)).forEach(d => { put(R('chatReacts', `${d.data().msg}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
-  del(R('fcmTokens', pid));
+  (await q('fcmTokens', 'uid', pid)).forEach(d => del(d.ref)); del(R('fcmTokens', pid));
   for (const c of ['profiles', 'hintsSent', 'angelGuess', 'thanks', 'wishPick']) { const sn = await getDoc(R(c, pid)).catch(() => null); if (sn && sn.exists()) { put(R(c, nid), sn.data()); del(R(c, pid)); } }
   (await q('hints', 'to', pid)).forEach(d => put(d.ref, { ...d.data(), to: nid }));
   for (const c of ['photos', 'photosFull']) (await q(c, 'uid', pid)).forEach(d => put(d.ref, { ...d.data(), uid: nid }));
@@ -1444,17 +1450,17 @@ function renderChat() {
   wrap.style.display = can ? '' : 'none';
   $('#c-form').style.display = S.me ? '' : 'none'; $('#c-emo').style.display = S.me ? '' : 'none';
   if (!can) return;
-  $('#c-count').textContent = S.chat.length ? nMsg(S.chat.length) : '';
-  const sig = S.chat.map(m => m.id).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join();
+  $('#c-count').textContent = navigator.onLine === false ? '📡 Sin conexión: se enviará al volver' : S.chat.length ? nMsg(S.chat.length) : '';
+  const sig = S.chat.map(m => m.id + (m.pending ? '~' : '')).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join();
   if (sig === chatSig) return; chatSig = sig;
   const l = $('#c-list'), near = l.scrollHeight - l.scrollTop - l.clientHeight < 80;
   let last = '';
   l.innerHTML = S.chat.length ? S.chat.map(m => {
-    const d = new Date(m.ts || 0), day = d.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
+    const d = new Date(ms(m.at) || m.ts || 0), day = d.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
     const sep = day !== last ? `<div class="daysep">${esc(cap(day))}</div>` : ''; last = day;
     const me = m.uid === S.uid;
     const tagMe = (m.mentions || []).includes(S.uid);
-    return `${sep}<div class="msg ${me ? 'me' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}<div class="mt">${mentionHTML(m)}</div>${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${hm(d)}</div></div></div>`;
+    return `${sep}<div class="msg ${me ? 'me' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}<div class="mt">${mentionHTML(m)}</div>${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : ' <span class="ok" title="Enviado">✓</span>') : ''}</div></div></div>`;
   }).join('') : `<div class="empty" style="margin:auto"><span class="e">💬</span>Nadie ha escrito todavía.<br>¡Rompe el hielo! Toca 🎲 para una idea.</div>`;
   if (near || S.chatStick) { S.chatStick = false; l.scrollTop = l.scrollHeight; }
 }
@@ -2486,7 +2492,17 @@ async function notifyUser(title, body = '', url = './', tag) {
   }
   toast(body ? `${title} · ${body}` : title);
 }
-let pushDone = false;
+let pushDone = false, pushToken = '';
+// Un registro por teléfono (puedes tener la app en varios): guarda qué avisos NO quieres para que el servidor tampoco los mande.
+const tokenId = t => { let h = 0; for (const c of t) h = (h * 31 + c.charCodeAt(0)) | 0; return `${S.uid}_${(h >>> 0).toString(36)}`; };
+async function syncPushPrefs() {
+  if (!pushToken || !S.uid) return;
+  const o = nprefs(), off = Object.keys(NCAT).filter(k => o[k] === false);
+  try {
+    await setDoc(doc(db, 'fcmTokens', tokenId(pushToken)), { uid: S.uid, token: pushToken, off, at: serverTimestamp() });
+    if (!syncPushPrefs.old) { syncPushPrefs.old = true; { const w = writeBatch(db); w.delete(doc(db, 'fcmTokens', S.uid)); await w.commit().catch(() => { }); } } // formato viejo (uno por persona)
+  } catch (e) { console.warn('push prefs', e); }
+}
 async function registerPush() {
   if (pushDone || !VAPID_KEY || !swReg || !S.uid) return; pushDone = true;
   try {
@@ -2494,8 +2510,9 @@ async function registerPush() {
     if (!(await m.isSupported())) return;
     const messaging = m.getMessaging(app);
     const token = await m.getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
-    if (token && S.uid) await setDoc(doc(db, 'fcmTokens', S.uid), { uid: S.uid, token, at: serverTimestamp() });
-    m.onMessage(messaging, p => notifyUser(p.notification?.title || p.data?.title || 'Angelito 🎁', p.notification?.body || p.data?.body || ''));
+    if (token && S.uid) { pushToken = token; await syncPushPrefs(); }
+    // con la app abierta los avisos ya salen desde aquí; el servidor solo cuenta cuando está cerrada
+    m.onMessage(messaging, () => { });
   } catch (e) { console.warn('push', e); pushDone = false; }
 }
 async function enableNotifications() {
@@ -2666,7 +2683,7 @@ const NCAT = {
 };
 const NP_KEY = 'angelito:nprefs', NS_KEY = 'angelito:nstate';
 const nprefs = () => { try { return { quiet: true, ...JSON.parse(localStorage.getItem(NP_KEY) || '{}') }; } catch { return { quiet: true }; } };
-const saveNP = o => { try { localStorage.setItem(NP_KEY, JSON.stringify(o)); } catch { } };
+const saveNP = o => { try { localStorage.setItem(NP_KEY, JSON.stringify(o)); } catch { } clearTimeout(saveNP.t); saveNP.t = setTimeout(() => syncPushPrefs(), 800); };
 const nstate = () => { try { return { last: {}, pend: {}, ...JSON.parse(localStorage.getItem(NS_KEY) || '{}') }; } catch { return { last: {}, pend: {} }; } };
 const saveNS = o => { try { localStorage.setItem(NS_KEY, JSON.stringify(o)); } catch { } };
 const quietNow = () => { const h = new Date().getHours(); return nprefs().quiet && (h >= 22 || h < 8); };
