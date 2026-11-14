@@ -1580,7 +1580,7 @@ function fitChat() {
   const l = $('#c-list'), d = $('#c-dock'); if (!l || !d || !l.offsetParent) return;
   const vh = visualViewport?.height || innerHeight, top = l.getBoundingClientRect().top + scrollY;
   const low = document.body.classList.contains('kb') || document.body.classList.contains('immersive');
-  const h = Math.max(96, Math.round(vh - d.getBoundingClientRect().height - (low ? 30 : 100) - top - 8));
+  const h = Math.max(96, Math.round(vh - d.getBoundingClientRect().height - (low ? 14 : 100) - top - 8));
   l.style.height = h + 'px';
 }
 addEventListener('resize', () => requestAnimationFrame(fitChat));
