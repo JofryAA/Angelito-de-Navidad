@@ -754,3 +754,14 @@ body.adm-view #helper,body.kb #helper{display:none!important}
 .sendbtn:active{transform:scale(.92)}
 #c-mute{color:var(--gold);display:grid;place-items:center}
 .rsvp .rs-i{display:grid;place-items:center;margin-bottom:4px}.rsvp .rs-i .ic{color:var(--muted)}.rsvp button.on .rs-i .ic{color:currentColor}
+
+/* modo pantalla completa en chat y juegos: la barra de pestañas se recoge */
+.tabs{transition:transform .28s ease,opacity .2s}
+body.immersive:not(.tabs-peek) .tabs{transform:translate(-50%,calc(100% + 30px));opacity:0;pointer-events:none}
+#tabs-handle{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(4px + env(safe-area-inset-bottom));z-index:51;width:64px;height:22px;border-radius:999px;border:1px solid var(--line);background:rgba(10,25,18,.92);color:var(--gold);place-items:center;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.4)}
+body.immersive #tabs-handle{display:grid}
+body.immersive.tabs-peek #tabs-handle{bottom:calc(84px + env(safe-area-inset-bottom))}
+body.immersive.tabs-peek #tabs-handle svg{transform:rotate(180deg)}
+body.kb #tabs-handle{display:none!important}
+body.chat-on.immersive:not(.tabs-peek) #c-dock{bottom:calc(30px + env(safe-area-inset-bottom))}
+body.immersive:not(.tabs-peek) #helper{bottom:calc(110px + env(safe-area-inset-bottom))}

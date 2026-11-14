@@ -5,6 +5,7 @@ const APP_VERSION = '2026.11.13-114418';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, deleteUser, updatePassword, reauthenticateWithCredential, EmailAuthProvider, setPersistence, browserSessionPersistence, inMemoryPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { initGames } from './juegos.js';
+import { decoratePanel, navHTML, pic, fillPics } from './panel.js';
 import { runTransaction, deleteField, terminate, clearIndexedDbPersistence, getFirestore, getDocsFromServer, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, writeBatch, increment, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 /* ---------- helpers ---------- */
@@ -97,7 +98,7 @@ function setBuz(b) {
   $$('#buz-seg button').forEach(x => { x.classList.toggle('on', x.dataset.b === b); x.style.display = mod(BUZ_MOD[x.dataset.b]) ? '' : 'none'; });
   $('#buz-s').style.display = b === 's' ? '' : 'none'; $('#buz-c').style.display = b === 'c' ? '' : 'none'; $('#buz-f').style.display = b === 'f' ? '' : 'none';
   if (b === 'f') { ensurePhotos(); renderPhotos(); }
-  document.body.classList.toggle('chat-on', b === 'c' && $('#v-buzon').classList.contains('on'));
+  document.body.classList.toggle('chat-on', b === 'c' && $('#v-buzon').classList.contains('on')); syncImmersive();
   if (b === 'c') { try { diceHint(); } catch { } S.chatStick = true; requestAnimationFrame(() => { renderChat(); scrollChat(true); }); }
   requestAnimationFrame(() => { try { renderBadges(); } catch { } });
 }
@@ -827,6 +828,7 @@ function route() {
   if (v === 'juegos') { try { GAMES.render(); } catch (e) { console.error(e); } } else { try { GAMES.leaveView(); } catch { } }
   const same = curView === v; curView = v;
   document.body.classList.toggle('chat-on', v === 'buzon' && S.buz === 'c');
+  syncImmersive();
   if (!same) requestAnimationFrame(() => { scrollTo({ top: v === 'actividad' || (v === 'buzon' && S.buz === 'c') || (v === 'juegos' && location.hash.includes('juego-')) ? 0 : (tabScroll[v] || 0) }); fitChat(); });
 }
 document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) location.hash = g.dataset.go; });
@@ -1548,11 +1550,25 @@ const OCURRENCIAS = [
   '¿Qué regalo NUNCA deberían darte? 🚫', 'Pon 3 emojis y que adivinen qué quieres de regalo 🧩', '¿Quién de aquí sería el mejor Santa Claus? 🎅'
 ];
 // Alto exacto del chat: lo que queda entre su borde superior y el cuadro de escribir.
+// En el chat y dentro de una partida la barra de pestañas se recoge en una pestañita: más pantalla.
+// Se despliega tocándola y se vuelve a recoger sola.
+function syncImmersive() {
+  const on = document.body.classList.contains('chat-on') || /^#juego-/.test(location.hash);
+  document.body.classList.toggle('immersive', on);
+  if (!on) document.body.classList.remove('tabs-peek');
+  requestAnimationFrame(fitChat);
+}
+addEventListener('hashchange', () => setTimeout(syncImmersive, 0));
+$('#tabs-handle').addEventListener('click', () => {
+  const b = document.body; b.classList.toggle('tabs-peek'); requestAnimationFrame(fitChat);
+  clearTimeout(syncImmersive.t); if (b.classList.contains('tabs-peek')) syncImmersive.t = setTimeout(() => { b.classList.remove('tabs-peek'); requestAnimationFrame(fitChat); }, 6000);
+});
 function fitChat() {
   if (!document.body.classList.contains('chat-on')) return;
   const l = $('#c-list'), d = $('#c-dock'); if (!l || !d || !l.offsetParent) return;
   const vh = visualViewport?.height || innerHeight, top = l.getBoundingClientRect().top + scrollY;
-  const h = Math.max(96, Math.round(vh - d.getBoundingClientRect().height - (document.body.classList.contains('kb') ? 16 : 100) - top - 8));
+  const low = document.body.classList.contains('kb') || (document.body.classList.contains('immersive') && !document.body.classList.contains('tabs-peek'));
+  const h = Math.max(96, Math.round(vh - d.getBoundingClientRect().height - (low ? 30 : 100) - top - 8));
   l.style.height = h + 'px';
 }
 addEventListener('resize', () => requestAnimationFrame(fitChat));
@@ -1974,7 +1990,10 @@ $('#s-list').addEventListener('click', async e => {
 
 /* ---------- admin ---------- */
 let cfgDirty = false;
-$('#cfg-form').addEventListener('input', () => { cfgDirty = true; });
+$('#cfg-form').addEventListener('input', () => { cfgDirty = true; syncCfgBar(); });
+// Barra fija de "cambios sin guardar" (en vez de un botón flotando encima de los campos)
+function syncCfgBar() { const b = $('#cfg-bar'); if (b) b.hidden = !(cfgDirty && S.admGrp === 'evento' && location.hash === '#admin'); }
+$('#cfg-bar').addEventListener('click', e => { if (e.target.closest('[data-cfg=save]')) $('#cfg-form').requestSubmit(); if (e.target.closest('[data-cfg=undo]')) { cfgDirty = false; syncCfgBar(); renderAdmin(); toast('Cambios descartados'); } });
 
 /* ---------- panel del organizador: secciones ---------- */
 const ADM_GROUPS = [['resumen', '🏠', 'Resumen'], ['evento', '🎄', 'Evento'], ['personas', '👥', 'Personas'], ['actividades', '📅', 'Actividades'], ['mensajes', '💬', 'Mensajes'], ['fiesta', '🎉', 'Fiesta'], ['ajustes', '⚙️', 'Ajustes']];
@@ -1989,12 +2008,12 @@ function applyAdmGroups() {
   const allowed = el => el.id === 'adm-dash' || el.style.display !== 'none';
   const avail = ADM_GROUPS.filter(([g]) => secs.some(el => el.dataset.grp === g && allowed(el)));
   if (!avail.some(([g]) => g === S.admGrp)) S.admGrp = 'resumen';
-  $('#adm-nav').innerHTML = avail.map(([g, e, l]) => `<button class="${g === S.admGrp ? 'on' : ''}" data-ag="${g}">${e} ${l}</button>`).join('');
+  $('#adm-nav').innerHTML = navHTML(avail, S.admGrp); decoratePanel($('#adm-panel'));
   secs.forEach(el => el.classList.toggle('gh', el.dataset.grp !== S.admGrp));
 }
 function admGo(g) {
   if (cfgDirty && S.admGrp === 'evento' && g !== 'evento') toast('⚠️ Tienes cambios del evento sin guardar');
-  S.admGrp = g; try { sessionStorage.setItem('angelito:admGrp', g); } catch { }
+  S.admGrp = g; try { sessionStorage.setItem('angelito:admGrp', g); } catch { } syncCfgBar();
   applyAdmGroups(); renderAdmDash(); renderDrawRules();
   $('#adm-nav [data-ag].on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   const top = $('#adm-nav').getBoundingClientRect().top + scrollY - 8; if (scrollY > top) scrollTo({ top, behavior: 'smooth' });
@@ -2058,7 +2077,7 @@ function renderAdmin() {
   applyAdmGroups(); renderAdmDash(); renderDrawRules();
   $('#adm-who').textContent = S.isOwner ? 'Organizador principal' : S.staffSelf && S.me ? S.me.name : S.staff?.name || 'Organizador';
   $('#adm-role').textContent = S.isOwner ? 'Panel de control · acceso total' : 'Panel de control · administrador';
-  $('#adm-ic').textContent = S.isOwner ? '👑' : S.staffSelf && S.me ? (S.me.emoji || '🛡️') : '🛡️';
+  { const k = S.isOwner ? 'crown' : S.staffSelf && S.me ? 'me' : 'shield'; const el = $('#adm-ic'); if (el.dataset.k !== k + (S.me?.emoji || '')) { el.dataset.k = k + (S.me?.emoji || ''); el.innerHTML = k === 'me' ? esc(S.me.emoji || '🙂') : pic(k, 22); } }
   $('#adm-acts').hidden = !!S.staffSelf; // quien administra con su propia cuenta no tiene otra contraseña ni otra sesión que cerrar
   renderStaff();
   const f = $('#cfg-form');
@@ -2121,6 +2140,7 @@ $('#adm-login').addEventListener('submit', async e => {
   try { await adminLogin($('#adm-user').value, $('#adm-pass').value); toast('Modo organizador activo 🔓'); }
   catch (err) { $('#adm-err').textContent = authErr(err).replace('PIN incorrecto', 'Usuario o contraseña incorrectos'); busy(btn, false); }
 });
+fillPics();
 $('#adm-out').addEventListener('click', async () => { await signOut(adminAuth); $('#adm-login').innerHTML = ''; render(); toast('Saliste del modo organizador'); });
 const saveEvent = async patch => {
   S.selfEditAt = Date.now(); // lo cambié yo: no me avises a mí mismo
@@ -2144,7 +2164,7 @@ $('#cfg-form').addEventListener('submit', async e => {
   }
   if (S.isOwner && o.revealDate && o.eventDate && o.revealDate > o.eventDate.slice(0, 10)) return toast('Los anónimos deben abrirse antes o el mismo día del evento');
   if (S.isOwner && o.revealDate && o.revealDate < todayStr() && !(await confirmBox('Los anónimos se abrirían ya', 'Esa fecha ya pasó: todos verían los mensajes ahora mismo.', 'Guardar igual'))) return;
-  if (await saveEvent(o)) { cfgDirty = false; toast('Evento guardado 🎄'); }
+  if (await saveEvent(o)) { cfgDirty = false; syncCfgBar(); toast('Evento guardado'); }
 });
 let cpDirty = false;
 $('#cp-text').addEventListener('input', () => { cpDirty = true; });

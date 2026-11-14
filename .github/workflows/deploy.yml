@@ -16,7 +16,8 @@ jobs:
           sed -i -E "s/const APP_VERSION = '[^']*'/const APP_VERSION = '$V'/" Web/js/app.js
           sed -i -E "s/const VERSION = 'angelito-[^']*'/const VERSION = 'angelito-$V'/" Web/sw.js
           sed -i -E "s#'\./juegos\.js(\?v=[^']*)?'#'./juegos.js?v=$V'#" Web/js/app.js
-          sed -i -E "s#(css/app\.css|js/app\.js)(\?v=[^\"]*)?\"#\1?v=$V\"#g" Web/index.html
+          sed -i -E "s#'\./panel\.js(\?v=[^']*)?'#'./panel.js?v=$V'#" Web/js/app.js
+          sed -i -E "s#(css/app\.css|css/panel\.css|js/app\.js)(\?v=[^\"]*)?\"#\1?v=$V\"#g" Web/index.html
           echo "{\"version\": \"$V\"}" > Web/version.json
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
