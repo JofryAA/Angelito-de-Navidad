@@ -138,7 +138,9 @@ service cloud.firestore {
         && (me() in resource.data.players
             || (resource.data.status == 'lobby' && changed().hasOnly(['players', 'seq', 'updatedAt'])
                 && request.resource.data.players == resource.data.players.concat([me()])));
-      allow delete: if (signedIn() && resource.data.host == me()) || can('moderar');
+      // Cualquiera del grupo puede cerrar una mesa abandonada (45 min sin jugadas, o 2 h si ya terminó).
+      allow delete: if (signedIn() && resource.data.host == me()) || can('moderar')
+        || (isParticipant() && resource.data.updatedAt < request.time.toMillis() - (resource.data.status == 'done' ? 7200000 : 2700000));
       // Fichas de cada asiento: solo las ve su dueño (las de los 🤖, quien creó la mesa).
       match /hands/{seat} {
         function g() { return get(/databases/$(database)/documents/games/$(gid)).data; }
@@ -147,7 +149,7 @@ service cloud.firestore {
           && request.resource.data.tiles is list && request.resource.data.tiles.size() <= 7
           && (seat == me() || g().host == me())
           && seat in getAfter(/databases/$(database)/documents/games/$(gid)).data.players;
-        allow delete: if signedIn() && (g().host == me() || can('moderar'));
+        allow delete: if signedIn() && (g().host == me() || can('moderar') || (isParticipant() && g().updatedAt < request.time.toMillis() - 2700000));
       }
     }
     // Tabla de campeones: cada ganador anota su victoria una sola vez y solo si la mesa terminó con él en winners.
@@ -363,7 +365,8 @@ service cloud.firestore {
     match /chat/{id} {
       allow read: if member();
       allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
-        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'at', 'replyTo']) && tsOk(request.resource.data)
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'at', 'replyTo', 'mentions']) && tsOk(request.resource.data)
+        && (!('mentions' in request.resource.data) || (request.resource.data.mentions is list && request.resource.data.mentions.size() <= 10))
         && !('r' in request.resource.data)
         && (!('replyTo' in request.resource.data) || (request.resource.data.replyTo is map
             && request.resource.data.replyTo.keys().hasOnly(['id', 'uid', 'text']) && str(request.resource.data.replyTo.text, 120)

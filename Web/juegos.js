@@ -223,10 +223,22 @@ export function initGames(X) {
 
   function ensure() {
     if (!S.me) return;
-    if (!G.subList) G.subList = onSnapshot(query(collection(db, 'games'), orderBy('updatedAt', 'desc'), limit(40)), s => { G.list = s.docs.map(d => ({ id: d.id, ...d.data() })); creditWins(); render(); }, e => { console.warn('games', e); G.subList = null; });
+    if (!G.subList) G.subList = onSnapshot(query(collection(db, 'games'), orderBy('updatedAt', 'desc'), limit(40)), s => { G.list = s.docs.map(d => ({ id: d.id, ...d.data() })); creditWins(); cleanupStale(); render(); }, e => { console.warn('games', e); G.subList = null; });
     if (!G.subWins) G.subWins = onSnapshot(query(collection(db, 'gameWins'), limit(1000)), s => { G.wins = s.docs.map(d => d.data()); render(); }, e => { console.warn('gameWins', e); G.subWins = null; });
   }
   function stop() { clearTimeout(G.botT); [G.subList, G.subWins, G.sub, G.subHand, ...Object.values(G.subBots)].forEach(u => u && u()); Object.assign(G, { subList: null, subWins: null, sub: null, subHand: null, subBots: {}, cur: null, list: [], wins: [], hand: [], botHands: {} }); }
+  // Mesas sin movimiento: se cierran solas para no dejar partidas "colgadas" gastando recursos.
+  // En espera o jugando: 45 min sin jugadas. Terminadas: 2 horas (da tiempo a que los ganadores sumen sus puntos).
+  const STALE_LIVE = 45 * 60e3, STALE_DONE = 2 * 3600e3;
+  const isStale = g => Date.now() - (g.updatedAt || 0) > (g.status === 'done' ? STALE_DONE : STALE_LIVE);
+  let cleaning = false;
+  async function cleanupStale() {
+    if (cleaning) return; const old = G.list.filter(isStale).slice(0, 5); if (!old.length) return;
+    cleaning = true;
+    try {
+      for (const g of old) { const b = writeBatch(db); (g.players || []).forEach(s => b.delete(doc(db, 'games', g.id, 'hands', s))); b.delete(doc(db, 'games', g.id)); await b.commit().catch(() => { }); }
+    } finally { cleaning = false; }
+  }
   // Cada ganador anota su propia victoria (las reglas verifican que la mesa terminó y que está en winners).
   function creditWins() {
     for (const g of G.list) {
@@ -345,6 +357,7 @@ export function initGames(X) {
   function maybeBot() {
     const g = G.cur; clearTimeout(G.botT);
     if (!g || g.host !== me() || g.status !== 'playing') return;
+    if (document.hidden) return; // si quien creó la mesa no la está viendo, los 🤖 esperan (no gastan nada)
     const seat = g.players?.[g.turn]; if (!seat || !isBot(seat)) return;
     if (g.type === 'domino') {
       if (g.handOver || !G.botHands[seat]) return;
@@ -407,7 +420,7 @@ export function initGames(X) {
   }
   function renderLobbyList() {
     const ranks = board(), medal = ['🥇', '🥈', '🥉'];
-    const fresh = g => Date.now() - (g.updatedAt || 0) < (g.status === 'lobby' ? 6 : 24) * 3600e3;
+    const fresh = g => !isStale(g);
     const open = G.list.filter(g => g.status === 'lobby' && fresh(g));
     const live = G.list.filter(g => g.status === 'playing' && fresh(g));
     const mineIds = new Set(G.list.filter(g => g.players?.includes(me())).map(g => g.id));
@@ -528,6 +541,8 @@ export function initGames(X) {
     }[type];
     openModal(`<h3>${body[0]}</h3><p class="muted small">¿Cómo quieres jugar?</p><div class="stack" style="margin-top:12px">${body[1]}</div><div class="actions"><button class="btn ghost" data-a="x">Cancelar</button></div>`).onclick = ev => { if (ev.target.closest('[data-a]')) closeModal(); };
   }
+
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) maybeBot(); });
 
   /* ----- toques ----- */
   document.addEventListener('click', async e => {

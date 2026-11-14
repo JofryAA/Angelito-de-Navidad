@@ -344,6 +344,23 @@ body.kb.chat-on #c-dock{bottom:calc(8px + env(safe-area-inset-bottom))}
 .idot{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 0 rgba(236,188,92,.6);animation:idot 1.8s infinite}
 @keyframes idot{70%{box-shadow:0 0 0 8px rgba(236,188,92,0)}100%{box-shadow:0 0 0 0 rgba(236,188,92,0)}}
 .inst-pts{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px 0 6px}.inst-pts span{padding:6px 10px;border-radius:999px;background:var(--card2);font-size:.85rem;font-weight:600}
+/* perfil, menciones, dado, guía */
+.profcard{display:flex;align-items:center;gap:14px;width:100%;text-align:left;margin-bottom:16px;color:inherit;font:inherit;cursor:pointer;border:1.5px solid rgba(236,188,92,.6);background:linear-gradient(135deg,rgba(236,188,92,.2),rgba(226,72,63,.12));animation:abpulse 2.6s ease-in-out infinite}
+.profcard .grow{display:flex;flex-direction:column;gap:3px}.pc-e{font-size:34px}
+.pbar2{display:block;height:7px;border-radius:9px;background:rgba(0,0,0,.3);overflow:hidden;margin-top:4px}.pbar2 i{display:block;height:100%;background:var(--gold)}
+.rdot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#ff5a4e;box-shadow:0 0 0 2px var(--bg);vertical-align:top;margin-left:2px}
+#ubtn{position:relative}#ubtn .rdot{position:absolute;top:2px;right:2px}
+.pulse-soft{animation:abpulse 2.4s ease-in-out infinite}
+.mbar{display:flex;gap:6px;overflow-x:auto;padding:6px 2px;scrollbar-width:none}.mbar[hidden]{display:none}
+.mbar button{flex:0 0 auto;padding:8px 12px;border-radius:999px;border:1px solid var(--gold);background:rgba(236,188,92,.15);color:inherit;font:inherit;font-weight:700;font-size:.85rem}
+.mention{color:var(--gold);font-weight:800}.mention.me{background:rgba(236,188,92,.25);border-radius:6px;padding:0 3px}
+.bub.tagged{box-shadow:0 0 0 2px var(--gold)}
+.dicehint{font-size:.8rem;font-weight:700;color:var(--gold);padding:4px 2px 2px}.dicehint[hidden]{display:none}
+#c-dice.glow{box-shadow:0 0 0 0 rgba(236,188,92,.7);animation:idot 1.8s infinite;background:rgba(236,188,92,.18)}
+#c-dice.roll{animation:roll .6s ease}
+@keyframes roll{40%{transform:rotate(200deg) scale(1.25)}100%{transform:rotate(360deg)}}
+.tour-e{font-size:64px;text-align:center;margin:6px 0 4px;animation:drop .4s ease}
+.tour-dots{display:flex;justify-content:center;gap:6px;margin-top:14px}.tour-dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.tour-dots i.on{background:var(--gold);width:22px;border-radius:5px}
 /* modal + toast */
 .modal{position:fixed;inset:0;z-index:80;display:none;align-items:flex-end;justify-content:center;background:rgba(3,8,6,.7);backdrop-filter:blur(6px);padding:16px}
 .modal.on{display:flex;animation:fade .25s}
@@ -589,6 +606,7 @@ html.big .tab{font-size:.6rem}
     <div id="h-notices"></div>
     <div id="h-app"></div>
     <div id="h-join"></div>
+    <div id="h-prof"></div>
     <div id="h-todo"></div>
     <div id="h-att"></div>
     <div class="card evcard" id="h-evcard">
@@ -660,6 +678,8 @@ html.big .tab{font-size:.6rem}
         <div class="chatbox" id="c-list"></div>
         <div id="c-dock"><div class="emobar" id="c-emo"><button data-e="😂">😂</button><button data-e="🤣">🤣</button><button data-e="🎄">🎄</button><button data-e="🎁">🎁</button><button data-e="👀">👀</button><button data-e="🔥">🔥</button><button data-e="🤫">🤫</button><button data-e="🥳">🥳</button><button data-e="🙄">🙄</button><button data-e="❤️">❤️</button></div>
         <div id="c-reply"></div>
+        <div class="mbar" id="c-mention" hidden></div>
+        <div class="dicehint" id="c-dicehint" hidden>🎲 ¿Sin ideas? Toca el dado y te damos una ocurrencia</div>
         <form class="composer" id="c-form">
           <button type="button" class="iconbtn" id="c-dice" title="Ocurrencia random" aria-label="Ocurrencia random">🎲</button>
           <input class="in" id="c-text" maxlength="500" placeholder="Escribe una ocurrencia…" autocomplete="off">
@@ -1003,7 +1023,7 @@ function setBuz(b) {
   $('#buz-s').style.display = b === 's' ? '' : 'none'; $('#buz-c').style.display = b === 'c' ? '' : 'none'; $('#buz-f').style.display = b === 'f' ? '' : 'none';
   if (b === 'f') { ensurePhotos(); renderPhotos(); }
   document.body.classList.toggle('chat-on', b === 'c' && $('#v-buzon').classList.contains('on'));
-  if (b === 'c') { S.chatStick = true; requestAnimationFrame(() => { renderChat(); scrollChat(true); }); }
+  if (b === 'c') { try { diceHint(); } catch { } S.chatStick = true; requestAnimationFrame(() => { renderChat(); scrollChat(true); }); }
   requestAnimationFrame(() => { try { renderBadges(); } catch { } });
 }
 const drawReady = () => {
@@ -1344,7 +1364,7 @@ function maybeAskNotif() {
   let last = 0; try { last = +localStorage.getItem(ASK_KEY) || 0; } catch { }
   if (Date.now() - last < 3 * 864e5) return;
   const busyNow = () => S.spinning || (typeof PARTY !== 'undefined' && PARTY) || location.hash.startsWith('#juego-') || location.hash === '#ruleta'
-    || document.body.classList.contains('kb') || $('#modal').classList.contains('on') || $('#csel').classList.contains('on');
+    || document.body.classList.contains('kb') || $('#modal').classList.contains('on') || $('#csel').classList.contains('on') || !!tourT;
   const tryAsk = () => {
     askT = null;
     if (!S.me || S.forcePin || Notification.permission !== 'default') return;
@@ -1547,7 +1567,7 @@ function askPin(title, body) {
 }
 function userMenu() {
   const s = openModal(`<div class="who-card"><button class="av" data-a="icon" title="Cambiar mi ícono" style="position:relative">${esc(S.me.emoji)}<span style="position:absolute;right:-4px;bottom:-4px;font-size:12px;background:var(--gold);border-radius:50%;width:20px;height:20px;display:grid;place-items:center">✏️</span></button><div><h3 style="margin:0">${esc(S.me.name)}</h3><div class="muted small">Participante del angelito</div></div></div>
-    <button class="btn sm gold" data-a="icon" style="margin-top:12px">😀 Cambiar mi ícono</button>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">${mod('perfil') ? `<button class="btn sm gold" data-a="prof">👕 Mi perfil ${profDone() < PROF.length ? `· ${profDone()}/${PROF.length}` : '✓'}</button>` : ''}<button class="btn sm" data-a="icon">😀 Cambiar mi ícono</button><button class="btn sm" data-a="tour">📘 Guía rápida</button></div>
     <p class="muted small" style="margin-top:14px">Si estás en un teléfono prestado, cierra sesión al terminar.</p>
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm" data-a="notif">🔔 Notificaciones</button>${isStandalone() ? '' : '<button class="btn sm" data-a="install">📲 Instalar app</button>'}</div>
     ${S.isAdmin ? '' : '<button class="btn sm ghost" data-a="org" style="margin-top:10px;width:100%">🛡️ Entrar como organizador</button>'}
@@ -1556,6 +1576,8 @@ function userMenu() {
     const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return; closeModal();
     if (a === 'org') return openAuth('org');
     if (a === 'icon') return openIconPicker();
+    if (a === 'prof') return openProfile();
+    if (a === 'tour') return openTour(true);
     if (a === 'notif') return openNotifPrefs();
     if (a === 'install') return installApp();
     if (a === 'out') return fullLogout();
@@ -1609,7 +1631,7 @@ function applyMods() {
 }
 function renderGames() { if ($('#v-juegos').classList.contains('on')) GAMES.render(); }
 function renderAll() {
-  for (const f of [applyMods, renderUser, renderHome, renderWheel, renderWishes, renderActs, renderActDetail, renderQuestions, renderSuggestions, renderMyAngel, renderProgress, renderAttendance, renderAppCard, renderNotices, renderBadges, renderHints, renderThanks, renderPhotos, renderLive, renderMemCard, renderPartyLive, saveBoot, renderQuick, renderRevealBtn, renderNoticeAdmin, checkEvents, renderChat, renderGames, renderAdmin]) { try { f(); } catch (e) { console.error('render', f.name, e); } }
+  for (const f of [applyMods, renderUser, renderHome, renderWheel, renderWishes, renderActs, renderActDetail, renderQuestions, renderSuggestions, renderMyAngel, renderProgress, renderAttendance, renderAppCard, renderNotices, renderBadges, renderHints, renderThanks, renderPhotos, renderLive, renderMemCard, renderPartyLive, saveBoot, renderQuick, renderRevealBtn, renderNoticeAdmin, checkEvents, renderChat, renderGames, renderProfCard, renderUserDot, renderAdmin]) { try { f(); } catch (e) { console.error('render', f.name, e); } }
 }
 const GAMES = initGames({ db, fs: { doc, collection, onSnapshot, query, orderBy, limit, setDoc, getDoc, writeBatch, runTransaction }, S, esc, toast, $, openModal, closeModal, confirmBox, render, confetti,
   P, pName, pEmoji, shortName, authErr, can, needLogin: t => needLogin(t), notify: (t, b, u) => notifyCat('juegos', t, b, u) });
@@ -1622,6 +1644,7 @@ document.addEventListener('click', async e => {
   try { sessionStorage.setItem('angelito:afterLogout', 'reg'); } catch { } return fullLogout();
 });
 
+function renderUserDot() { const u = $('#ubtn'); if (!u) return; const need = S.me && mod('perfil') && profDone() < 4; let d = u.querySelector('.rdot'); if (need && !d) { d = document.createElement('span'); d.className = 'rdot'; u.appendChild(d); } else if (!need && d) d.remove(); }
 function renderUser() {
   const box = $('#userbox');
   $('#gear').style.display = S.isAdmin ? '' : 'none';
@@ -1673,6 +1696,44 @@ function renderHome() {
 }
 
 /* ---------- tus pendientes ---------- */
+/* ---------- 📘 guía para quien entra por primera vez ---------- */
+const TOUR = () => [
+  ['🎁', `¡Bienvenido, ${S.me?.first || ''}!`, 'Esta es la app del angelito: aquí pasa todo antes y durante la fiesta. Te enseñamos lo principal en 1 minuto.'],
+  ['👕', 'Tu perfil es lo más importante', 'Pon tu talla, tus colores y lo que te gusta. Así tu angelito acierta con el regalo. Lo encuentras en tu nombre (arriba) o en Deseos.'],
+  ['🎁', 'Tu lista de deseos', 'Escribe lo que te gustaría recibir, con foto si quieres. Marca con ⭐ el que más quieres.'],
+  ['🎡', 'La ruleta', 'Cuando el organizador haga el sorteo, gira la ruleta para descubrir a quién le regalas. ¡Es secreto!'],
+  ['💬', 'Chat del grupo', 'Escribe ocurrencias, menciona a alguien con @ para que le llegue el aviso, y si no sabes qué decir toca el 🎲.'],
+  ['🎮', 'Juegos', 'Dominó, ahorcado, 4 en línea y X y O con el grupo o contra 🤖. Ganar suma puntos en la tabla de campeones.'],
+  ['📲', 'Instálala y activa los avisos', 'Así te enteras de la ruleta, las pistas de tu angelito y los mensajes. Busca el 📲 arriba.'],
+];
+function openTour(force) {
+  if (!S.me) return;
+  const key = 'angelito:tour:' + S.uid;
+  if (!force) { try { if (localStorage.getItem(key)) return; } catch { } }
+  try { localStorage.setItem(key, '1'); } catch { }
+  const T = TOUR().filter((_, k) => !(k === 1 && !mod('perfil')) && !(k === 5 && !mod('juegos'))); let i = 0;
+  const s2 = openModal('<div id="tour"></div>');
+  const paint = () => {
+    const [e, t, d] = T[i], last = i === T.length - 1;
+    $('#tour', s2).innerHTML = `<div class="tour-e">${e}</div><h3 style="text-align:center">${esc(t)}</h3><p class="muted" style="text-align:center">${esc(d)}</p>
+      <div class="tour-dots">${T.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
+      ${last ? `<div class="stack" style="margin-top:14px">${mod('perfil') ? '<button class="btn gold" data-t="prof">👕 Llenar mi perfil ahora</button>' : ''}<button class="btn" data-t="wish">🎁 Escribir mis deseos</button></div>` : ''}
+      <div class="actions">${i ? '<button class="btn ghost" data-t="prev">‹ Atrás</button>' : '<button class="btn ghost" data-t="skip">Saltar</button>'}${last ? '<button class="btn" data-t="skip">Listo</button>' : '<button class="btn gold" data-t="next">Siguiente ›</button>'}</div>`;
+  };
+  paint();
+  s2.onclick = e => {
+    const t = e.target.closest('[data-t]')?.dataset.t; if (!t) return;
+    if (t === 'next') { i = Math.min(T.length - 1, i + 1); paint(); } else if (t === 'prev') { i = Math.max(0, i - 1); paint(); }
+    else { closeModal(); if (t === 'prof') setTimeout(openProfile, 150); if (t === 'wish') location.hash = 'deseos'; }
+  };
+  let x0 = null; s2.onpointerdown = e => { x0 = e.clientX; }; s2.onpointerup = e => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 60) { i = Math.max(0, Math.min(T.length - 1, i + (dx < 0 ? 1 : -1))); paint(); } };
+}
+let tourT = null;
+function maybeTour() {
+  if (!S.me || S.forcePin || tourT) return;
+  try { if (localStorage.getItem('angelito:tour:' + S.uid)) return; } catch { }
+  tourT = setTimeout(function go() { tourT = null; if (!S.me) return; if ($('#modal').classList.contains('on') || S.spinning) { tourT = setTimeout(go, 3000); return; } openTour(); }, 1200);
+}
 function renderTodo() {
   const box = $('#h-todo'); if (!box) return;
   if (!S.me) { box.innerHTML = ''; return; }
@@ -1680,7 +1741,7 @@ function renderTodo() {
   if (mod('asistencia')) items.push([!!a.status, a.status === 'no' ? 'Dijiste que no puedes ir' : 'Confirma si vas', 'att']);
   if (mod('asistencia') && c.contribAmount && a.status === 'si') items.push([!!(a.paid || a.confirmed), `Da tu aporte de ${c.contribAmount}`, 'att']);
   if (mod('deseos')) items.push([S.wishes.some(w => w.uid === S.uid), 'Escribe tu lista de deseos', '#deseos']);
-  if (mod('perfil')) items.push([!!(S.profiles?.[S.uid] && PROF.some(([k]) => S.profiles[S.uid][k])), 'Llena tu perfil de gustos (tallas, colores…)', '#deseos']);
+  if (mod('perfil')) items.unshift([profDone() >= 4, 'Llena tu perfil (tallas, colores, lo que te gusta)', 'perfil']);
   if (mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid)) items.push([!!S.assignment?.revealed, 'Gira la ruleta y descubre a quién le regalas', '#ruleta']);
   if (!items.length) { box.innerHTML = ''; return; }
   const done = items.filter(x => x[0]).length;
@@ -1693,7 +1754,7 @@ document.addEventListener('click', e => {
   if (e.target.closest('#rules-more')) { S.rulesOpen = !S.rulesOpen; renderHome(); return; }
   const t = e.target.closest('[data-todo]'); if (!t) return;
   const go = t.dataset.todo;
-  if (go === 'att') $('#h-att')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); else location.hash = go.slice(1);
+  if (go === 'att') $('#h-att')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); else if (go === 'perfil') openProfile(); else location.hash = go.slice(1);
 });
 function tick() {
   const t = S.event.eventAt ? new Date(ms(S.event.eventAt)) : S.event.eventDate ? new Date(S.event.eventDate) : null;
@@ -1816,7 +1877,7 @@ function renderWishes() {
   const many = S.participants.length > 8;
   root.innerHTML = `${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}
   <div class="pscroll" id="w-strip">${wishStrip()}</div>
-  <div class="h2row"><h2>${esc(pEmoji(S.wishPid))} ${mine ? 'Mi lista de deseos' : 'Lista de ' + esc(pName(S.wishPid))}</h2>${mine ? `<div style="display:flex;gap:6px"><button class="btn sm" id="prof-icon">${esc(S.me.emoji)} Ícono</button>${mod('perfil') ? '<button class="btn sm" id="prof-edit">👕 Mi perfil</button>' : ''}</div>` : ''}</div>
+  <div class="h2row"><h2>${esc(pEmoji(S.wishPid))} ${mine ? 'Mi lista de deseos' : 'Lista de ' + esc(pName(S.wishPid))}</h2>${mine ? `<div style="display:flex;gap:6px"><button class="btn sm" id="prof-icon">${esc(S.me.emoji)} Ícono</button>${mod('perfil') ? `<button class="btn sm ${profDone() < PROF.length ? 'gold pulse-soft' : ''}" id="prof-edit">👕 Mi perfil${profDone() < PROF.length ? ' <span class="rdot"></span>' : ''}</button>` : ''}</div>` : ''}</div>
   ${mod('perfil') ? profileHtml(S.wishPid) : ''}
   <div class="stack">${items.length ? items.map(w => `
     <div class="item ${w.top ? 'wtop' : ''}"><span style="font-size:22px">${w.top ? '⭐' : '🎁'}</span><div class="grow">
@@ -2093,10 +2154,14 @@ $('#att-list').addEventListener('click', async e => {
 
 /* ---------- chat ---------- */
 const OCURRENCIAS = [
-  'Confiesa: ¿cuál ha sido el peor regalo que te han dado? 🙈', 'Si tu angelito te regala medias, ¿cómo reaccionas? 🧦',
-  '¿Quién de aquí envuelve los regalos con papel de periódico? 📰', 'Describe tu Navidad ideal con 3 emojis 🎄', '¿Quién se va a comer todo el pernil este año? 🍖',
-  'Pista falsa sobre tu regalo, ¡a confundir! 🕵️', '¿Quién llega tarde a la cena seguro? ⏰', 'Canción que no puede faltar en la fiesta 🎶',
-  '¿Moro o arroz blanco? Debate abierto 🍚', 'Lo más raro que has pedido de regalo 🤔', '¿Quién de la familia baila peor? 💃', 'Mándale una indirecta a tu angelito 😏'
+  'Confiesa: ¿cuál ha sido el peor regalo que te han dado? 🙈', 'Si tu angelito te regala medias, ¿cómo reaccionas? 🧦', '¿Quién de aquí envuelve los regalos con papel de periódico? 📰',
+  'Describe tu Navidad ideal con 3 emojis 🎄', '¿Quién se va a comer todo el puerco este año? 🍖', 'Pista falsa sobre tu regalo, ¡a confundir! 🕵️', '¿Quién llega tarde a la cena seguro? ⏰',
+  'Canción que no puede faltar en la fiesta 🎶', '¿Moro o arroz blanco? Debate abierto 🍚', 'Lo más raro que has pedido de regalo 🤔', '¿Quién de la familia baila peor? 💃',
+  'Mándale una indirecta a tu angelito 😏', '¿Pastelitos de pollo o de queso? Vota 🥟', 'Si fueras un plato navideño, ¿cuál serías? 🍽️', 'El villancico que te sabes completo 🎤',
+  '¿Quién es el tío/la tía que más habla en la cena? 🗣️', 'Recuerdo navideño de cuando eras niño ⭐', '¿Quién se duerme primero en la fiesta? 😴', 'Tu bebida navideña favorita 🥤',
+  'Adivina: ¿quién crees que es tu angelito? 👀', 'Si pudieras pedir cualquier cosa, sin presupuesto… 💸', '¿Quién de aquí hace el mejor chiste malo? 🤡', '¿Merengue o bachata para abrir la fiesta? 🕺',
+  'Una palabra para describir este año 📅', '¿Quién es capaz de abrir su regalo antes de tiempo? 🎁', 'Tu propósito para el año nuevo (prometo no burlarme) 🙏', 'Dato curioso que nadie del grupo sabe de ti 🤫',
+  '¿Qué regalo NUNCA deberían darte? 🚫', 'Pon 3 emojis y que adivinen qué quieres de regalo 🧩', '¿Quién de aquí sería el mejor Santa Claus? 🎅'
 ];
 // Alto exacto del chat: lo que queda entre su borde superior y el cuadro de escribir.
 function fitChat() {
@@ -2127,7 +2192,8 @@ function renderChat() {
     const d = new Date(m.ts || 0), day = d.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
     const sep = day !== last ? `<div class="daysep">${esc(cap(day))}</div>` : ''; last = day;
     const me = m.uid === S.uid;
-    return `${sep}<div class="msg ${me ? 'me' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}<div class="mt">${esc(m.text)}</div>${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${d.toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' })}</div></div></div>`;
+    const tagMe = (m.mentions || []).includes(S.uid);
+    return `${sep}<div class="msg ${me ? 'me' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}<div class="mt">${mentionHTML(m)}</div>${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${d.toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' })}</div></div></div>`;
   }).join('') : `<div class="empty" style="margin:auto"><span class="e">💬</span>Nadie ha escrito todavía.<br>¡Rompe el hielo! Toca 🎲 para una idea.</div>`;
   if (near || S.chatStick) { S.chatStick = false; l.scrollTop = l.scrollHeight; }
 }
@@ -2147,13 +2213,52 @@ visualViewport?.addEventListener('resize', kbCheck);
 addEventListener('resize', kbCheck);
 visualViewport?.addEventListener('resize', () => { if (document.activeElement?.id === 'c-text') try { scrollChat(true); } catch { } });
 $('#c-emo').addEventListener('click', e => { const b = e.target.closest('[data-e]'); if (!b) return; const i = $('#c-text'); i.value += b.dataset.e; i.focus(); });
+/* ---------- @menciones ---------- */
+const mLabel = p => { const dup = S.participants.filter(x => normName(x.first) === normName(p.first)).length > 1; return dup ? `${p.first}${(p.last || '').charAt(0)}` : p.first; };
+function mentionHTML(m) {
+  let h = esc(m.text);
+  for (const uid of (m.mentions || [])) { const p = P(uid); if (!p) continue; const lab = esc('@' + mLabel(p)); h = h.split(lab).join(`<b class="mention ${uid === S.uid ? 'me' : ''}">${lab}</b>`); }
+  return h;
+}
+function mentionQuery() { const i = $('#c-text'), v = i.value.slice(0, i.selectionStart ?? i.value.length), mm = v.match(/(^|\s)@([^\s@]{0,20})$/); return mm ? mm[2] : null; }
+function renderMentionBar() {
+  const box = $('#c-mention'); if (!box) return;
+  const q = mentionQuery(); if (q == null) { box.innerHTML = ''; box.hidden = true; return; }
+  const nq = normName(q), list = S.participants.filter(p => p.id !== S.uid && normName(p.name).includes(nq)).slice(0, 8);
+  box.hidden = !list.length;
+  box.innerHTML = list.map(p => `<button type="button" data-ment="${esc(p.id)}">${esc(p.emoji)} ${esc(mLabel(p))}</button>`).join('');
+}
+$('#c-text').addEventListener('input', renderMentionBar);
+$('#c-text').addEventListener('click', renderMentionBar);
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-ment]'); if (!b) return;
+  const p = P(b.dataset.ment), i = $('#c-text'); if (!p) return;
+  const pos = i.selectionStart ?? i.value.length, before = i.value.slice(0, pos).replace(/@([^\s@]{0,20})$/, '@' + mLabel(p) + ' ');
+  i.value = before + i.value.slice(pos); i.focus(); i.setSelectionRange(before.length, before.length); renderMentionBar();
+});
+const mentionsIn = text => S.participants.filter(p => p.id !== S.uid && new RegExp('(^|\\s)@' + mLabel(p).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=$|[\\s.,!?¿¡:;)])', 'i').test(text)).map(p => p.id).slice(0, 10);
 const prompts = () => (Array.isArray(S.event.chatPrompts) && S.event.chatPrompts.length) ? S.event.chatPrompts : OCURRENCIAS;
-$('#c-dice').addEventListener('click', () => { const i = $('#c-text'), l = prompts(); i.value = l[Math.floor(Math.random() * l.length)]; i.focus(); });
+// 🎲 Ocurrencia al azar sin repetir hasta agotar la lista, con animación; avisa de su existencia las primeras veces.
+let diceBag = [];
+$('#c-dice').addEventListener('click', () => {
+  const i = $('#c-text'), l = prompts(); if (!diceBag.length) diceBag = l.map((_, k) => k).sort(() => Math.random() - .5);
+  const t = l[diceBag.pop()] || l[0], d = $('#c-dice'); d.classList.remove('roll'); void d.offsetWidth; d.classList.add('roll');
+  if (navigator.vibrate) try { navigator.vibrate(25); } catch { }
+  i.value = t; i.focus(); i.setSelectionRange(t.length, t.length);
+  try { localStorage.setItem('angelito:diceUsed', String((+localStorage.getItem('angelito:diceUsed') || 0) + 1)); } catch { } diceHint();
+});
+function diceHint() {
+  let n = 0; try { n = +localStorage.getItem('angelito:diceUsed') || 0; } catch { }
+  const show = n < 3 && !!S.me; $('#c-dicehint').hidden = !show || !!$('#c-text').value; $('#c-dice').classList.toggle('glow', n < 3);
+}
+$('#c-text').addEventListener('input', () => diceHint());
+setInterval(() => { const i = $('#c-text'); if (i && !i.value && document.activeElement !== i) { const l = prompts(); i.placeholder = '🎲 ' + l[Math.floor(Math.random() * l.length)].slice(0, 46) + '…'; } }, 7000);
 $('#c-form').addEventListener('submit', async e => {
   e.preventDefault(); const i = $('#c-text'), text = i.value.trim(); if (!text || !S.me) return;
   i.value = '';
   const rt = S.replyTo; S.replyTo = null; renderReplyBar();
-  try { await setDoc(doc(collection(db, 'chat')), { uid: S.uid, text, ts: Date.now(), at: serverTimestamp(), ...(rt ? { replyTo: { id: rt.id, uid: rt.uid, text: rt.text.slice(0, 100) } } : {}) }); S.chatStick = true; scrollChat(true); }
+  const ments = mentionsIn(text); renderMentionBar();
+  try { await setDoc(doc(collection(db, 'chat')), { uid: S.uid, text, ts: Date.now(), at: serverTimestamp(), ...(ments.length ? { mentions: ments } : {}), ...(rt ? { replyTo: { id: rt.id, uid: rt.uid, text: rt.text.slice(0, 100) } } : {}) }); S.chatStick = true; scrollChat(true); if (ments.length) toast(`📣 Le avisamos a ${ments.map(u => shortName(P(u))).join(', ')}`); }
   catch (err) { i.value = text; toast(err?.code?.includes('permission') ? 'No se pudo enviar. Revisa que la hora de tu teléfono esté bien.' : authErr(err)); }
 });
 $('#c-list').addEventListener('click', e => { const b = e.target.closest('[data-mid]'); if (!b) return; const m = S.chat.find(x => x.id === b.dataset.mid); if (m) openMsgMenu(m); });
@@ -2181,6 +2286,15 @@ $('#c-clear').addEventListener('click', async () => {
 const PROF = [['shirt', '👕', 'Talla de camisa/blusa', 'M'], ['pants', '👖', 'Talla de pantalón', '32 / 8'], ['shoe', '👟', 'Talla de zapatos', '9'],
   ['colors', '🎨', 'Colores favoritos', 'Azul, verde'], ['likes', '💛', 'Me gusta', 'Café, libros, el béisbol…'],
   ['allergy', '⚠️', 'Alergias o cosas que no puedo usar', 'Perfumes fuertes, nueces…'], ['nogift', '🙅', 'Por favor no me regales', 'Tazas, medias…']];
+const profDone = (uid = S.uid) => { const pr = S.profiles?.[uid] || {}; return PROF.filter(([k]) => String(pr[k] || '').trim()).length; };
+function renderProfCard() {
+  const box = $('#h-prof'); if (!box) return;
+  if (!S.me || !mod('perfil')) { box.innerHTML = ''; return; }
+  const n = profDone(); if (n >= 4) { box.innerHTML = ''; return; }
+  box.innerHTML = `<button class="card profcard" id="prof-cta"><span class="pc-e">👕</span><span class="grow"><b>${n ? 'Termina tu perfil' : 'Completa tu perfil'}</b><span class="muted small">Tu angelito necesita tu talla, tus colores y lo que te gusta para acertar.</span>
+    <span class="pbar2"><i style="width:${Math.round(n / PROF.length * 100)}%"></i></span><span class="small" style="color:var(--gold);font-weight:700">${n} de ${PROF.length} listos</span></span><span class="chev">›</span></button>`;
+}
+document.addEventListener('click', e => { if (e.target.closest('#prof-cta')) openProfile(); });
 function profileHtml(uid, compact) {
   const pr = S.profiles[uid]; if (!pr || !PROF.some(([k]) => pr[k])) return compact ? '' : (uid === S.uid ? '' : `<p class="muted small" style="margin:-4px 0 12px">Todavía no ha llenado su perfil de gustos.</p>`);
   return `<div class="card" style="margin-bottom:14px;padding:14px"><div class="stack" style="gap:6px">${PROF.filter(([k]) => pr[k]).map(([k, e, l]) =>
@@ -3002,7 +3116,7 @@ const hideKey = 'angelito:hideAppCard';
 function renderAppCard() {
   const box = $('#h-app'); if (box) box.innerHTML = '';
   const ib = $('#inst-btn'); if (ib) ib.hidden = isStandalone();
-  maybeAskNotif(); // también al entrar, no solo al registrarse
+  maybeTour(); maybeAskNotif(); // también al entrar, no solo al registrarse
 }
 const INST_KEY = 'angelito:askInstall';
 let instT = null;
@@ -3011,7 +3125,7 @@ function maybeAskInstall() {
   let last = 0; try { last = +localStorage.getItem(INST_KEY) || 0; } catch { }
   if (Date.now() - last < 2 * 864e5) return; // "Ahora no" vuelve a preguntar en 2 días
   const busyNow = () => S.spinning || S.forcePin || (typeof PARTY !== 'undefined' && PARTY) || location.hash.startsWith('#juego-') || location.hash === '#ruleta'
-    || location.hash === '#admin' || document.body.classList.contains('kb') || $('#modal').classList.contains('on') || $('#csel').classList.contains('on');
+    || location.hash === '#admin' || document.body.classList.contains('kb') || $('#modal').classList.contains('on') || $('#csel').classList.contains('on') || !!tourT;
   const tryAsk = () => {
     instT = null; if (isStandalone()) return;
     if (busyNow()) { instT = setTimeout(tryAsk, 8000); return; }
@@ -3076,10 +3190,12 @@ function checkEvents() {
   if (now.picks > was.picks) notifyCat('actividades', '🎭 Te tocó algo en una actividad', 'Entra a Agenda para verlo.', './#actividades');
   added('results').forEach(id => { const a = S.activities.find(x => x.id === id); if (a) notifyCat('actividades', '🏆 Resultados publicados', a.title, './#actividad-' + id); });
   added('acts').forEach(id => { const a = S.activities.find(x => x.id === id); if (a) notifyCat('actividades', `📅 Nueva actividad: ${a.title}`, actWhen(a), './#actividad-' + id, n => `📅 ${n} actividades nuevas en la agenda`); });
-  // chat: agrupado, máx. 1 cada 20 min
+  // chat: cada mensaje avisa (la notificación nueva reemplaza la anterior); si te mencionan, aviso aparte aunque silencies el chat
   const newMsgs = added('chatIds').map(id => S.chat.find(m => m.id === id)).filter(m => m && m.uid !== S.uid);
   const viewingChat = !document.hidden && $('#v-buzon').classList.contains('on') && S.buz === 'c';
-  if (newMsgs.length && !viewingChat) { const m = newMsgs[newMsgs.length - 1]; notifyCat('chat', `💬 ${shortName(P(m.uid)) || 'Chat'}`, m.text.slice(0, 120), './#chat', () => `💬 ${chatUnread()} mensajes nuevos en el chat`); }
+  const tagged = newMsgs.filter(m => (m.mentions || []).includes(S.uid));
+  if (tagged.length && !viewingChat) { const m = tagged[tagged.length - 1]; notifyCat('mencion', `📣 ${shortName(P(m.uid)) || 'Alguien'} te mencionó`, m.text.slice(0, 120), './#chat'); if (navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch { } }
+  else if (newMsgs.length && !viewingChat) { const m = newMsgs[newMsgs.length - 1]; notifyCat('chat', `💬 ${shortName(P(m.uid)) || 'Chat'}`, m.text.slice(0, 120), './#chat', () => `💬 ${chatUnread()} mensajes nuevos en el chat`); }
   const newSugs = added('sugs').filter(id => !S.myCreated.has(id) && S.suggestions.find(x => x.id === id)?.uid !== S.uid);
   if (newSugs.length) { const x = S.suggestions.find(y => y.id === newSugs[newSugs.length - 1]); notifyCat('sugerencias', '💡 Nueva sugerencia', (x?.text || '').slice(0, 120) + ' · ¡Vota 👍!', './#sugerencias', n => `💡 ${n} sugerencias nuevas para votar`); }
   if (now.rec && now.rec === was.rec) { const nw = added('recWishes'); if (nw.length) { const w = S.wishes.find(x => x.id === nw[nw.length - 1]); notifyCat('deseos', '🎁 Tu persona agregó un deseo nuevo', 'Entra a verlo 👀', './#deseos', n => `🎁 Tu persona agregó ${n} deseos nuevos`); } }
@@ -3132,7 +3248,7 @@ $('#att-remind2').addEventListener('click', async () => {
 /* ---------- notificaciones inteligentes ---------- */
 // [emoji, nombre, minutos mínimos entre avisos del mismo tipo]
 const NCAT = {
-  chat: ['💬', 'Mensajes del chat', 20], sugerencias: ['💡', 'Sugerencias nuevas', 30], actividades: ['📅', 'Actividades nuevas y resultados', 10],
+  chat: ['💬', 'Mensajes del chat', 0], mencion: ['📣', 'Cuando te mencionan con @', 0], sugerencias: ['💡', 'Sugerencias nuevas', 30], actividades: ['📅', 'Actividades nuevas y resultados', 10],
   deseos: ['🎁', 'Deseos nuevos de tu persona', 30], evento: ['🎄', 'Cambios del evento (fecha, lugar, reglas)', 10],
   angelito: ['💌', 'Pistas y noticias de tu angelito', 5], juegos: ['🎮', 'Te toca jugar', 1], avisos: ['📣', 'Avisos, sorteo y recordatorios', 0]
 };
@@ -3194,7 +3310,7 @@ function openNotifPrefs() {
   };
 }
 document.addEventListener('click', e => {
-  if (e.target.closest('#c-mute')) { const o = nprefs(); o.chat = o.chat === false; saveNP(o); toast(o.chat === false ? '🔕 Chat silenciado' : '🔔 Te avisaremos del chat (máx. 1 cada 20 min)'); renderBadges(); }
+  if (e.target.closest('#c-mute')) { const o = nprefs(); o.chat = o.chat === false; saveNP(o); toast(o.chat === false ? '🔕 Chat silenciado (igual te avisamos si te mencionan con @)' : '🔔 Te avisaremos del chat'); renderBadges(); }
 });
 
 /* ---------- 📺 modo fiesta ---------- */
