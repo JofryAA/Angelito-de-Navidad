@@ -109,16 +109,17 @@
   <!-- BUZÓN: sugerencias + chat -->
   <section class="view" id="v-buzon">
     <h2 class="sec-title">Grupo</h2>
-    <div class="seg" id="buz-seg"><button data-b="c" class="on">💬 Chat</button><button data-b="s">💡 Ideas</button><button data-b="f">📸 Fotos</button></div>
+    <div class="seg" id="buz-seg"><button data-b="c" class="on">💬 Chat</button><button data-b="s">💡 Ideas</button><button data-b="f">📸 Fotos</button><a class="segl" href="#anonimos">💌 Anónimos</a></div>
     <div id="buz-c">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><p class="muted small" style="margin:0 0 8px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Usa @ para mencionar</p><span style="display:flex;gap:8px;align-items:center"><span class="muted small" id="c-count" style="white-space:nowrap"></span><button class="iconbtn" id="c-mute" style="width:40px;height:40px;font-size:16px" title="Silenciar notificaciones del chat" aria-label="Silenciar chat">🔔</button></span></div>
       <div id="c-gate"></div>
       <div id="c-wrap" style="display:none">
         <div class="chatbox" id="c-list"></div>
-        <div id="c-dock"><div class="emobar" id="c-emo"><button data-e="😂">😂</button><button data-e="🤣">🤣</button><button data-e="🎄">🎄</button><button data-e="🎁">🎁</button><button data-e="👀">👀</button><button data-e="🔥">🔥</button><button data-e="🤫">🤫</button><button data-e="🥳">🥳</button><button data-e="🙄">🙄</button><button data-e="❤️">❤️</button></div>
+        <div id="c-dock"><div class="emobar" id="c-emo"><button data-e="@todos " class="eall" title="Mencionar a todo el grupo">📣 @todos</button><button data-e="😂">😂</button><button data-e="🤣">🤣</button><button data-e="🎄">🎄</button><button data-e="🎁">🎁</button><button data-e="👀">👀</button><button data-e="🔥">🔥</button><button data-e="🤫">🤫</button><button data-e="🥳">🥳</button><button data-e="🙄">🙄</button><button data-e="❤️">❤️</button></div>
         <div id="c-reply"></div>
         <div class="mbar" id="c-mention" hidden></div>
         <div class="dicehint" id="c-dicehint" hidden></div>
+        <div id="c-ngate" hidden></div>
         <form class="composer" id="c-form">
           <button type="button" class="iconbtn" id="c-dice" title="Ocurrencia random" aria-label="Ocurrencia random">🎲</button>
           <input class="in" id="c-text" maxlength="500" placeholder="Escribe un mensaje…" autocomplete="off">

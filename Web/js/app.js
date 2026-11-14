@@ -866,6 +866,7 @@ function helperTips() {
   const unread = typeof chatUnread === 'function' ? chatUnread() : 0;
   if (mod('chat') && unread) t.push(['💬', `Tienes ${unread} ${unread === 1 ? 'mensaje nuevo' : 'mensajes nuevos'} en el chat`, '#chat', 'Leer']);
   if (!isInstalled() && !(isIOS() && isStandalone())) t.push(['📲', 'Pon el Angelito en tu pantalla de inicio: abre al instante', 'install', 'Instalar']);
+  if (mod('anonimos') && !isRevealed()) t.push(['💌', 'En el buzón anónimo puedes escribirle a alguien sin que sepa que fuiste tú', '#anonimos', 'Escribir']);
   if (mod('sugerencias')) t.push(['💡', '¿Tienes una idea para el angelito? Compártela aquí', '#sugerencias', 'Compartir']);
   return t;
 }
@@ -1066,9 +1067,16 @@ document.addEventListener('click', e => {
   if (e.target.closest('#nx-peek')) { S.peek = !S.peek; renderNext(); if (S.peek) setTimeout(() => { S.peek = false; renderNext(); }, 4000); }
   if (e.target.closest('#nx-list') && S.assignment?.recipient) { S.wishPid = S.assignment.recipient; location.hash = 'deseos'; render(); }
 });
+// 💌 El buzón anónimo en Inicio, para que nadie se lo pierda
+function anonCardHTML() {
+  if (!S.me || !mod('anonimos') || isRevealed()) return '';
+  const n = S.qCount || 0;
+  return `<a class="card anonhome" href="#anonimos"><span class="ah-e">💌</span><div class="grow"><b>Buzón anónimo</b><div class="muted small">Escríbele algo bonito a alguien del grupo… sin que sepa que fuiste tú 🤫${n ? ` · ${n} ${n === 1 ? 'mensaje guardado' : 'mensajes guardados'}` : ''}</div></div><span class="btn sm gold">Escribir</span></a>`;
+}
 function renderTodo() {
   const box = $('#h-todo'); if (!box) return;
   if (!S.me) { box.innerHTML = ''; return; }
+  const anon = anonCardHTML();
   const c = S.event, a = S.att[S.uid] || {}, items = [];
   if (mod('asistencia')) items.push([!!a.status, a.status === 'no' ? 'Dijiste que no puedes ir' : 'Confirma si vas', 'att']);
   if (mod('asistencia') && c.contribAmount && a.status === 'si') items.push([!!(a.paid || a.confirmed), `Da tu aporte de ${c.contribAmount}`, 'att']);
@@ -1077,12 +1085,12 @@ function renderTodo() {
   if (mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid)) items.unshift([!!S.assignment?.revealed, '🎡 Gira la ruleta y descubre a quién le regalas', '#ruleta']);
   if (canNotify() && !(isIOS() && !isStandalone())) items.push([Notification.permission === 'granted', '🔔 Activa los avisos para enterarte de todo', 'notif']);
   if (!isInstalled()) items.push([false, '📲 Pon el angelito en tu pantalla de inicio', 'install']);
-  if (!items.length) { box.innerHTML = ''; return; }
+  if (!items.length) { box.innerHTML = anon; return; }
   const done = items.filter(x => x[0]).length;
-  if (done === items.length) { box.innerHTML = `<div class="card todo-ok">🎉 <b>¡Tienes todo listo!</b> <span class="muted small">Solo falta disfrutar el angelito.</span></div>`; return; }
+  if (done === items.length) { box.innerHTML = `<div class="card todo-ok">🎉 <b>¡Tienes todo listo!</b> <span class="muted small">Solo falta disfrutar el angelito.</span></div>` + anon; return; }
   box.innerHTML = `<div class="card todo"><div class="todo-h"><b>✨ Tus pendientes</b><span class="muted small">${done} de ${items.length}</span></div>
     <div class="prog" style="margin:8px 0 6px"><i style="width:${done / items.length * 100}%;background:var(--gold)"></i></div>
-    <div class="steps">${items.map(([ok, l, go]) => `<button class="step ${ok ? 'done' : ''}" data-todo="${go}"><span class="ck">${ok ? '✓' : ''}</span><span>${esc(l)}</span>${ok ? '' : '<span class="go">›</span>'}</button>`).join('')}</div></div>`;
+    <div class="steps">${items.map(([ok, l, go]) => `<button class="step ${ok ? 'done' : ''}" data-todo="${go}"><span class="ck">${ok ? '✓' : ''}</span><span>${esc(l)}</span>${ok ? '' : '<span class="go">›</span>'}</button>`).join('')}</div></div>` + anon;
 }
 document.addEventListener('click', e => {
   if (e.target.closest('#rules-more')) { S.rulesOpen = !S.rulesOpen; renderHome(); return; }
@@ -1115,6 +1123,7 @@ function renderWheel() {
     else if (!S.assignment) msg.textContent = 'Cargando tu sorteo…';
     else { canSpin = true; msg.textContent = S.assignment.revealed ? 'Ya giraste. Puedes volver a verlo con tu PIN.' : `¡Mucha suerte, ${S.me.first}! 🍀`; }
     btn.innerHTML = S.assignment?.revealed ? '🔐 Ver a quién me tocó' : '🎡 Girar la ruleta';
+    if (canSpin && needGuess()) { btn.innerHTML = '🔮 Primero guarda tu adivinanza'; msg.textContent = 'Antes de girar, escribe abajo qué crees que te van a regalar 👇'; }
     if (!canSpin && !(S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid))) btn.innerHTML = '🔒 Ruleta inhabilitada';
   }
   btn.disabled = S.spinning || !canSpin;
@@ -1169,6 +1178,11 @@ function spinTo(targetId) {
     cv.addEventListener('transitionend', fin, { once: true }); setTimeout(fin, 5800);
   });
 }
+// Nadie ve la ruleta sin antes guardar su adivinanza (si las adivinanzas están activas y abiertas).
+const needGuess = () => mod('adivinanza') && !guessesOpen() && !S.event.guessesLocked && !S.assignment?.revealed && !S.myGuess?.text;
+$('#spinBtn').addEventListener('click', async e => {
+  if (needGuess()) { e.stopImmediatePropagation(); const f = $('#g-form'); f?.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => $('#g-text')?.focus(), 400); toast('🔮 Guarda tu adivinanza y luego gira'); return; }
+}, true);
 $('#spinBtn').addEventListener('click', async () => {
   if (S.spinning || !S.me || !S.assignment) return;
   const a = S.assignment, rid = a.recipient;
@@ -1226,7 +1240,7 @@ function renderWishes() {
       <div class="t">${esc(w.text)}</div>
       ${w.hasImg ? (S.wishImgs[w.id] ? `<button class="wimg" data-wimg="${esc(w.id)}" style="background:url('${S.wishImgs[w.id]}') center/cover" aria-label="Ver foto"></button>` : '<div class="wimg ld"></div>') : ''}
       ${w.price ? `<span class="badge">≈ ${esc(w.price)}</span>` : ''}
-      ${mine ? `<div><button class="btn sm ghost" data-wtop="${esc(w.id)}" style="padding:10px 0;margin-top:4px">${w.top ? '☆ Quitar favorito' : '⭐ Es el que más quiero'}</button></div>` : ''}
+      ${mine ? `<div class="wacts"><button class="btn sm ghost" data-wtop="${esc(w.id)}">${w.top ? '☆ Quitar favorito' : '⭐ Es el que más quiero'}</button><button class="btn sm ghost" data-wedit="${esc(w.id)}">✏️ Editar</button></div>` : ''}
       ${isRec ? `<div><button class="btn sm ${S.wishPick?.wishId === w.id ? 'gold' : ''}" data-wpick="${esc(w.id)}" style="margin-top:8px">${S.wishPick?.wishId === w.id ? '🛒 Apartado por ti (solo tú lo ves)' : '🛒 Este lo compro yo'}</button></div>` : ''}
       ${/^https?:\/\//i.test(w.link || '') ? `<div><a class="link" href="${esc(w.link)}" target="_blank" rel="noopener">🔗 Ver referencia</a></div>` : ''}
     </div>${w.uid === S.uid ? `<button class="x" data-del="${esc(w.id)}" data-own="1" aria-label="Borrar">✕</button>` : ''}</div>`).join('')
@@ -1553,19 +1567,25 @@ function renderChat() {
   const can = !!S.me || S.isAdmin;
   gate.innerHTML = can ? '' : (S.authReady ? needLogin('Entra con tu PIN para leer y escribir en el chat.') : '');
   wrap.style.display = can ? '' : 'none';
-  $('#c-form').style.display = S.me ? '' : 'none'; $('#c-emo').style.display = S.me ? '' : 'none';
+  // Para escribir hay que tener los avisos activados (así nadie se pierde lo que le responden). Leer siempre se puede.
+  const needN = !!S.me && !S.isAdmin && canNotify() && !(isIOS() && !isStandalone()) && Notification.permission !== 'granted';
+  $('#c-form').style.display = S.me && !needN ? '' : 'none'; $('#c-emo').style.display = S.me && !needN ? '' : 'none';
+  $('#c-ngate').hidden = !needN;
+  if (needN) $('#c-ngate').innerHTML = `<div class="ngate"><span>🔔</span><div><b>Activa los avisos para escribir</b><small>${Notification.permission === 'denied' ? 'Los tienes bloqueados: te explico cómo permitirlos.' : 'Así te enteras cuando te respondan o te mencionen.'}</small></div><button class="btn sm gold" type="button" data-nact>Activar</button></div>`;
   if (!can) return;
   $('#c-count').textContent = navigator.onLine === false ? '📡 Sin conexión: se enviará al volver' : S.chat.length ? nMsg(S.chat.length) : '';
   const sig = S.chat.map(m => m.id + (m.pending ? '~' : '')).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join();
   if (sig === chatSig) return; chatSig = sig;
   const l = $('#c-list'), near = l.scrollHeight - l.scrollTop - l.clientHeight < 80;
-  let last = '';
+  let last = '', prev = null;
   l.innerHTML = S.chat.length ? S.chat.map(m => {
     const d = new Date(ms(m.at) || m.ts || 0), day = d.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
     const sep = day !== last ? `<div class="daysep">${esc(cap(day))}</div>` : ''; last = day;
     const me = m.uid === S.uid;
-    const tagMe = (m.mentions || []).includes(S.uid);
-    return `${sep}<div class="msg ${me ? 'me' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}<div class="mt">${mentionHTML(m)}</div>${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : ' <span class="ok" title="Enviado">✓</span>') : ''}</div></div></div>`;
+    // mensajes seguidos de la misma persona (menos de 5 min): sin repetir nombre ni ícono, más juntitos
+    const cont = !sep && prev && prev.uid === m.uid && Math.abs((ms(m.at) || m.ts || 0) - (ms(prev.at) || prev.ts || 0)) < 5 * 60e3; prev = m;
+    const tagMe = (m.mentions || []).includes(S.uid) || ((m.mentions || []).includes('all') && m.uid !== S.uid);
+    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}<div class="mt">${mentionHTML(m)}</div>${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : ' <span class="ok" title="Enviado">✓</span>') : ''}</div></div></div>`;
   }).join('') : `<div class="empty" style="margin:auto"><span class="e">💬</span>Nadie ha escrito todavía.<br>¡Rompe el hielo! Toca 🎲 para una idea.</div>`;
   if (near || S.chatStick) { S.chatStick = false; l.scrollTop = l.scrollHeight; }
 }
@@ -1584,11 +1604,12 @@ document.addEventListener('focusout', () => setTimeout(kbCheck, 150));
 visualViewport?.addEventListener('resize', kbCheck);
 addEventListener('resize', kbCheck);
 visualViewport?.addEventListener('resize', () => { if (document.activeElement?.id === 'c-text') try { scrollChat(true); } catch { } });
-$('#c-emo').addEventListener('click', e => { const b = e.target.closest('[data-e]'); if (!b) return; const i = $('#c-text'); i.value += b.dataset.e; i.focus(); });
+$('#c-emo').addEventListener('click', e => { const b = e.target.closest('[data-e]'); if (!b) return; const i = $('#c-text'); i.value += (b.dataset.e.startsWith('@') && i.value && !i.value.endsWith(' ') ? ' ' : '') + b.dataset.e; i.focus(); });
 /* ---------- @menciones ---------- */
 const mLabel = p => { const dup = S.participants.filter(x => normName(x.first) === normName(p.first)).length > 1; return dup ? `${p.first}${(p.last || '').charAt(0)}` : p.first; };
 function mentionHTML(m) {
   let h = esc(m.text);
+  if ((m.mentions || []).includes('all')) h = h.replace(/(^|\s)@todos\b/gi, '$1<b class="mention me">@todos</b>');
   for (const uid of (m.mentions || [])) { const p = P(uid); if (!p) continue; const lab = esc('@' + mLabel(p)); h = h.split(lab).join(`<b class="mention ${uid === S.uid ? 'me' : ''}">${lab}</b>`); }
   return h;
 }
@@ -1597,18 +1618,19 @@ function renderMentionBar() {
   const box = $('#c-mention'); if (!box) return;
   const q = mentionQuery(); if (q == null) { box.innerHTML = ''; box.hidden = true; return; }
   const nq = normName(q), list = S.participants.filter(p => p.id !== S.uid && normName(p.name).includes(nq)).slice(0, 8);
-  box.hidden = !list.length;
-  box.innerHTML = list.map(p => `<button type="button" data-ment="${esc(p.id)}">${esc(p.emoji)} ${esc(mLabel(p))}</button>`).join('');
+  const all = 'todos'.startsWith(nq);
+  box.hidden = !list.length && !all;
+  box.innerHTML = (all ? '<button type="button" data-ment="all" class="mall">📣 @todos</button>' : '') + list.map(p => `<button type="button" data-ment="${esc(p.id)}">${esc(p.emoji)} ${esc(mLabel(p))}</button>`).join('');
 }
 $('#c-text').addEventListener('input', renderMentionBar);
 $('#c-text').addEventListener('click', renderMentionBar);
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-ment]'); if (!b) return;
-  const p = P(b.dataset.ment), i = $('#c-text'); if (!p) return;
-  const pos = i.selectionStart ?? i.value.length, before = i.value.slice(0, pos).replace(/@([^\s@]{0,20})$/, '@' + mLabel(p) + ' ');
+  const p = b.dataset.ment === 'all' ? { first: 'todos' } : P(b.dataset.ment), i = $('#c-text'); if (!p) return;
+  const pos = i.selectionStart ?? i.value.length, before = i.value.slice(0, pos).replace(/@([^\s@]{0,20})$/, '@' + (b.dataset.ment === 'all' ? 'todos' : mLabel(p)) + ' ');
   i.value = before + i.value.slice(pos); i.focus(); i.setSelectionRange(before.length, before.length); renderMentionBar();
 });
-const mentionsIn = text => S.participants.filter(p => p.id !== S.uid && new RegExp('(^|\\s)@' + mLabel(p).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=$|[\\s.,!?¿¡:;)])', 'i').test(text)).map(p => p.id).slice(0, 10);
+const mentionsIn = text => /(^|\s)@todos\b/i.test(text) ? ['all'] : S.participants.filter(p => p.id !== S.uid && new RegExp('(^|\\s)@' + mLabel(p).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=$|[\\s.,!?¿¡:;)])', 'i').test(text)).map(p => p.id).slice(0, 10);
 const prompts = () => (Array.isArray(S.event.chatPrompts) && S.event.chatPrompts.length) ? S.event.chatPrompts : OCURRENCIAS;
 // 🎲 Ocurrencia al azar sin repetir hasta agotar la lista, con animación; avisa de su existencia las primeras veces.
 let diceBag = [];
@@ -1630,9 +1652,11 @@ $('#c-form').addEventListener('submit', async e => {
   i.value = '';
   const rt = S.replyTo; S.replyTo = null; renderReplyBar();
   const ments = mentionsIn(text); renderMentionBar();
-  try { await setDoc(doc(collection(db, 'chat')), { uid: S.uid, text, ts: Date.now(), at: serverTimestamp(), ...(ments.length ? { mentions: ments } : {}), ...(rt ? { replyTo: { id: rt.id, uid: rt.uid, text: rt.text.slice(0, 100) } } : {}) }); S.chatStick = true; scrollChat(true); if (ments.length) toast(`📣 Le avisamos a ${ments.map(u => shortName(P(u))).join(', ')}`); }
+  if (ments[0] === 'all' && !(await confirmBox('📣 ¿Avisar a todo el grupo?', 'A todos les llegará una notificación con tu mensaje. Úsalo solo para cosas importantes.', 'Avisar a todos'))) { i.value = text; return; }
+  try { await setDoc(doc(collection(db, 'chat')), { uid: S.uid, text, ts: Date.now(), at: serverTimestamp(), ...(ments.length ? { mentions: ments } : {}), ...(rt ? { replyTo: { id: rt.id, uid: rt.uid, text: rt.text.slice(0, 100) } } : {}) }); S.chatStick = true; scrollChat(true); if (ments.length) toast(ments[0] === 'all' ? '📣 Le avisamos a todo el grupo' : `📣 Le avisamos a ${ments.map(u => shortName(P(u))).join(', ')}`); }
   catch (err) { i.value = text; toast(err?.code?.includes('permission') ? 'No se pudo enviar. Revisa que la hora de tu teléfono esté bien.' : authErr(err)); }
 });
+$('#c-ngate').addEventListener('click', e => { if (e.target.closest('[data-nact]')) enableNotifications(); });
 $('#c-list').addEventListener('click', e => { const b = e.target.closest('[data-mid]'); if (!b) return; const m = S.chat.find(x => x.id === b.dataset.mid); if (m) openMsgMenu(m); });
 
 /* ---------- admin: adivinanzas y chat ---------- */
@@ -2624,18 +2648,21 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   const cfgQ = encodeURIComponent(JSON.stringify({ apiKey: firebaseConfig.apiKey, projectId: firebaseConfig.projectId, messagingSenderId: firebaseConfig.messagingSenderId, appId: firebaseConfig.appId }));
   navigator.serviceWorker.register('sw.js?cfg=' + cfgQ).then(r => { swReg = r; if (canNotify() && Notification.permission === 'granted') registerPush(); }).catch(() => {});
 }
-// Una sola notificación que se va llenando: cada novedad nueva se agrega arriba (máx. 5 a la vista)
-// y el título cuenta cuántas hay. Al abrir la app se limpia.
+// Una sola notificación, con aspecto de app profesional: el título dice quién o qué (sin adornos),
+// el cuerpo el mensaje, y si llegan más se agrupan ("3 novedades") con una línea por cada una.
 async function stackNotify(reg, title, body, url) {
+  const split = t => { const m = String(t || '').match(/^([^\p{L}\p{N}@¡¿"“]+)\s*(.*)$/u); return m ? [m[1].trim(), m[2]] : ['', String(t || '')]; };
+  const [emo, clean] = split(title);
   const old = await reg.getNotifications({ tag: 'angelito' });
   const d = (old[0] && old[0].data) || {}, prev = Array.isArray(d.items) ? d.items : [];
   const n = (d.n || prev.length) + 1;
-  const items = [{ t: title, b: body || '' }, ...prev.filter(x => !(x.t === title && x.b === (body || '')))].slice(0, 5);
+  const items = [{ e: emo, t: clean, b: body || '' }, ...prev.filter(x => !(x.t === clean && x.b === (body || '')))].slice(0, 5);
   old.forEach(x => x.close());
   const one = items.length === 1;
-  return reg.showNotification(one ? title : `🎁 Angelito · ${n} novedades`, {
-    body: one ? (body || '') : items.map(x => x.b ? `${x.t} — ${x.b}` : x.t).join('\n') + (n > items.length ? `\n…y ${n - items.length} más` : ''),
-    icon: 'icons/icon-192.png', badge: 'icons/favicon-64.png', tag: 'angelito', renotify: true, data: { url: url || './', items, n }
+  return reg.showNotification(one ? clean : `${n} novedades del angelito`, {
+    body: one ? (body || '') : items.map(x => `${x.e || '•'} ${x.t}${x.b ? ': ' + x.b : ''}`).join('\n') + (n > items.length ? `\n+${n - items.length} más` : ''),
+    icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', tag: 'angelito', renotify: true, timestamp: Date.now(), lang: 'es', dir: 'ltr',
+    vibrate: [80, 40, 80], data: { url: url || './', items, n }, actions: [{ action: 'open', title: 'Abrir' }]
   });
 }
 // al volver a la app, la notificación acumulada ya no hace falta
@@ -2799,7 +2826,7 @@ function checkEvents() {
   // chat: cada mensaje avisa (la notificación nueva reemplaza la anterior); si te mencionan, aviso aparte aunque silencies el chat
   const newMsgs = added('chatIds').map(id => S.chat.find(m => m.id === id)).filter(m => m && m.uid !== S.uid);
   const viewingChat = !document.hidden && $('#v-buzon').classList.contains('on') && S.buz === 'c';
-  const tagged = newMsgs.filter(m => (m.mentions || []).includes(S.uid));
+  const tagged = newMsgs.filter(m => (m.mentions || []).includes(S.uid) || (m.mentions || []).includes('all'));
   if (tagged.length && !viewingChat) { const m = tagged[tagged.length - 1]; notifyCat('mencion', `📣 ${shortName(P(m.uid)) || 'Alguien'} te mencionó`, m.text.slice(0, 120), './#chat'); if (navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch { } }
   else if (newMsgs.length && !viewingChat) { const m = newMsgs[newMsgs.length - 1]; notifyCat('chat', `💬 ${shortName(P(m.uid)) || 'Chat'}`, m.text.slice(0, 120), './#chat', () => `💬 ${chatUnread()} mensajes nuevos en el chat`); }
   const newSugs = added('sugs').filter(id => !S.myCreated.has(id) && S.suggestions.find(x => x.id === id)?.uid !== S.uid);
@@ -3086,6 +3113,23 @@ $('#r-thanks').addEventListener('submit', async e => {
 });
 
 /* ---------- ⭐ deseo favorito + 🛒 lo compro yo ---------- */
+// ✏️ Editar un deseo propio (texto, enlace y precio). La foto se cambia borrándolo y creándolo de nuevo.
+function editWish(id) {
+  const w = S.wishes.find(x => x.id === id && x.uid === S.uid); if (!w) return;
+  const s2 = openModal(`<h3>✏️ Editar deseo</h3><form class="stack" id="we-form" style="margin-top:10px">
+    <label class="field"><span>¿Qué te gustaría?</span><textarea class="in" name="text" maxlength="160" required style="min-height:80px">${esc(w.text)}</textarea></label>
+    <label class="field"><span>Enlace de referencia <small class="muted">(opcional)</small></span><input class="in" name="link" type="url" maxlength="300" placeholder="https://…" value="${esc(w.link || '')}"></label>
+    <label class="field"><span>Precio aproximado <small class="muted">(opcional)</small></span><input class="in" name="price" maxlength="30" placeholder="RD$1,500" value="${esc(w.price || '')}"></label>
+    <div class="actions"><button type="button" class="btn" data-a="close">Cancelar</button><button class="btn gold" type="submit">Guardar</button></div></form>`);
+  s2.onclick = e => { if (e.target.closest('[data-a=close]')) closeModal(); };
+  $('#we-form', s2).addEventListener('submit', async e => {
+    e.preventDefault(); const f = e.target, text = f.text.value.trim(), link = f.link.value.trim(), price = f.price.value.trim();
+    if (!text) return toast('Escribe tu deseo');
+    if (link && !/^https?:\/\//i.test(link)) return toast('El enlace debe empezar con https://');
+    try { await setDoc(doc(db, 'wishes', id), { text, link, price }, { merge: true }); closeModal(); toast('✅ Deseo actualizado'); }
+    catch (err) { toast(authErr(err)); }
+  });
+}
 async function toggleTop(id) {
   const mine = S.wishes.filter(w => w.uid === S.uid), w0 = mine.find(w => w.id === id); if (!w0) return;
   try {
@@ -3104,6 +3148,7 @@ async function togglePick(id) {
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-wtop]'); if (t) return toggleTop(t.dataset.wtop);
+  const ed = e.target.closest('[data-wedit]'); if (ed) return editWish(ed.dataset.wedit);
   const p = e.target.closest('[data-wpick]'); if (p) return togglePick(p.dataset.wpick);
 });
 

@@ -1,7 +1,7 @@
 /* Service worker del Angelito: funciona como app, abre sin internet y recibe notificaciones. */
 const VERSION = 'angelito-2026.11.13-114418';
 const SHELL = ['./', './index.html', './firebase-config.js', './css/app.css', './js/app.js', './js/juegos.js', './manifest.webmanifest',
-  './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon-64.png'];
+  './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon-64.png', './icons/badge-96.png'];
 
 const LIBS = ['app', 'auth', 'firestore'].map(n => `https://www.gstatic.com/firebasejs/10.12.2/firebase-${n}.js`);
 
@@ -40,18 +40,21 @@ self.addEventListener('fetch', e => {
   }
 });
 
-// Una sola notificación que se va llenando: cada novedad nueva se agrega arriba (máx. 5 a la vista)
-// y el título cuenta cuántas hay. Al abrir la app se limpia.
+// Una sola notificación, con aspecto de app profesional: el título dice quién o qué (sin adornos),
+// el cuerpo el mensaje, y si llegan más se agrupan ("3 novedades") con una línea por cada una.
 async function stackNotify(reg, title, body, url) {
+  const split = t => { const m = String(t || '').match(/^([^\p{L}\p{N}@¡¿"“]+)\s*(.*)$/u); return m ? [m[1].trim(), m[2]] : ['', String(t || '')]; };
+  const [emo, clean] = split(title);
   const old = await reg.getNotifications({ tag: 'angelito' });
   const d = (old[0] && old[0].data) || {}, prev = Array.isArray(d.items) ? d.items : [];
   const n = (d.n || prev.length) + 1;
-  const items = [{ t: title, b: body || '' }, ...prev.filter(x => !(x.t === title && x.b === (body || '')))].slice(0, 5);
+  const items = [{ e: emo, t: clean, b: body || '' }, ...prev.filter(x => !(x.t === clean && x.b === (body || '')))].slice(0, 5);
   old.forEach(x => x.close());
   const one = items.length === 1;
-  return reg.showNotification(one ? title : `🎁 Angelito · ${n} novedades`, {
-    body: one ? (body || '') : items.map(x => x.b ? `${x.t} — ${x.b}` : x.t).join('\n') + (n > items.length ? `\n…y ${n - items.length} más` : ''),
-    icon: 'icons/icon-192.png', badge: 'icons/favicon-64.png', tag: 'angelito', renotify: true, data: { url: url || './', items, n }
+  return reg.showNotification(one ? clean : `${n} novedades del angelito`, {
+    body: one ? (body || '') : items.map(x => `${x.e || '•'} ${x.t}${x.b ? ': ' + x.b : ''}`).join('\n') + (n > items.length ? `\n+${n - items.length} más` : ''),
+    icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', tag: 'angelito', renotify: true, timestamp: Date.now(), lang: 'es', dir: 'ltr',
+    vibrate: [80, 40, 80], data: { url: url || './', items, n }, actions: [{ action: 'open', title: 'Abrir' }]
   });
 }
 
