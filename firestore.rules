@@ -235,6 +235,15 @@ service cloud.firestore {
     }
 
     // Foto de un deseo (aparte, para que la lista cargue rápido).
+    // Fotos del chat (comprimidas en el teléfono, máx. ~120 KB).
+    match /chatImg/{id} {
+      allow read: if member();
+      allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
+        && request.resource.data.keys().hasOnly(['uid', 'data'])
+        && str(request.resource.data.data, 160000) && request.resource.data.data.matches('^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
+        && getAfter(/databases/$(database)/documents/chat/$(id)).data.uid == me();
+      allow delete: if can('moderar') || (signedIn() && resource.data.uid == me());
+    }
     match /wishImg/{id} {
       allow read: if member();
       allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
@@ -435,7 +444,8 @@ service cloud.firestore {
     match /chat/{id} {
       allow read: if member();
       allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
-        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'at', 'replyTo', 'mentions']) && tsOk(request.resource.data)
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'ts', 'at', 'replyTo', 'mentions', 'hasImg']) && tsOk(request.resource.data)
+        && (!('hasImg' in request.resource.data) || (request.resource.data.hasImg == true && existsAfter(/databases/$(database)/documents/chatImg/$(id))))
         && (!('mentions' in request.resource.data) || (request.resource.data.mentions is list && request.resource.data.mentions.size() <= 10))
         && !('r' in request.resource.data)
         && (!('replyTo' in request.resource.data) || (request.resource.data.replyTo is map

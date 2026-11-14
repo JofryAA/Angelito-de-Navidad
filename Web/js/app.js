@@ -593,7 +593,7 @@ async function resetPin(pid, tempPin) {
   }
   (await q('assignments', 'recipient', pid)).forEach(d => { if (d.id !== pid) put(d.ref, { ...d.data(), recipient: nid }); });
   (await q('questions', 'to', pid)).forEach(d => put(d.ref, { ...d.data(), to: nid }));
-  for (const c of ['wishes', 'wishImg', 'activitySignups', 'suggestions', 'questionAuthors', 'suggestionAuthors'])
+  for (const c of ['wishes', 'wishImg', 'chatImg', 'activitySignups', 'suggestions', 'questionAuthors', 'suggestionAuthors'])
     (await q(c, 'uid', pid)).forEach(d => put(d.ref, { ...d.data(), uid: nid }));
   (await q('activityPicks', 'uid', pid)).forEach(d => { put(R('activityPicks', `${d.data().act}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
   (await q('votes', 'uid', pid)).forEach(d => { put(R('votes', `${d.data().act}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
@@ -1574,7 +1574,8 @@ function renderChat() {
   if (needN) $('#c-ngate').innerHTML = `<div class="ngate"><span>🔔</span><div><b>Activa los avisos para escribir</b><small>${Notification.permission === 'denied' ? 'Los tienes bloqueados: te explico cómo permitirlos.' : 'Así te enteras cuando te respondan o te mencionen.'}</small></div><button class="btn sm gold" type="button" data-nact>Activar</button></div>`;
   if (!can) return;
   $('#c-count').textContent = navigator.onLine === false ? '📡 Sin conexión: se enviará al volver' : S.chat.length ? nMsg(S.chat.length) : '';
-  const sig = S.chat.map(m => m.id + (m.pending ? '~' : '')).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join();
+  loadChatImgs();
+  const sig = S.chat.map(m => m.id + (m.pending ? '~' : '') + (m.hasImg && S.chatImgs[m.id] ? 'i' : '')).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join();
   if (sig === chatSig) return; chatSig = sig;
   const l = $('#c-list'), near = l.scrollHeight - l.scrollTop - l.clientHeight < 80;
   let last = '', prev = null;
@@ -1585,7 +1586,7 @@ function renderChat() {
     // mensajes seguidos de la misma persona (menos de 5 min): sin repetir nombre ni ícono, más juntitos
     const cont = !sep && prev && prev.uid === m.uid && Math.abs((ms(m.at) || m.ts || 0) - (ms(prev.at) || prev.ts || 0)) < 5 * 60e3; prev = m;
     const tagMe = (m.mentions || []).includes(S.uid) || ((m.mentions || []).includes('all') && m.uid !== S.uid);
-    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}<div class="mt">${mentionHTML(m)}</div>${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : ' <span class="ok" title="Enviado">✓</span>') : ''}</div></div></div>`;
+    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}${m.hasImg ? (S.chatImgs[m.id] ? `<button type="button" class="cimg" data-cimg="${esc(m.id)}" aria-label="Ver foto"><img src="${S.chatImgs[m.id]}" alt=""></button>` : '<div class="cimg ld"></div>') : ''}${m.hasImg && m.text === '📷 Foto' ? '' : `<div class="mt">${mentionHTML(m)}</div>`}${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : ' <span class="ok" title="Enviado">✓</span>') : ''}</div></div></div>`;
   }).join('') : `<div class="empty" style="margin:auto"><span class="e">💬</span>Nadie ha escrito todavía.<br>¡Rompe el hielo! Toca 🎲 para una idea.</div>`;
   if (near || S.chatStick) { S.chatStick = false; l.scrollTop = l.scrollHeight; }
 }
@@ -1650,14 +1651,44 @@ function diceHint() {
 $('#c-text').addEventListener('input', () => diceHint());
 // (el texto de ayuda del chat es fijo: "Escribe un mensaje…")
 $('#c-form').addEventListener('submit', async e => {
-  e.preventDefault(); const i = $('#c-text'), text = i.value.trim(); if (!text || !S.me) return;
+  e.preventDefault(); const i = $('#c-text'), img = S.chatDraftImg, text = i.value.trim() || (img ? '📷 Foto' : ''); if (!text || !S.me) return;
+  S.chatDraftImg = null; renderChatImgPrev();
   i.value = '';
   const rt = S.replyTo; S.replyTo = null; renderReplyBar();
   const ments = mentionsIn(text); renderMentionBar();
   if (ments[0] === 'all' && !(await confirmBox('📣 ¿Avisar a todo el grupo?', 'A todos les llegará una notificación con tu mensaje. Úsalo solo para cosas importantes.', 'Avisar a todos'))) { i.value = text; return; }
-  try { await setDoc(doc(collection(db, 'chat')), { uid: S.uid, text, ts: Date.now(), at: serverTimestamp(), ...(ments.length ? { mentions: ments } : {}), ...(rt ? { replyTo: { id: rt.id, uid: rt.uid, text: rt.text.slice(0, 100) } } : {}) }); S.chatStick = true; scrollChat(true); if (ments.length) toast(ments[0] === 'all' ? '📣 Le avisamos a todo el grupo' : `📣 Le avisamos a ${ments.map(u => shortName(P(u))).join(', ')}`); }
-  catch (err) { i.value = text; toast(err?.code?.includes('permission') ? 'No se pudo enviar. Revisa que la hora de tu teléfono esté bien.' : authErr(err)); }
+  try {
+    const ref = doc(collection(db, 'chat')), b = writeBatch(db);
+    b.set(ref, { uid: S.uid, text, ts: Date.now(), at: serverTimestamp(), ...(img ? { hasImg: true } : {}), ...(ments.length ? { mentions: ments } : {}), ...(rt ? { replyTo: { id: rt.id, uid: rt.uid, text: rt.text.slice(0, 100) } } : {}) });
+    if (img) { b.set(doc(db, 'chatImg', ref.id), { uid: S.uid, data: img }); S.chatImgs[ref.id] = img; }
+    await b.commit(); S.chatStick = true; scrollChat(true); if (ments.length) toast(ments[0] === 'all' ? '📣 Le avisamos a todo el grupo' : `📣 Le avisamos a ${ments.map(u => shortName(P(u))).join(', ')}`); }
+  catch (err) { i.value = text === '📷 Foto' ? '' : text; if (img) { S.chatDraftImg = img; renderChatImgPrev(); } toast(err?.code?.includes('permission') ? 'No se pudo enviar. Revisa que la hora de tu teléfono esté bien.' : authErr(err)); }
 });
+/* ---------- 📷 fotos en el chat ---------- */
+S.chatImgs = {}; const chatImgLoading = new Set();
+function loadChatImgs() {
+  for (const m of S.chat) {
+    if (!m.hasImg || S.chatImgs[m.id] || chatImgLoading.has(m.id)) continue;
+    chatImgLoading.add(m.id);
+    getDoc(doc(S.uid ? db : adb, 'chatImg', m.id)).then(d => { if (d.exists()) { S.chatImgs[m.id] = String(d.data().data || '').replace(/[^A-Za-z0-9+/=:;,._-]/g, ''); render(); } })
+      .catch(() => { }).finally(() => chatImgLoading.delete(m.id));
+  }
+}
+$('#c-file').addEventListener('change', async e => {
+  const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
+  if (!/^image\//.test(f.type)) return toast('Eso no es una foto');
+  try { S.chatDraftImg = await shrink(f, 1080, .8, 150000); renderChatImgPrev(); $('#c-text').focus(); }
+  catch { toast('No se pudo leer esa foto'); }
+});
+function renderChatImgPrev() {
+  const b = $('#c-imgprev'); b.hidden = !S.chatDraftImg;
+  b.innerHTML = S.chatDraftImg ? `<div class="cip"><img src="${S.chatDraftImg}" alt=""><span>Foto lista · escribe algo (opcional) y envía</span><button type="button" class="x" data-cipx aria-label="Quitar foto">✕</button></div>` : '';
+}
+$('#c-imgprev').addEventListener('click', e => { if (e.target.closest('[data-cipx]')) { S.chatDraftImg = null; renderChatImgPrev(); } });
+$('#c-list').addEventListener('click', e => {
+  const im = e.target.closest('[data-cimg]'); if (!im) return; e.stopPropagation();
+  openModal(`<img src="${S.chatImgs[im.dataset.cimg] || ''}" alt="" style="width:100%;border-radius:14px"><div class="actions"><button class="btn gold" data-a="x">Cerrar</button></div>`).onclick = ev => { if (ev.target.closest('[data-a]')) closeModal(); };
+}, true);
 $('#c-ngate').addEventListener('click', e => { if (e.target.closest('[data-nact]')) enableNotifications(); });
 $('#c-list').addEventListener('click', e => { const b = e.target.closest('[data-mid]'); if (!b) return; const m = S.chat.find(x => x.id === b.dataset.mid); if (m) openMsgMenu(m); });
 
@@ -3173,7 +3204,7 @@ function openMsgMenu(m) {
     if (a === 'reply') { S.replyTo = { id: m.id, uid: m.uid, text: m.text.slice(0, 100) }; renderReplyBar(); $('#c-text').focus(); }
     if (a === 'del') {
       if (!(await confirmBox('¿Borrar este mensaje?', 'Se borrará para todos.', 'Borrar'))) return;
-      try { const x = mine ? db : adb, w = writeBatch(x); w.delete(doc(x, 'chat', m.id)); await w.commit(); } catch (err) { toast(authErr(err)); }
+      try { const x = mine ? db : adb, w = writeBatch(x); w.delete(doc(x, 'chat', m.id)); if (m.hasImg) w.delete(doc(x, 'chatImg', m.id)); await w.commit(); } catch (err) { toast(authErr(err)); }
     }
   };
 }
