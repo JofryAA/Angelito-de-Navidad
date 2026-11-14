@@ -345,7 +345,13 @@ body.kb.chat-on #c-dock{bottom:calc(8px + env(safe-area-inset-bottom))}
 .spin-cta{position:sticky;bottom:calc(92px + env(safe-area-inset-bottom));z-index:6;padding:8px 0}
 #datafail{position:fixed;left:12px;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:121;padding:10px 14px;border-radius:14px;background:#5b1e1e;color:#fff4dc;font-size:.88rem;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
 #offline{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));z-index:120;padding:8px 14px;border-radius:999px;background:#5b3a1e;color:#fff4dc;font-size:.82rem;font-weight:700;box-shadow:var(--shadow);white-space:nowrap}
-#inst-btn{position:relative;color:var(--gold);border-color:rgba(236,188,92,.45)}
+#inst-btn{position:relative;color:var(--gold);border-color:rgba(236,188,92,.45);gap:8px}
+#inst-btn .ib-app{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:15px;background:linear-gradient(145deg,#e2483f,#a8211d);box-shadow:0 2px 8px rgba(226,72,63,.45),inset 0 1px 0 rgba(255,255,255,.25)}
+#inst-btn .ib-dl{position:absolute;right:3px;bottom:3px;width:17px;height:17px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:#2a1a05;border:2px solid #10261c;animation:ibBounce 2.4s ease-in-out infinite}
+#inst-btn .ib-t{display:none;font-weight:700;font-size:.82rem}
+@media(min-width:560px){#inst-btn{display:flex;align-items:center;width:auto;padding:0 14px 0 7px}#inst-btn .ib-dl{left:22px;right:auto;bottom:4px}#inst-btn .ib-t{display:inline;margin-left:4px}}
+@keyframes ibBounce{0%,70%,100%{transform:translateY(0)}80%{transform:translateY(2px)}90%{transform:translateY(-1px)}}
+@media(prefers-reduced-motion:reduce){#inst-btn .ib-dl{animation:none}}
 [hidden]{display:none!important}
 .idot{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 0 rgba(236,188,92,.6);animation:idot 1.8s infinite}
 @keyframes idot{70%{box-shadow:0 0 0 8px rgba(236,188,92,0)}100%{box-shadow:0 0 0 0 rgba(236,188,92,0)}}
@@ -693,7 +699,7 @@ body.kb.chat-on .top,body.kb.chat-on #v-buzon>.sec-title,body.kb.chat-on #buz-se
 <div class="app" id="app">
   <header class="top">
     <div class="brand"><div class="logo">🎁</div><span>Angelito</span></div>
-    <div class="topr"><button class="iconbtn" id="inst-btn" aria-label="Instalar la app" title="Instalar la app" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 7.5v7m-3-3 3 3 3-3"/><path d="M10 18.5h4"/></svg></button><button class="iconbtn" id="gear" aria-label="Organizador">⚙️</button><div id="userbox"></div></div>
+    <div class="topr"><button class="iconbtn" id="inst-btn" aria-label="Instalar la app" title="Instalar la app" hidden><span class="ib-app" aria-hidden="true">🎁</span><span class="ib-dl" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12m-5-5 5 5 5-5"/></svg></span><span class="ib-t">Instalar</span></button><button class="iconbtn" id="gear" aria-label="Organizador">⚙️</button><div id="userbox"></div></div>
   </header>
 
   <!-- INICIO -->
