@@ -184,13 +184,13 @@ let unsubCore = [], coreT = null;
 function coreRetry(what) { return e => { console.warn(what, e); if (SYNC.tries >= 6) { SYNC.people = false; return; } if (coreT) return; /* agotado: el vigilante lo retoma y avisa */ coreT = setTimeout(() => { coreT = null; SYNC.tries++; startCoreSubs(); }, 1500 * (SYNC.tries + 1)); }; }
 function startCoreSubs() {
   unsubCore.forEach(u => { try { u(); } catch { } }); unsubCore = [];
-  unsubCore.push(onSnapshot(doc(db, 'config', 'event'), s => { S.event = s.exists() ? s.data() : {}; syncQuestions(); syncGuesses(); render(); }, coreRetry('event')));
+  unsubCore.push(onSnapshot(doc(db, 'config', 'event'), s => { S.event = s.exists() ? s.data() : {}; syncQuestions(); syncGuesses(); render(); checkRelogin(); }, coreRetry('event')));
   unsubCore.push(onSnapshot(doc(db, 'config', 'draw'), s => { S.drawMeta = s.exists() ? s.data() : null; render(); }, coreRetry('draw')));
   unsubCore.push(onSnapshot(collection(db, 'participants'), { includeMetadataChanges: true }, s => { // avisa también cuando el servidor confirma
     if (fromServer(s)) { SYNC.people = true; SYNC.tries = 0; }
     S.participants = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at));
     S.me = S.uid ? P(S.uid) || null : null; maybeForcePin(); maybeAskNotif(); syncAdminMode();
-    ensureUserSubs(); checkGone();
+    ensureUserSubs(); checkGone(); checkRelogin();
     if (S.me && userSubDenied) retryUserSubs();
     render();
   }, coreRetry('participants')));
@@ -252,6 +252,22 @@ function ensureUserSubs() {
   startUserSubs(u); syncQuestions(true); syncGuesses(true); render();
 }
 // Cuenta que ya no está en el grupo (la quitaron o se le dio un PIN temporal y se creó otra): se cierra con un aviso.
+// El organizador puede pedir que TODOS vuelvan a entrar (para activar avisos e instalar la app).
+function checkRelogin() {
+  const u = auth.currentUser, at = S.event?.reloginAt ? ms(S.event.reloginAt) : 0;
+  if (!u || !at || !P(u.uid) || S.isOwner) return;
+  const last = Date.parse(u.metadata?.lastSignInTime || 0) || 0;
+  if (last >= at) return;
+  try { localStorage.removeItem(ASK_KEY); localStorage.removeItem(INST_KEY); } catch { }
+  signOut(auth).then(() => {
+    const s2 = openModal(`<div class="relog"><div class="rl-ic">🔔</div><h3>Vuelve a entrar, por favor 🙏</h3>
+      <p class="muted">El organizador actualizó el angelito. Entra otra vez con tu nombre y tu PIN y luego:</p>
+      <div class="rl-steps"><div><span>1</span><b>Activa los avisos</b><small>Para enterarte del chat, la ruleta y las actividades.</small></div>
+      <div><span>2</span><b>Instala la app</b><small>Queda en tu pantalla como una aplicación más.</small></div></div>
+      <div class="actions"><button class="btn gold" data-a="in">Entrar ahora</button></div></div>`);
+    s2.onclick = e => { if (e.target.closest('[data-a=in]')) { closeModal(); setTimeout(() => openAuth('login'), 150); } };
+  }).catch(() => { });
+}
 function checkGone() {
   const u = auth.currentUser; if (!u || !SYNC.people || P(u.uid)) return;
   const age = Date.now() - Date.parse(u.metadata?.creationTime || 0);
@@ -309,7 +325,7 @@ onAuthStateChanged(auth, user => {
   S.authReady = true; setTimeout(maybeForcePin, 0);
   subRetries = 0;
   if (!user) { S.myStaff = null; syncAdminMode(); if (!adminAuth.currentUser) { S.att = {}; S.suggestions = []; } }
-  subsFor = null; if (user) { ensureUserSubs(); checkGone(); }
+  subsFor = null; if (user) { ensureUserSubs(); checkGone(); checkRelogin(); }
   syncQuestions(true); syncGuesses(true); render();
   if (user && canNotify() && Notification.permission === 'granted') setTimeout(() => registerPush(), 1500);
 });
@@ -1256,7 +1272,7 @@ function renderWishes() {
     <div class="item witem ${w.top ? 'wtop' : ''}" style="--d:${k * 50}ms"><span class="wi-ic c${k % 5 + 1}">${ic(w.top ? 'star' : 'gift', 20)}</span><div class="grow">
       ${w.top ? '<div class="small" style="color:var(--gold);font-weight:700">⭐ El que más quiere</div>' : ''}
       <div class="t">${esc(w.text)}</div>
-      ${w.hasImg ? (S.wishImgs[w.id] ? `<button class="wimg" data-wimg="${esc(w.id)}" style="background:url('${S.wishImgs[w.id]}') center/cover" aria-label="Ver foto"></button>` : '<div class="wimg ld"></div>') : ''}
+      ${w.hasImg ? (S.wishImgs[w.id] ? `<button class="wimg" data-wimg="${esc(w.id)}" style="background:url('${S.wishImgs[w.id]}') center/cover" aria-label="Ver foto"></button>` : Date.now() - (wishImgTried.get(w.id) || Date.now()) > 8000 ? '' : '<div class="wimg ld"></div>') : ''}
       ${w.price ? `<span class="badge">≈ ${esc(w.price)}</span>` : ''}
 
       ${isRec ? `<div><button class="btn sm ${S.wishPick?.wishId === w.id ? 'gold' : ''}" data-wpick="${esc(w.id)}" style="margin-top:8px">${S.wishPick?.wishId === w.id ? '🛒 Apartado por ti (solo tú lo ves)' : '🛒 Este lo compro yo'}</button></div>` : ''}
@@ -1290,13 +1306,18 @@ function wishStrip() {
     return `<button class="pav ${S.wishPid === p.id ? 'on' : ''}" data-p="${esc(p.id)}" title="${esc(p.name)}"><span class="ci">${esc(p.emoji)}${n ? `<span class="n">${n}</span>` : ''}</span><span class="nm">${esc(p.id === S.uid ? 'Mi lista' : p.id === rec ? '🎯 ' + label(p) : label(p))}</span></button>`; }).join('');
 }
 // Las fotos de los deseos se bajan solo cuando alguien abre esa lista (así la app sigue rápida).
-S.wishImgs = {}; const wishImgLoading = new Set();
+// Cada foto se pide UNA sola vez (antes, si una foto faltaba o venía vacía, se volvía a pedir en cada
+// actualización y la lista de deseos se redibujaba sin parar).
+S.wishImgs = {}; const wishImgTried = new Map(); let wishImgT = null;
 function loadWishImgs(items) {
   for (const w of items) {
-    if (!w.hasImg || S.wishImgs[w.id] || wishImgLoading.has(w.id)) continue;
-    wishImgLoading.add(w.id);
-    getDoc(doc(S.uid ? db : adb, 'wishImg', w.id)).then(d => { if (d.exists()) { S.wishImgs[w.id] = String(d.data().data || '').replace(/[^A-Za-z0-9+/=:;,._-]/g, ''); render(); } })
-      .catch(() => { }).finally(() => wishImgLoading.delete(w.id));
+    if (!w.hasImg || S.wishImgs[w.id] || (Date.now() - (wishImgTried.get(w.id) || 0) < 10 * 60e3)) continue;
+    wishImgTried.set(w.id, Date.now());
+    getDoc(doc(S.uid ? db : adb, 'wishImg', w.id)).then(d => {
+      const data = d.exists() ? String(d.data().data || '').replace(/[^A-Za-z0-9+/=:;,._-]/g, '') : '';
+      if (!data) return;
+      S.wishImgs[w.id] = data; clearTimeout(wishImgT); wishImgT = setTimeout(render, 120); // una sola actualización por tanda de fotos
+    }).catch(() => { });
   }
 }
 $('#w-root').addEventListener('change', async e => {
@@ -1880,8 +1901,13 @@ function mapsUrl() {
 }
 function renderQuick() {
   const box = $('#h-quick'); if (!box) return;
-  const cl = calLinks(), mp = mapsUrl();
-  box.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap"><button class="btn btn-ic" id="q-inv" style="flex:1">${ic('image', 18)} Invitación</button>${cl ? `<button class="btn btn-ic" id="q-cal" style="flex:1">${ic('calendar', 18)} Calendario</button>` : ''}${mp ? `<a class="btn" href="${esc(mp)}" target="_blank" rel="noopener" style="flex:1;text-decoration:none">📍 Cómo llegar</a>` : ''}</div>`;
+  const cl = calLinks(), mp = mapsUrl(), pl = (S.event.place || '').trim();
+  // Mapa pequeño del lugar (Google Maps sin clave). Solo se vuelve a dibujar si cambia el lugar.
+  const mapH = pl ? `<div class="evmap"><iframe title="Mapa: ${esc(pl)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${encodeURIComponent(pl)}&z=15&output=embed"></iframe><a class="evmap-go" href="${esc(mp)}" target="_blank" rel="noopener">${ic('pin', 16)} Abrir en Maps</a></div>` : '';
+  if (box.dataset.map !== pl) { box.dataset.map = pl; box.innerHTML = ''; }
+  const old = box.querySelector('.evmap');
+  box.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap"><button class="btn btn-ic" id="q-inv" style="flex:1">${ic('image', 18)} Invitación</button>${cl ? `<button class="btn btn-ic" id="q-cal" style="flex:1">${ic('calendar', 18)} Calendario</button>` : ''}${mp && !pl ? `<a class="btn" href="${esc(mp)}" target="_blank" rel="noopener" style="flex:1;text-decoration:none">📍 Cómo llegar</a>` : ''}</div>`;
+  if (pl) box.prepend(old || document.createRange().createContextualFragment(mapH));
 }
 document.addEventListener('click', e => {
   if (!e.target.closest('#q-cal')) return; const cl = calLinks(); if (!cl) return;
@@ -2162,6 +2188,7 @@ function renderAdmin() {
       : '⚠️ Los participantes cambiaron después del sorteo. Vuelve a generarlo.';
   $('#d-gen').textContent = hasDraw ? 'Volver a sortear' : 'Generar sorteo';
   $('#q-count').textContent = `${nMsg(S.qCount)} en el buzón · ${isRevealed() ? 'abiertos ahora' : 'se abren el ' + (revealWhen() || 'día del evento')}`;
+  $('#relog-last').textContent = S.event.reloginAt ? 'Último pedido: ' + new Date(ms(S.event.reloginAt)).toLocaleString('es-DO', { dateStyle: 'medium', timeStyle: 'short' }) : '';
   if (![$('#q-date'), $('#q-time')].includes(document.activeElement) && !syncCfgBar.qEdit) { $('#q-date').value = revealDay() || ''; $('#q-time').value = S.event.revealTime || '00:00'; }
   { const ra = S.event.revealAt ? ms(S.event.revealAt) : 0; $('#q-left').textContent = isRevealed() ? '🔓 Abiertos' : ra > Date.now() ? '⏳ ' + leftTo(ra) : ''; }
   $('#a-list').innerHTML = S.activities.map(a => {
@@ -3633,6 +3660,10 @@ async function saveMemories() {
     cover: photos.slice(0, 6).map(p => p.thumb).filter(t => String(t).length < 80000), at: serverTimestamp() };
   try { await setDoc(doc(adb, 'memories', year), mem); toast(`📖 Recuerdos ${year} guardados`); confetti(80); } catch (err) { toast(authErr(err)); }
 }
+$('#relog-go').addEventListener('click', async () => {
+  if (!(await confirmBox('¿Pedir a todos que vuelvan a entrar?', 'A cada persona se le cerrará la sesión la próxima vez que abra la app y le pediremos entrar de nuevo, activar los avisos e instalar la app. Tú no sales.', 'Sí, pedirlo'))) return;
+  if (await saveEvent({ reloginAt: Timestamp.now() })) toast('Listo: todos volverán a entrar 📲');
+});
 $('#mem-save').addEventListener('click', saveMemories);
 function renderMemCard() {
   const box = $('#h-mem'); if (!box) return;
