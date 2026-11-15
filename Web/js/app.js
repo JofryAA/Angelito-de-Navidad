@@ -2607,12 +2607,12 @@ $('#x-list').addEventListener('click', async e => {
 });
 // 🧹 Limpiar sorteo: todo vuelve al inicio (sin sorteo, ruleta cerrada, inscripciones abiertas)
 async function clearDraw() {
-  if (!(await confirmBox('¿Limpiar el sorteo?', 'Se borra el sorteo y todos los giros: la ruleta volverá a decir «Se abre cuando el organizador haga el sorteo» y se reabren las inscripciones. También se borran el estado de los regalos, las pistas, las sospechas, los agradecimientos y los deseos apartados. Luego puedes generar uno nuevo.', 'Limpiar'))) return;
+  if (!(await confirmBox('¿Limpiar el sorteo?', 'Solo se afecta la ruleta: se borra el sorteo y los giros, la ruleta vuelve a decir «Se abre cuando el organizador haga el sorteo» y se reabren las inscripciones. Los deseos, perfiles y todo lo demás se quedan igual. Luego puedes generar uno nuevo.', 'Limpiar'))) return;
   try {
     const b0 = writeBatch(adb); b0.delete(doc(adb, 'config', 'draw')); await b0.commit(); // primero: la ruleta se cierra para todos al instante
     const ops = [];
-    for (const c of ['assignments', 'giftStatus', 'giftIncoming', 'hints', 'hintsSent', 'angelGuess', 'reveal', 'thanks', 'wishPick']) (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
-    ops.push(['set', doc(adb, 'config', 'event'), { registrationOpen: true, angelLocked: false }, true]);
+    (await getDocs(collection(adb, 'assignments'))).forEach(d => ops.push(['del', d.ref])); // solo la ruleta
+    ops.push(['set', doc(adb, 'config', 'event'), { registrationOpen: true }, true]);
     await commitOps(ops);
     toast('🧹 Sorteo limpio. Ya puedes generar uno nuevo.');
   } catch (err) { toast(authErr(err) + ' · Vuelve a intentarlo'); }
@@ -2634,8 +2634,7 @@ $('#d-gen').addEventListener('click', async () => {
     if (S.drawMeta) { const b0 = writeBatch(adb); b0.delete(doc(adb, 'config', 'draw')); await b0.commit(); }
     // 2) limpieza de giros, pistas y estados anteriores (puede ir en tandas)
     const ops = [];
-    for (const c of ['giftStatus', 'giftIncoming', 'hints', 'hintsSent', 'angelGuess', 'reveal', 'thanks', 'wishPick']) (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
-    (await getDocs(collection(adb, 'assignments'))).forEach(d => { if (!ids.includes(d.id)) ops.push(['del', d.ref]); });
+    (await getDocs(collection(adb, 'assignments'))).forEach(d => { if (!ids.includes(d.id)) ops.push(['del', d.ref]); }); // solo la ruleta: deseos y lo demás no se tocan
     await commitOps(ops);
     // 3) el sorteo nuevo completo en UNA sola escritura: o queda todo o no queda nada
     const b = writeBatch(adb);
