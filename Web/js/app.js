@@ -1654,6 +1654,64 @@ function attSummary() {
   return { going: ids.filter(id => a(id).status === 'si').length, notGoing: ids.filter(id => a(id).status === 'no').length,
     pending: ids.filter(id => !a(id).status).length, paid: ids.filter(id => a(id).confirmed).length, said: ids.filter(id => a(id).paid && !a(id).confirmed).length };
 }
+// 📊 Informe de asistencia y aportes (organizador)
+S.attTab = S.attTab || 'si';
+function renderAttReport(sm, amt, num, pre) {
+  const tot = S.participants.length || 1, pct = n => Math.round(n / tot * 100), resp = sm.going + sm.notGoing;
+  const a1 = sm.going / tot * 360, a2 = a1 + sm.notGoing / tot * 360;
+  const money = v => esc(pre) + Math.round(v).toLocaleString('es-DO');
+  const goal = num ? num * sm.going : 0, got = num ? num * sm.paid : 0, mp = sm.going ? Math.round(sm.paid / sm.going * 100) : 0;
+  const L = { si: p => (S.att[p.id] || {}).status === 'si', no: p => (S.att[p.id] || {}).status === 'no', pend: p => !(S.att[p.id] || {}).status, debe: p => (S.att[p.id] || {}).status === 'si' && !(S.att[p.id] || {}).confirmed };
+  const tabs = [['si', '✅', 'Van', sm.going], ['no', '❌', 'No van', sm.notGoing], ['pend', '⏳', 'Sin responder', sm.pending], ...(amt ? [['debe', '💵', 'Falta aporte', sm.going - sm.paid]] : [])];
+  if (!tabs.some(t => t[0] === S.attTab)) S.attTab = 'si';
+  const list = S.participants.filter(L[S.attTab]).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  $('#att-sum').innerHTML = `<div class="ar">
+    <div class="ar-top">
+      <div class="ar-ring" style="--a1:${a1}deg;--a2:${a2}deg"><div class="ar-in"><b>${resp}</b><span>de ${S.participants.length}<br>respondieron</span></div></div>
+      <div class="ar-leg">
+        ${[['ok', '✅ Van', sm.going], ['no', '❌ No van', sm.notGoing], ['wait', '⏳ Sin responder', sm.pending]].map(([c, l, n]) => `<div class="ar-l ${c}"><div class="ar-lt"><span>${l}</span><b>${n}</b></div><div class="ar-bar"><i style="width:${pct(n)}%"></i></div></div>`).join('')}
+      </div>
+    </div>
+    ${amt ? `<div class="ar-money">
+      <div class="ar-mh"><span>💵 Aportes · ${esc(amt)} por persona</span><b>${mp}%</b></div>
+      ${num ? `<div class="ar-mv"><b>${money(got)}</b><span>de ${money(goal)} recogido</span></div>` : ''}
+      <div class="ar-mbar"><i style="width:${mp}%"></i></div>
+      <div class="ar-mstats"><span><b>${sm.paid}</b> pagaron</span><span><b>${sm.going - sm.paid}</b> faltan</span>${sm.said ? `<span class="said"><b>${sm.said}</b> dicen que ya pagaron</span>` : ''}</div>
+    </div>` : ''}
+    <div class="ar-tabs">${tabs.map(([k, e, l, n]) => `<button type="button" class="${S.attTab === k ? 'on' : ''}" data-atab="${k}">${e} ${l}<i>${n}</i></button>`).join('')}</div>
+    <div class="ar-list">${list.length ? list.map((p, k) => { const a = S.att[p.id] || {};
+      return `<button type="button" class="ar-p" data-aped="${esc(p.id)}" style="--d:${k * 25}ms"><span class="ar-av">${esc(p.emoji)}</span><span class="grow"><b>${esc(p.name)}</b><small>${a.status === 'si' ? (amt ? (a.confirmed ? '💵 Aporte recibido' : a.paid ? '🟡 Dice que ya pagó' : '⏳ Falta su aporte') : 'Va') : a.status === 'no' ? 'No va' : 'No ha respondido'}${a.setBy ? ' · marcado por el organizador' : ''}</small></span><span class="ar-ed">${ic('edit', 16)}</span></button>`; }).join('') : '<p class="ar-empty">Nadie en esta lista 🎉</p>'}</div>
+    <div class="ar-acts">
+      <button type="button" class="ar-act" data-aact="exp-wa"><span>💬</span><b>Copiar para WhatsApp</b></button>
+      <button type="button" class="ar-act" data-aact="exp-csv"><span>📊</span><b>Copiar para Excel</b></button>
+      ${amt ? '<button type="button" class="ar-act gold" data-aact="att-remind"><span>📣</span><b>Recordar el aporte</b></button>' : ''}
+      <button type="button" class="ar-act" data-aact="att-remind2"><span>🔔</span><b>Recordar confirmar</b></button>
+    </div></div>`;
+  $('#att-list').innerHTML = '';
+}
+$('#att-sum').addEventListener('click', e => {
+  const t = e.target.closest('[data-atab]'); if (t) { S.attTab = t.dataset.atab; return renderAttendance(); }
+  const a = e.target.closest('[data-aact]'); if (a) return $('#' + a.dataset.aact)?.click();
+  const pe = e.target.closest('[data-aped]'); if (pe) return editAtt(pe.dataset.aped);
+});
+// ✏️ El organizador (o quien tenga permiso de aportes) cambia si alguien va y si ya pagó
+async function editAtt(id) {
+  const p = P(id), a = S.att[id] || {}; if (!p || !can('aportes')) return;
+  const amt = S.event.contribAmount;
+  const k = await sheet({ head: `<div class="wm-h who-card" style="display:flex;gap:12px;align-items:center"><span class="av">${esc(p.emoji)}</span><div><div class="muted small">Asistencia${amt ? ' y aporte' : ''}</div><b>${esc(p.name)}</b></div></div>`, items: [
+    a.status !== 'si' && { k: 'si', icon: 'check', label: 'Marcar que va' },
+    a.status !== 'no' && { k: 'no', icon: 'xcircle', label: 'Marcar que no va' },
+    a.status && { k: 'pend', icon: 'undo', label: 'Dejar sin responder' },
+    amt && (a.status === 'si' || a.confirmed) && (a.confirmed ? { k: 'unpay', icon: 'undo', label: 'Quitar el pago', hint: 'Vuelve a quedar pendiente' } : { k: 'pay', icon: 'coins', label: 'Marcar que pagó', hint: a.paid ? 'Dice que ya lo dio' : '' }),
+  ] });
+  if (!k) return;
+  const o = { uid: id, setBy: S.uid || 'admin' };
+  if (k === 'si' || k === 'no') o.status = k; if (k === 'pend') o.status = deleteField();
+  if (k === 'pay') o.confirmed = true; if (k === 'unpay') o.confirmed = false; if (k === 'no') o.confirmed = false;
+  if (k === 'pay' && a.status !== 'si') o.status = 'si';
+  try { await setDoc(doc(adb, 'attendance', id), o, { merge: true }); toast({ si: '✅ Marcado: va', no: '❌ Marcado: no va', pend: '⏳ Quedó sin responder', pay: '💵 Marcado como pagó', unpay: 'Pago quitado' }[k]); }
+  catch (err) { toast(authErr(err)); }
+}
 // Lista de quiénes van / no pueden / no han respondido
 function openAttList() {
   const g = st => S.participants.filter(p => ((S.att[p.id] || {}).status || '') === st).sort((a, b) => a.name.localeCompare(b.name));
@@ -1691,16 +1749,7 @@ function renderAttendance() {
   if (!S.isAdmin) return;
   const sm = attSummary(), amt = S.event.contribAmount;
   const num = parseFloat(String(amt || '').replace(/[^\d.]/g, '')), pre = String(amt || '').match(/^[^\d]*/)?.[0].trim() || '';
-  $('#att-sum').innerHTML = `<div class="cnts" style="margin:8px 0 6px"><span class="cnt ok">${sm.going} van</span><span class="cnt no">${sm.notGoing} no van</span><span class="cnt wait">${sm.pending} sin responder</span></div>
-    ${amt ? `<div class="paybox"><div><span class="muted small">Aportes pagados</span><b>${sm.paid} de ${sm.going}</b></div>${num ? `<div><span class="muted small">Total recogido</span><b>${esc(pre)}${(num * sm.paid).toLocaleString('es')}</b></div>` : ''}${sm.said ? `<div><span class="muted small">Dicen que pagaron</span><b>${sm.said}</b></div>` : ''}</div>` : ''}
-    ${can('participantes') ? '<p class="muted small" style="margin-top:8px">👇 Marca quién pagó en la lista de participantes (arriba en esta misma sección).</p>' : ''}`;
-  $('#att-list').innerHTML = can('participantes') ? '' : S.participants.map(p => {
-    const a = S.att[p.id] || {};
-    const st = a.status === 'si' ? '<span class="badge">✅ Va</span>' : a.status === 'no' ? '<span class="badge" style="background:rgba(226,72,63,.22);color:#ffc2bc">❌ No va</span>' : '<span class="badge" style="background:rgba(255,255,255,.08);color:var(--muted)">⏳ Sin responder</span>';
-    const pay = a.confirmed ? '<span class="badge">💵 Pagó</span>' : a.paid ? '<span class="badge" style="background:rgba(236,188,92,.2);color:#ffd99a">💵 Dice que pagó</span>' : '';
-    return `<div class="item" style="align-items:center"><span style="font-size:22px">${esc(p.emoji)}</span><div class="grow"><div class="t">${esc(p.name)}</div>${st} ${pay}</div>
-      ${a.status === 'si' || a.confirmed ? `<button class="btn sm ${a.confirmed ? '' : 'gold'}" data-conf="${esc(p.id)}" data-v="${a.confirmed ? 0 : 1}">${a.confirmed ? 'Quitar pago' : '✓ Pagó'}</button>` : ''}</div>`;
-  }).join('') || '<p class="muted small">Nadie se ha registrado todavía.</p>';
+  renderAttReport(sm, amt, num, pre);
 }
 $('#h-att').addEventListener('click', async e => {
   if (e.target.closest('[data-attedit]')) { S.attEdit = true; return renderAttendance(); }
@@ -1708,7 +1757,7 @@ $('#h-att').addEventListener('click', async e => {
   const b = e.target.closest('[data-att],[data-paid]'); if (!b || !S.me) return;
   if (b.dataset.att) S.attEdit = false;
   const cur = S.att[S.uid] || {};
-  const o = { uid: S.uid, status: b.dataset.att || cur.status || 'si', paid: b.dataset.paid != null ? b.dataset.paid === '1' : !!cur.paid, at: serverTimestamp() };
+  const o = { uid: S.uid, status: b.dataset.att || cur.status || 'si', paid: b.dataset.paid != null ? b.dataset.paid === '1' : !!cur.paid, at: serverTimestamp() }; if (cur.setBy) o.setBy = deleteField();
   if (o.status === 'no') o.paid = !!cur.paid;
   try { await setDoc(doc(db, 'attendance', S.uid), o, { merge: true }); if (b.dataset.att === 'si') { toast('¡Genial, te esperamos! 🎉'); confetti(60); } else if (b.dataset.paid === '1') toast('Anotado 💵 El organizador lo confirmará'); }
   catch (err) { toast(authErr(err)); }
@@ -1718,12 +1767,12 @@ document.addEventListener('click', e => {
   const m = e.target.closest('[data-pmore]'); if (!m) return;
   const id = m.dataset.pmore, p = P(id), a = S.att[id] || {}; if (!p) return;
   sheet({ head: `<div class="wm-h who-card" style="display:flex;gap:12px;align-items:center"><span class="av">${esc(p.emoji)}</span><div><div class="muted small">Participante</div><b>${esc(p.name)}</b></div></div>`, items: [
-    a.confirmed && can('aportes') && { k: 'conf', icon: 'undo', label: 'Quitar el pago', hint: 'Vuelve a quedar como pendiente' },
+    can('aportes') && { k: 'attEdit', icon: 'calcheck', label: 'Asistencia y aporte', hint: a.status === 'si' ? 'Va' + (a.confirmed ? ' · pagó' : '') : a.status === 'no' ? 'No va' : 'Sin responder' },
     S.isOwner && { k: 'presetPin', icon: 'key', label: 'Darle un PIN temporal', hint: 'Si olvidó su PIN; conserva todo lo suyo' },
     { k: 'pedit', icon: 'edit', label: 'Editar nombre o ícono' },
     { k: 'rm', icon: 'userx', label: 'Quitar del angelito', hint: 'Se borra todo lo suyo', danger: true },
   ] }).then(k => {
-    if (!k) return;
+    if (!k) return; if (k === 'attEdit') return editAtt(id);
     const t = document.createElement('button'); t.hidden = true; t.dataset[k] = id; if (k === 'conf') t.dataset.v = '0';
     $('#p-list').appendChild(t); setTimeout(() => { t.click(); t.remove(); }, 60);
   });

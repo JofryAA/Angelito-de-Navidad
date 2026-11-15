@@ -389,12 +389,16 @@ service cloud.firestore {
     // Cada quien marca lo suyo; solo el organizador confirma que lo recibió.
     match /attendance/{uid} {
       allow read: if member();
-      allow create: if (can('aportes') && request.resource.data.keys().hasOnly(['uid', 'confirmed']))
+      // quien tiene permiso de aportes puede marcar si alguien va (o dejarlo sin responder) y si pagó
+      allow create: if (can('aportes') && request.resource.data.keys().hasOnly(['uid', 'confirmed', 'status', 'setBy']) && request.resource.data.uid == uid
+            && (!('status' in request.resource.data) || request.resource.data.status in ['si', 'no']))
         || (isParticipant() && me() == uid && request.resource.data.uid == uid
             && request.resource.data.keys().hasOnly(['uid', 'status', 'paid', 'at']) && tsOk(request.resource.data)
             && request.resource.data.status in ['si', 'no'] && request.resource.data.paid is bool);
-      allow update: if (can('aportes') && changed().hasOnly(['confirmed', 'uid']) && request.resource.data.confirmed is bool)
-        || (isParticipant() && me() == uid && changed().hasOnly(['status', 'paid', 'at', 'uid']) && tsOk(request.resource.data)
+      allow update: if (can('aportes') && changed().hasOnly(['confirmed', 'uid', 'status', 'setBy']) && request.resource.data.uid == uid
+            && request.resource.data.get('confirmed', false) is bool
+            && (!('status' in request.resource.data) || request.resource.data.status in ['si', 'no']))
+        || (isParticipant() && me() == uid && changed().hasOnly(['status', 'paid', 'at', 'uid', 'setBy']) && !('setBy' in request.resource.data) && tsOk(request.resource.data)
             && request.resource.data.uid == uid && request.resource.data.status in ['si', 'no'] && request.resource.data.paid is bool);
       allow delete: if isOwner() || goneAfter(uid);
     }
