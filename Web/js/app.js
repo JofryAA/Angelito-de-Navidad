@@ -796,7 +796,7 @@ function userMenu() {
       ${mod('perfil') ? row('prof', 'shirt', 'Mi perfil de gustos', 'Tallas, colores y lo que te gusta', `<span class="cnt ${pd < PROF.length ? 'no' : 'ok'}">${pd}/${PROF.length}</span>`) : ''}
       ${S.isAdmin ? row('admin', 'shield', 'Panel de control', S.isOwner ? 'Organizador principal' : 'Tienes permisos de administrador') : ''}
       ${row('notif', 'bell', 'Notificaciones', 'Elige qué avisos recibir')}
-      ${isInstalled() ? '' : row('install', 'phone', 'Instalar la app', 'Ábrela desde tu pantalla de inicio')}
+      ${row('install', 'phone', isInstalled() ? 'Reinstalar o reparar la app' : 'Descargar la app', isInstalled() ? 'Si te da algún error, aquí se arregla' : 'Ábrela desde tu pantalla de inicio')}
       ${row('help', 'help', 'Ayuda', 'Guía, preguntas frecuentes y soluciones')}
     </div>
     <div class="actions"><button class="btn ghost" data-a="out">Cerrar sesión</button><button class="btn gold" data-a="close">Listo</button></div>`);
@@ -808,7 +808,7 @@ function userMenu() {
     if (a === 'help') return openHelp();
     if (a === 'admin') { location.hash = 'admin'; return; }
     if (a === 'notif') return openNotifPrefs();
-    if (a === 'install') return installApp();
+    if (a === 'install') return appSheet();
     if (a === 'out') return fullLogout();
   };
 }
@@ -2525,6 +2525,7 @@ function renderAdmDash() {
       <div class="steps">${steps.map(([ok, l, g]) => `<button class="step ${ok ? 'done' : ''}" data-ag="${g}"><span class="ck">${ok ? '✓' : ''}</span><span>${l}</span>${ok ? '' : '<span class="go">Ir ›</span>'}</button>`).join('')}</div></div>` : ''}`;
 }
 function renderAdmin() {
+  renderDlLink();
   $('#adm-panel').style.display = S.isAdmin ? '' : 'none';
   const lg = $('#adm-login');
   if (S.isAdmin) { lg.innerHTML = ''; }
@@ -3300,6 +3301,7 @@ const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.
 const canNotify = () => 'Notification' in window;
 let installEvt = null, swReg = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; render(); });
+landingInstall();
 addEventListener('appinstalled', () => { installEvt = null; toast('¡App instalada! 🎉'); try { localStorage.setItem(INST_KEY, String(Date.now() + 3650 * 864e5)); localStorage.setItem(INSTALLED_KEY, '1'); } catch { } render(); });
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   const cfgQ = encodeURIComponent(JSON.stringify({ apiKey: firebaseConfig.apiKey, projectId: firebaseConfig.projectId, messagingSenderId: firebaseConfig.messagingSenderId, appId: firebaseConfig.appId }));
@@ -3388,6 +3390,61 @@ async function enableNotifications() {
   else if (r === 'denied') notifHelp(); else toast('Cuando quieras, actívalas desde el 💡 o en tu menú → Notificaciones.');
   render();
 }
+/* ---------- 📲 descargar, reinstalar y reparar la app ---------- */
+const DL_URL = () => location.origin + location.pathname.replace(/index\.html$/, '') + '?instalar=1';
+const inAppBrowser = () => /FBAN|FBAV|Instagram|Line\/|WhatsApp|; wv\)/i.test(navigator.userAgent);
+// Borra la copia guardada de la app (no tus datos ni tu sesión) y la vuelve a bajar completa
+async function repairApp() {
+  toast('🔧 Reparando la app…');
+  try { for (const r of await navigator.serviceWorker?.getRegistrations() || []) await r.unregister(); } catch { }
+  try { for (const k of await caches.keys()) await caches.delete(k); } catch { }
+  try { localStorage.removeItem('angelito:boot:v1'); } catch { }
+  setTimeout(() => location.replace(location.pathname + '?v=' + Date.now() + location.hash), 400);
+}
+// Opción para todos (menú de tu nombre): instalar, o reparar si ya la tiene y da error
+function appSheet() {
+  const inst = isInstalled();
+  const s2 = openModal(`<div class="dlh"><div class="dlh-ic">🎁</div><h3>${inst ? 'Tu app del angelito' : 'Descarga la app'}</h3><p class="muted small">${inst ? 'Si algo no se ve bien o te da error, prueba en este orden:' : 'Te queda un ícono en la pantalla de inicio: abre al instante, funciona sin internet y te llegan los avisos.'}</p></div>
+    <div class="mlist" style="margin-top:12px">
+      ${inst ? `<button class="mrow" data-a="fix"><span class="me-e">🔧</span><span class="grow"><b>1. Reparar la app</b><span class="muted small">Baja de nuevo la última versión. No borra nada tuyo.</span></span><span class="chev">›</span></button>
+      <button class="mrow" data-a="data"><span class="me-e">${ic('refresh', 22)}</span><span class="grow"><b>2. Recargar los datos</b><span class="muted small">Si falta gente, mensajes o deseos.</span></span><span class="chev">›</span></button>
+      <button class="mrow" data-a="re"><span class="me-e">📲</span><span class="grow"><b>3. Volver a instalarla</b><span class="muted small">Si sigue fallando: quítala y ponla otra vez.</span></span><span class="chev">›</span></button>`
+      : `<button class="btn gold big" data-a="inst" style="width:100%">📲 Instalar ahora</button>`}
+    </div><div class="actions"><button class="btn" data-a="x">Cerrar</button></div>`);
+  s2.onclick = e => {
+    const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+    if (a === 'x') return closeModal();
+    if (a === 'fix') { closeModal(); return repairApp(); }
+    if (a === 'data') { closeModal(); return repairData(); }
+    if (a === 'inst') { closeModal(); return installApp(); }
+    if (a === 're') return openModal(`<h3>📲 Volver a instalarla</h3><ol class="hc-steps" style="padding-left:20px;margin-top:12px"><li>Mantén presionado el ícono 🎁 del angelito en tu pantalla y toca <b>Desinstalar</b> (en iPhone: <b>Eliminar app</b>). Tus datos no se pierden: están guardados en la nube.</li><li>Abre este enlace en ${isIOS() ? '<b>Safari</b>' : '<b>Chrome</b>'}: <b>${esc(DL_URL())}</b></li><li>Toca <b>Instalar</b> y entra con tu nombre y tu PIN.</li></ol><div class="actions"><button class="btn" data-a="copy">📋 Copiar enlace</button><button class="btn gold" data-a="x">Listo</button></div>`).onclick = ev => { const b = ev.target.closest('[data-a]')?.dataset.a; if (b === 'copy') copyText(DL_URL(), '📋 Enlace copiado'); if (b === 'x') closeModal(); };
+  };
+}
+// Quien abre el enlace de descarga (?instalar=1) ve de una vez la invitación a instalar
+function landingInstall() {
+  let want = false; try { want = new URLSearchParams(location.search).has('instalar'); } catch { }
+  if (!want) return;
+  try { history.replaceState(history.state, '', location.pathname + location.hash); } catch { }
+  if (isStandalone()) return toast('✅ Ya tienes la app instalada');
+  const go = () => {
+    if (inAppBrowser()) return openModal(`<div class="dlh"><div class="dlh-ic">🎁</div><h3>Ábrelo en tu navegador</h3><p class="muted small">Desde WhatsApp o Instagram no se puede instalar. Toca los tres puntitos <b>⋮</b> de arriba y elige <b>Abrir en ${isIOS() ? 'Safari' : 'Chrome'}</b>.</p></div><div class="actions"><button class="btn" data-a="copy">📋 Copiar enlace</button><button class="btn gold" data-a="x">Entendido</button></div>`).onclick = e => { const b = e.target.closest('[data-a]')?.dataset.a; if (b === 'copy') copyText(DL_URL(), '📋 Enlace copiado'); if (b === 'x') closeModal(); };
+    appSheet();
+  };
+  setTimeout(go, 900); // da tiempo a que el navegador avise que se puede instalar
+}
+// Organizador: el enlace listo para mandar
+function renderDlLink() {
+  const box = $('#dl-link'); if (!box) return; const url = DL_URL();
+  if (box.dataset.u === url) return; box.dataset.u = url;
+  box.innerHTML = `<div class="dl-url"><span>${esc(url)}</span></div><div class="ar-tools" style="--n:3;border:0;padding-top:8px"><button type="button" data-dl="copy"><span>📋</span>Copiar</button><button type="button" data-dl="wa"><span>💬</span>WhatsApp</button><button type="button" data-dl="share"><span>📤</span>Compartir</button></div>`;
+}
+$('#dl-link').addEventListener('click', e => {
+  const k = e.target.closest('[data-dl]')?.dataset.dl; if (!k) return;
+  const url = DL_URL(), txt = `🎁 Descarga la app del angelito aquí y entra con tu nombre: ${url}`;
+  if (k === 'copy') return copyText(url, '📋 Enlace copiado');
+  if (k === 'wa') return open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank', 'noopener');
+  if (navigator.share) navigator.share({ text: txt }).catch(() => { }); else copyText(txt, '📋 Mensaje copiado');
+});
 function installApp() {
   if (installEvt) { installEvt.prompt(); installEvt.userChoice.finally(() => { installEvt = null; render(); }); return; }
   openModal(`<h3>📲 Instala la app</h3>

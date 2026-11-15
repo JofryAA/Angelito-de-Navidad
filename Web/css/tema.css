@@ -1052,3 +1052,7 @@ body.touring #helper{display:none!important}
 .ag.ok .ag-dot{background:#3ccf83;box-shadow:0 0 8px rgba(60,207,131,.6)}
 .ag.pend{border-color:rgba(236,188,92,.35)}.ag.pend .ag-dot{background:var(--gold);box-shadow:0 0 8px rgba(236,188,92,.6);animation:apPulse 1.2s ease-in-out infinite alternate}
 .adm-grid .ag:last-child:nth-child(odd){grid-column:1/-1;min-height:0;flex-direction:row;align-items:center}
+/* 📲 descargar la app */
+.dlh{text-align:center}.dlh h3{margin:8px 0 4px}
+.dlh-ic{width:68px;height:68px;margin:0 auto;border-radius:20px;display:grid;place-items:center;font-size:36px;background:linear-gradient(150deg,#e2483f,#a92a22);box-shadow:0 10px 24px rgba(226,72,63,.4)}
+.dl-url{padding:10px 12px;border-radius:14px;background:rgba(0,0,0,.25);border:1px dashed rgba(236,188,92,.45);font-size:.85rem;word-break:break-all;color:#ffe2a6}
