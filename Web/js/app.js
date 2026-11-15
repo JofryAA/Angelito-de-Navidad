@@ -12,12 +12,51 @@ import { runTransaction, deleteField, terminate, clearIndexedDbPersistence, getF
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const buzz = n => { if (navigator.vibrate) try { navigator.vibrate(n); } catch { } }; // vibración corta (si el teléfono la tiene)
-// 🎯 Sin «recargas» a la vista: dentro de las pantallas, si un pedazo se vuelve a dibujar IGUAL que ya está, no se toca
-// (antes cada dato nuevo, como un mensaje o una jugada, volvía a pintar listas enteras y las fotos parpadeaban).
+// 🎯 Solo cambia el dato que cambió. Dentro de las pantallas, al volver a dibujar algo NO se reemplaza todo:
+// se compara con lo que ya está y se actualiza únicamente lo distinto (un texto, un número, un deseo nuevo…).
+// Así las fotos no parpadean, no se pierde lo que estás escribiendo y la lista no «se recarga».
+const KEY_ATTRS = ['id', 'data-mid', 'data-row', 'data-p', 'data-wmore', 'data-wstar', 'data-aped', 'data-pped', 'data-act', 'data-tile', 'data-gpick', 'data-hc', 'data-atab', 'data-ptab', 'data-ag'];
+const keyOf = n => { if (n.nodeType !== 1) return null; for (const a of KEY_ATTRS) { const v = n.getAttribute(a); if (v) return n.tagName + '|' + a + '|' + v; } return null; };
+function morphEl(from, to) {
+  for (const a of [...from.attributes]) if (!to.hasAttribute(a.name) && !(a.name === 'open' && from.tagName === 'DETAILS') && !(a.name === 'style' && from.style.transform)) from.removeAttribute(a.name);
+  for (const a of [...to.attributes]) if (from.getAttribute(a.name) !== a.value) from.setAttribute(a.name, a.value);
+  if ((from.tagName === 'INPUT' || from.tagName === 'TEXTAREA') && from !== document.activeElement && to.hasAttribute('value') && from.value !== to.getAttribute('value')) from.value = to.getAttribute('value');
+  if (from.tagName === 'TEXTAREA') { if (from !== document.activeElement && from.value !== to.value) from.value = to.value; return; }
+  morphKids(from, to);
+}
+function morphKids(from, to) {
+  const keyed = new Map(); for (const n of from.childNodes) { const k = keyOf(n); if (k) keyed.set(k, n); }
+  const want = [...to.childNodes]; let j = 0;
+  for (const nn of want) {
+    const cur = from.childNodes[j], k = keyOf(nn);
+    let m = null;
+    if (k) m = keyed.get(k) || null;
+    else if (cur && !keyOf(cur) && cur.nodeType === nn.nodeType && (cur.nodeType !== 1 || cur.tagName === nn.tagName)) m = cur;
+    if (m) { if (m !== cur) from.insertBefore(m, cur || null); if (k) keyed.delete(k); if (m.nodeType === 1) morphEl(m, nn); else if (m.nodeValue !== nn.nodeValue) m.nodeValue = nn.nodeValue; }
+    else from.insertBefore(document.importNode(nn, true), cur || null);
+    j++;
+  }
+  while (from.childNodes.length > want.length) from.lastChild.remove();
+}
 (() => {
   const d = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML'); if (!d?.set) return;
   Object.defineProperty(Element.prototype, 'innerHTML', { configurable: true, enumerable: d.enumerable, get() { return d.get.call(this); },
-    set(v) { const s = String(v); if (this.__ih === s && this.isConnected && this.closest('.view')) return; this.__ih = s; d.set.call(this, s); } });
+    set(v) {
+      const s = String(v);
+      if (!this.isConnected || !this.closest('.view') || this.__ih == null || this.tagName === 'TEMPLATE') { this.__ih = s; return d.set.call(this, s); }
+      if (this.__ih === s) return; // igual que antes: no se toca nada
+      this.__ih = s; const t = document.createElement('template'); d.set.call(t, s);
+      try { morphKids(this, t.content); } catch (e) { console.warn('morph', e); d.set.call(this, s); }
+    } });
+  // Si un pedazo se reusa, un «escuchador» que se vuelve a poner reemplaza al anterior en vez de sumarse (nada se ejecuta dos veces)
+  const add = EventTarget.prototype.addEventListener, rm = EventTarget.prototype.removeEventListener;
+  EventTarget.prototype.addEventListener = function (type, fn, opt) {
+    if (this instanceof Element && typeof fn === 'function' && this.closest?.('.view')) {
+      const m = this.__ls ||= new Map(), k = type + '|' + fn.toString().length + '|' + fn.toString().slice(0, 120), old = m.get(k);
+      if (old) rm.call(this, type, old[0], old[1]); m.set(k, [fn, opt]);
+    }
+    return add.call(this, type, fn, opt);
+  };
 })();
 const rowsOf = s => s.docs.map(d => ({ id: d.id, ...d.data() })); // documentos de una consulta como lista
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
