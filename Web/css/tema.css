@@ -782,3 +782,9 @@ body.anim-in .wsc{animation:popin .4s var(--d,0ms) backwards}
 .wsc-buy{padding:12px!important;font-size:.92rem!important}
 .wsc-add{min-height:120px!important;flex-direction:row!important;gap:14px!important}
 #d-gen.danger{background:linear-gradient(145deg,#d9466b,#8f2147)!important;color:#fff!important;border-color:transparent!important}
+
+/* 📜 angelitos pasados */
+.hist-it{border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px 12px;margin-bottom:10px;background:rgba(255,255,255,.04)}
+.hist-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.hist-hd b{flex:1;min-width:0}
+.hist-pairs{display:grid;gap:4px;margin:8px 0 4px}.hist-p{font-size:.92em}
+.hist-t{font-size:.88em;margin-top:6px;opacity:.9}

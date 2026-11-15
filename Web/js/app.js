@@ -373,6 +373,7 @@ function startAdminSubs() {
     sub(collection(adb, 'guesses'), s => { S.adminGuesses = rows(s); render(); }, 'guesses-adm');
     sub(collection(adb, 'memories'), s => { if (!S.uid) S.memories = rows(s); render(); }, 'mem-adm');
     sub(doc(adb, 'reveal', 'main'), s => { S.reveal = s.exists() ? s.data() : null; syncAngelGuesses(); render(); }, 'reveal-adm');
+    sub(collection(adb, 'history'), s => { S.history = rows(s).sort((x, y) => ms(y.at) - ms(x.at)); render(); }, 'history');
     sub(collection(adb, 'giftStatus'), s => { S.giftStatus = Object.fromEntries(s.docs.map(d => [d.id, d.data().status])); render(); }, 'gs-adm');
     sub(collection(adb, 'staff'), s => { S.staffList = rows(s).sort((x, y) => ms(x.at) - ms(y.at)); render(); }, 'staff');
   }
@@ -2298,6 +2299,7 @@ function renderAdmin() {
       : '⚠️ Los participantes cambiaron después del sorteo. Vuelve a generarlo.';
   $('#d-gen').textContent = hasDraw ? '🧹 Limpiar sorteo' : '🎡 Generar sorteo';
   $('#d-gen').classList.toggle('danger', !!hasDraw);
+  renderHistory();
   $('#q-count').textContent = `${nMsg(S.qCount)} en el buzón · ${isRevealed() ? 'abiertos ahora' : 'se abren el ' + (revealWhen() || 'día del evento')}`;
   $('#relog-last').textContent = S.event.reloginAt ? 'Último pedido: ' + new Date(ms(S.event.reloginAt)).toLocaleString('es-DO', { dateStyle: 'medium', timeStyle: 'short' }) : '';
   if (![$('#q-date'), $('#q-time')].includes(document.activeElement) && !syncCfgBar.qEdit) { $('#q-date').value = revealDay() || ''; $('#q-time').value = S.event.revealTime || '00:00'; }
@@ -2607,16 +2609,44 @@ $('#x-list').addEventListener('click', async e => {
 });
 // 🧹 Limpiar sorteo: todo vuelve al inicio (sin sorteo, ruleta cerrada, inscripciones abiertas)
 async function clearDraw() {
-  if (!(await confirmBox('¿Limpiar el sorteo?', 'Solo se afecta la ruleta: se borra el sorteo y los giros, la ruleta vuelve a decir «Se abre cuando el organizador haga el sorteo» y se reabren las inscripciones. Los deseos, perfiles y todo lo demás se quedan igual. Luego puedes generar uno nuevo.', 'Limpiar'))) return;
+  if (!(await confirmBox('¿Limpiar el sorteo?', 'Las parejas, los agradecimientos y la revelación se guardan en «📜 Angelitos pasados». Se borra el sorteo, la ruleta se cierra y se reabren las inscripciones. Los deseos, perfiles y todo lo demás se quedan igual.', 'Limpiar'))) return;
   try {
-    const b0 = writeBatch(adb); b0.delete(doc(adb, 'config', 'draw')); await b0.commit(); // primero: la ruleta se cierra para todos al instante
+    const [as, th, rv] = await Promise.all([getDocs(collection(adb, 'assignments')), getDocs(collection(adb, 'thanks')), getDoc(doc(adb, 'reveal', 'main'))]);
+    const nm = id => { const x = P(id); return x ? { n: x.name, e: x.emoji || '' } : { n: '(ya no está)', e: '' }; };
+    const pairs = as.docs.filter(d => d.data().recipient).map(d => ({ g: d.id, r: d.data().recipient, gn: nm(d.id).n, ge: nm(d.id).e, rn: nm(d.data().recipient).n, re: nm(d.data().recipient).e, spun: !!d.data().revealed }));
+    const thanks = th.docs.map(d => ({ uid: d.id, name: nm(d.id).n, e: nm(d.id).e, note: d.data().note || '', received: !!d.data().received }));
     const ops = [];
-    (await getDocs(collection(adb, 'assignments'))).forEach(d => ops.push(['del', d.ref])); // solo la ruleta
-    ops.push(['set', doc(adb, 'config', 'event'), { registrationOpen: true }, true]);
-    await commitOps(ops);
-    toast('🧹 Sorteo limpio. Ya puedes generar uno nuevo.');
+    if (pairs.length) ops.push(['set', doc(collection(adb, 'history')), { at: serverTimestamp(), drawAt: S.drawMeta?.at || null, pairs, thanks, revealed: rv.exists() }]);
+    await commitOps(ops); // 1) primero se guarda el recuerdo
+    const b0 = writeBatch(adb); b0.delete(doc(adb, 'config', 'draw')); await b0.commit(); // 2) la ruleta se cierra para todos al instante
+    const ops2 = [];
+    as.forEach(d => ops2.push(['del', d.ref])); th.forEach(d => ops2.push(['del', d.ref]));
+    if (rv.exists()) ops2.push(['del', rv.ref]);
+    ops2.push(['set', doc(adb, 'config', 'event'), { registrationOpen: true }, true]);
+    await commitOps(ops2);
+    toast(pairs.length ? '🧹 Sorteo limpio · guardado en Angelitos pasados' : '🧹 Sorteo limpio. Ya puedes generar uno nuevo.');
   } catch (err) { toast(authErr(err) + ' · Vuelve a intentarlo'); }
 }
+// 📜 Angelitos pasados (solo aparece si hay historial)
+function renderHistory() {
+  const h = S.history || [], f = $('#h-fold'); if (!f) return;
+  f.hidden = !h.length; if (!h.length) return;
+  $('#h-count').textContent = h.length;
+  const when = x => { const t = ms(x.drawAt) || ms(x.at); return t ? new Date(t).toLocaleDateString('es-DO', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Sorteo anterior'; };
+  const html = h.map(x => `<div class="hist-it"><div class="hist-hd"><b>🎁 ${esc(when(x))}</b><span class="muted small">${(x.pairs || []).length} parejas${x.revealed ? ' · revelado' : ''}</span><button class="btn xs ghost" data-hdel="${esc(x.id)}" aria-label="Borrar">🗑️</button></div>
+    <div class="hist-pairs">${(x.pairs || []).map(q => `<div class="hist-p">${esc(q.ge)} ${esc(q.gn)} <span class="muted">→</span> ${esc(q.re)} ${esc(q.rn)}</div>`).join('')}</div>
+    ${(x.thanks || []).filter(t => t.note || t.received).map(t => `<div class="hist-t">💛 <b>${esc(t.name)}</b>${t.note ? ': «' + esc(t.note) + '»' : ' recibió su regalo'}</div>`).join('')}</div>`).join('');
+  if ($('#h-list').dataset.h !== html) { $('#h-list').innerHTML = html; $('#h-list').dataset.h = html; }
+}
+$('#h-list')?.addEventListener('click', async e => {
+  const b = e.target.closest('[data-hdel]'); if (!b) return;
+  if (!(await confirmBox('¿Borrar este sorteo pasado?', 'Se borra para siempre del historial.', 'Borrar'))) return;
+  try { await commitOps([['del', doc(adb, 'history', b.dataset.hdel)]]); toast('Borrado del historial'); } catch (err) { toast(authErr(err)); }
+});
+$('#h-clear')?.addEventListener('click', async () => {
+  if (!(await confirmBox('¿Borrar todo el historial?', 'Se borran para siempre todos los angelitos pasados.', 'Borrar todo'))) return;
+  try { await commitOps((S.history || []).map(x => ['del', doc(adb, 'history', x.id)])); toast('🗑️ Historial borrado'); } catch (err) { toast(authErr(err)); }
+});
 $('#d-gen').addEventListener('click', async () => {
   if (S.drawMeta) return clearDraw();
   const ids = S.participants.map(p => p.id);
@@ -2636,8 +2666,9 @@ $('#d-gen').addEventListener('click', async () => {
     const ops = [];
     // parejas nuevas: se borra solo lo que dependía de la pareja anterior (estado del regalo, "mi regalo", pistas, sospechas y apartados).
     // Deseos, fotos, perfiles, chat, ideas, asistencia y aportes NO se tocan.
-    for (const c of ['giftStatus', 'giftIncoming', 'hints', 'hintsSent', 'angelGuess', 'wishPick']) (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
+    for (const c of ['giftStatus', 'giftIncoming', 'hints', 'hintsSent', 'angelGuess', 'wishPick', 'thanks']) (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
     (await getDocs(collection(adb, 'assignments'))).forEach(d => { if (!ids.includes(d.id)) ops.push(['del', d.ref]); });
+    if (S.reveal) ops.push(['del', doc(adb, 'reveal', 'main')]);
     await commitOps(ops);
     // 3) el sorteo nuevo completo en UNA sola escritura: o queda todo o no queda nada
     const b = writeBatch(adb);
