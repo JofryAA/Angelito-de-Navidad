@@ -1854,16 +1854,19 @@ const WISH_COL = ['#f0a33a', '#d9466b', '#8a4ad8', '#3779de', '#1fa58f', '#2aa56
 const wishArt = (t, k) => [(WISH_ART.find(([r]) => r.test(t)) || [0, '🎁'])[1], WISH_COL[k % WISH_COL.length]];
 function wishHero(uid, mine, isRec, items) {
   const p = P(uid), col = nmColor(uid), pd = profDone(uid), pr = (mod('perfil') && S.profiles[uid]) || {}, v = k => String(pr[k] || '').trim();
-  const list = k => v(k).split(/[;,\n]| y /).map(x => x.trim()).filter(Boolean).slice(0, 6);
-  const sizes = [['shirt', '👕'], ['pants', '👖'], ['shoe', '👟']].filter(([k]) => v(k)).map(([k, e]) => `<span class="whs">${e} <b>${esc(v(k))}</b></span>`).join('');
-  const chips = [...list('colors').map(c => `<span class="whc col">${esc(c)}</span>`), ...list('likes').map(c => `<span class="whc">${esc(c)}</span>`)].join('');
-  const warn = [v('allergy') && !/^(n\/?a|no|ninguna?|nada)$/i.test(v('allergy')) ? `⚠️ ${esc(v('allergy'))}` : '', v('nogift') ? `🙅 ${mine ? 'No me regales' : 'No le regales'}: ${esc(v('nogift'))}` : ''].filter(Boolean);
+  const list = k => v(k).split(/[;,\n/]|\s+-\s+|-| y /).map(x => x.trim()).filter(Boolean).slice(0, 8);
+  const none = t => /^(n\/?a+|no+|ningun[oa]?|nada+|nop?e?)[.!]*$/i.test(t);
+  const sizes = [['shirt', '👕', 'Camisa'], ['pants', '👖', 'Pantalón'], ['shoe', '👟', 'Zapatos']].filter(([k]) => v(k)).map(([k, e, l]) => `<div class="whs"><small>${e} ${l}</small><b>${esc(v(k))}</b></div>`).join('');
+  const row = (lab, html) => `<div class="whr"><small>${lab}</small><div class="whc-row">${html}</div></div>`;
+  const chips = (list('colors').length ? row('🎨 Colores favoritos', list('colors').map(c => `<span class="whc col">${esc(c)}</span>`).join('')) : '')
+    + (list('likes').length ? row(`💛 ${mine ? 'Me gusta' : 'Le gusta'}`, list('likes').map(c => `<span class="whc">${esc(c)}</span>`).join('')) : '');
+  const warn = [v('allergy') && !none(v('allergy')) ? `<small>⚠️ Alergias o cosas que no ${mine ? 'puedo' : 'puede'} usar</small>${esc(v('allergy'))}` : '', v('nogift') && !none(v('nogift')) ? `<small>🙅 Por favor no ${mine ? 'me' : 'le'} regales</small>${esc(v('nogift'))}` : ''].filter(Boolean);
   return `<section class="whero2" style="--hc:${col}">
     <div class="wh2-top"><div class="wh-av"><span>${esc(pEmoji(uid))}</span></div>
       <div class="grow wh-tx">${isRec ? '<span class="wh-tag">🎯 ¡Es tu persona!</span>' : ''}<b>${esc(mine ? 'Mi lista' : p?.name || '')}</b>
         <small>${items.length} ${items.length === 1 ? 'deseo' : 'deseos'}${S.event.budget ? ` · 💰 ${esc(S.event.budget)}` : ''}</small></div>
       ${mine ? `<div class="wh-act"><button class="whb" id="prof-icon" aria-label="Cambiar ícono">${esc(S.me.emoji)}</button>${mod('perfil') ? `<button class="whb ${pd < PROF.length ? 'pend' : ''}" id="prof-edit" aria-label="Mi perfil">${ic('shirt', 20)}</button>` : ''}</div>` : ''}</div>
-    ${mod('perfil') && (sizes || chips || warn.length) ? `<div class="wh2-prof">${sizes ? `<div class="whs-row">${sizes}</div>` : ''}${chips ? `<div class="whc-row">${chips}</div>` : ''}${warn.map(w => `<div class="whw">${w}</div>`).join('')}</div>`
+    ${mod('perfil') && (sizes || chips || warn.length) ? `<div class="wh2-prof">${sizes ? `<div class="whs-row">${sizes}</div>` : ''}${chips}${warn.map(w => `<div class="whw">${w}</div>`).join('')}</div>`
       : mod('perfil') ? `<div class="wh2-prof empty">${mine ? `👕 Completa tu perfil (tallas, colores y gustos) para que tu angelito acierte · <b>${pd}/${PROF.length}</b>` : 'Todavía no ha llenado su perfil de gustos.'}</div>` : ''}
   </section>`;
 }
