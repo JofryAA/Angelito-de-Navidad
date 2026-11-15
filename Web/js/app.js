@@ -2611,20 +2611,23 @@ $('#x-list').addEventListener('click', async e => {
 async function clearDraw() {
   if (!(await confirmBox('¿Limpiar el sorteo?', (S.reveal ? 'Como ya se reveló, las parejas y los agradecimientos se guardan en «📜 Angelitos pasados». ' : 'Aún no se ha revelado: las parejas se descartan sin que nadie las vea. ') + 'Se borra el sorteo, la ruleta se cierra y se reabren las inscripciones. Los deseos, perfiles y todo lo demás se quedan igual.', 'Limpiar'))) return;
   try {
-    const [as, th, rv] = await Promise.all([getDocs(collection(adb, 'assignments')), getDocs(collection(adb, 'thanks')), getDoc(doc(adb, 'reveal', 'main'))]);
+    const [as, th, rv, gu] = await Promise.all([getDocs(collection(adb, 'assignments')), getDocs(collection(adb, 'thanks')), getDoc(doc(adb, 'reveal', 'main')), getDocs(collection(adb, 'guesses'))]);
+    const wasRev = rv.exists(), rvd = wasRev ? rv.data() : {};
     const nm = id => { const x = P(id); return x ? { n: x.name, e: x.emoji || '' } : { n: '(ya no está)', e: '' }; };
-    const pairs = as.docs.filter(d => d.data().recipient).map(d => ({ g: d.id, r: d.data().recipient, gn: nm(d.id).n, ge: nm(d.id).e, rn: nm(d.data().recipient).n, re: nm(d.data().recipient).e, spun: !!d.data().revealed }));
+    const src = wasRev && (rvd.pairs || []).length ? rvd.pairs.map(x => [x.g, x.r]) : as.docs.filter(d => d.data().recipient).map(d => [d.id, d.data().recipient]); // lo que se reveló manda
+    const pairs = src.map(([g, r]) => ({ g, r, gn: nm(g).n, ge: nm(g).e, rn: nm(r).n, re: nm(r).e }));
+    const guesses = gu.docs.filter(d => d.data().text || d.data().actual).map(d => ({ uid: d.id, name: nm(d.id).n, text: d.data().text || '', actual: d.data().actual || '', win: d.id === S.event.guessWinner }));
     const thanks = th.docs.map(d => ({ uid: d.id, name: nm(d.id).n, e: nm(d.id).e, note: d.data().note || '', received: !!d.data().received }));
     const ops = [];
-    if (pairs.length && rv.exists()) ops.push(['set', doc(collection(adb, 'history')), { at: serverTimestamp(), drawAt: S.drawMeta?.at || null, pairs, thanks, revealed: rv.exists() }]);
+    if (pairs.length && wasRev) ops.push(['set', doc(adb, 'history', 'd' + (ms(S.drawMeta?.at) || ms(rvd.at) || Date.now())), { at: serverTimestamp(), drawAt: S.drawMeta?.at || null, pairs, thanks, guesses, revealed: true }]); // id fijo: reintentar no duplica
     await commitOps(ops); // 1) primero se guarda el recuerdo
     const b0 = writeBatch(adb); b0.delete(doc(adb, 'config', 'draw')); await b0.commit(); // 2) la ruleta se cierra para todos al instante
     const ops2 = [];
     as.forEach(d => ops2.push(['del', d.ref])); th.forEach(d => ops2.push(['del', d.ref]));
-    if (rv.exists()) ops2.push(['del', rv.ref]);
+    if (wasRev) ops2.push(['del', rv.ref]);
     ops2.push(['set', doc(adb, 'config', 'event'), { registrationOpen: true }, true]);
     await commitOps(ops2);
-    toast(pairs.length && rv.exists() ? '🧹 Sorteo limpio · guardado en Angelitos pasados' : '🧹 Sorteo limpio. Ya puedes generar uno nuevo.');
+    toast(pairs.length && wasRev ? '🧹 Sorteo limpio · guardado en Angelitos pasados' : '🧹 Sorteo limpio. Ya puedes generar uno nuevo.');
   } catch (err) { toast(authErr(err) + ' · Vuelve a intentarlo'); }
 }
 // 📜 Angelitos pasados (solo aparece si hay historial)
@@ -2635,6 +2638,7 @@ function renderHistory() {
   const when = x => { const t = ms(x.drawAt) || ms(x.at); return t ? new Date(t).toLocaleDateString('es-DO', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Sorteo anterior'; };
   const html = h.map(x => `<div class="hist-it"><div class="hist-hd"><b>🎁 ${esc(when(x))}</b><span class="muted small">${(x.pairs || []).length} parejas${x.revealed ? ' · revelado' : ''}</span><button class="btn xs ghost" data-hdel="${esc(x.id)}" aria-label="Borrar">🗑️</button></div>
     <div class="hist-pairs">${(x.pairs || []).map(q => `<div class="hist-p">${esc(q.ge)} ${esc(q.gn)} <span class="muted">→</span> ${esc(q.re)} ${esc(q.rn)}</div>`).join('')}</div>
+    ${(x.guesses || []).filter(g => g.win).map(g => `<div class="hist-t">🏆 <b>${esc(g.name)}</b> ganó la adivinanza${g.text ? ': «' + esc(g.text) + '»' : ''}</div>`).join('')}
     ${(x.thanks || []).filter(t => t.note || t.received).map(t => `<div class="hist-t">💛 <b>${esc(t.name)}</b>${t.note ? ': «' + esc(t.note) + '»' : ' recibió su regalo'}</div>`).join('')}</div>`).join('');
   if ($('#h-list').dataset.h !== html) { $('#h-list').innerHTML = html; $('#h-list').dataset.h = html; }
 }
@@ -2666,14 +2670,14 @@ $('#d-gen').addEventListener('click', async () => {
     const ops = [];
     // parejas nuevas: se borra solo lo que dependía de la pareja anterior (estado del regalo, "mi regalo", pistas, sospechas y apartados).
     // Deseos, fotos, perfiles, chat, ideas, asistencia y aportes NO se tocan.
-    for (const c of ['giftStatus', 'giftIncoming', 'hints', 'hintsSent', 'angelGuess', 'wishPick', 'thanks']) (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
+    for (const c of ['giftStatus', 'giftIncoming', 'hints', 'hintsSent', 'angelGuess', 'wishPick', 'thanks', 'guesses']) (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
     (await getDocs(collection(adb, 'assignments'))).forEach(d => { if (!ids.includes(d.id)) ops.push(['del', d.ref]); });
     if (S.reveal) ops.push(['del', doc(adb, 'reveal', 'main')]);
     await commitOps(ops);
     // 3) el sorteo nuevo completo en UNA sola escritura: o queda todo o no queda nada
     const b = writeBatch(adb);
     ids.forEach((id, i) => b.set(doc(adb, 'assignments', id), { recipient: perm[i], revealed: false, at: serverTimestamp() }));
-    b.set(doc(adb, 'config', 'event'), { registrationOpen: false, angelLocked: false }, { merge: true });
+    b.set(doc(adb, 'config', 'event'), { registrationOpen: false, angelLocked: false, guessesOpen: false, guessesLocked: false, guessWinner: deleteField() }, { merge: true });
     b.set(doc(adb, 'config', 'draw'), { ids, n: ids.length, at: serverTimestamp() });
     await b.commit(); toast('¡Sorteo generado! 🎉 Ya pueden girar.'); confetti(60);
   } catch (err) { toast(authErr(err) + ' · Vuelve a tocar Sortear'); }
