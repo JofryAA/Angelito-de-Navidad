@@ -311,6 +311,7 @@ function startUserSubs(user) {
     unsubUser.push(onSnapshot(query(collection(db, 'notices'), orderBy('ts', 'desc'), limit(30)), s => { S.notices = rows(s); render(); }, ufail('notices')));
     unsubUser.push(onSnapshot(doc(db, 'party', 'live'), s => { S.live = s.exists() ? s.data() : null; render(); }, () => { }));
     unsubUser.push(onSnapshot(doc(db, 'stats', 'questions'), s => { S.qCount = s.exists() ? (s.data().count || 0) : 0; render(); }, ufail('stats')));
+    unsubUser.push(onSnapshot(collection(db, 'chatSeen'), s => { S.chatSeenAll = Object.fromEntries(s.docs.map(d => [d.id, +d.data().ts || 0])); chatSig = ''; render(); }, () => { }));
     unsubUser.push(onSnapshot(doc(db, 'thanks', user.uid), s => { S.myThanks = s.exists() ? s.data() : null; render(); }, ufail('thanks')));
     unsubUser.push(onSnapshot(doc(db, 'wishPick', user.uid), s => { S.wishPick = s.exists() ? s.data() : null; render(); }, ufail('wishPick')));
     unsubUser.push(onSnapshot(collection(db, 'memories'), s => { S.memories = rows(s); render(); }, ufail('memories')));
@@ -1929,7 +1930,7 @@ function renderChat() {
   if (!can) return;
   $('#c-count').textContent = navigator.onLine === false ? '📡 Sin conexión: se enviará al volver' : S.chat.length ? nMsg(S.chat.length) : '';
   loadChatImgs();
-  const sig = S.chat.map(m => m.id + (m.edited ? 'e' + m.text.length + m.text.slice(-4) : '') + (m.pending ? '~' : '') + (m.hasImg && S.chatImgs[m.id] ? 'i' : '')).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join();
+  const sig = S.chat.map(m => m.id + (m.edited ? 'e' + m.text.length + m.text.slice(-4) : '') + (m.pending ? '~' : '') + (m.hasImg && S.chatImgs[m.id] ? 'i' : '')).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join() + '|' + JSON.stringify(S.chatSeenAll || {});
   if (sig === chatSig) return; chatSig = sig;
   const l = $('#c-list'), near = l.scrollHeight - l.scrollTop - l.clientHeight < 80;
   let last = '', prev = null;
@@ -1941,7 +1942,7 @@ function renderChat() {
     const cont = !sep && prev && prev.uid === m.uid && Math.abs((ms(m.at) || m.ts || 0) - (ms(prev.at) || prev.ts || 0)) < 5 * 60e3; prev = m;
     const tagMe = (m.mentions || []).includes(S.uid) || ((m.mentions || []).includes('all') && m.uid !== S.uid);
     const rx = reactsFor(m.id), rk = Object.keys(rx).sort((a, b) => rx[b].length - rx[a].length), rn = rk.reduce((a, e) => a + rx[e].length, 0);
-    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''} ${rn ? 'hasrx' : ''} ${S.chatSel?.has(m.id) ? 'sel' : ''}" data-row="${esc(m.id)}"><i class="swr">${ic('reply', 18)}</i><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm" style="color:${nmColor(m.uid)}">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}${m.hasImg ? (S.chatImgs[m.id] ? `<button type="button" class="cimg" data-cimg="${esc(m.id)}" aria-label="Ver foto"><img src="${S.chatImgs[m.id]}" alt=""></button>` : '<div class="cimg ld"></div>') : ''}${m.hasImg && m.text === '📷 Foto' ? '' : `<div class="mt">${mentionHTML(m)}</div>`}<div class="tm">${m.edited ? '<span class="edt">editado · </span>' : ''}${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : ' <span class="ok" title="Enviado">✓</span>') : ''}</div>${rn ? `<button type="button" class="rxpill ${rk.some(e => rx[e].includes(S.uid)) ? 'me' : ''}" data-rx="${esc(m.id)}" aria-label="Ver reacciones">${rk.slice(0, 3).join('')}${rn > 1 ? `<b>${rn}</b>` : ''}</button>` : ''}</div></div>`;
+    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''} ${rn ? 'hasrx' : ''} ${S.chatSel?.has(m.id) ? 'sel' : ''}" data-row="${esc(m.id)}"><i class="swr">${ic('reply', 18)}</i><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm" style="color:${nmColor(m.uid)}">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}${m.hasImg ? (S.chatImgs[m.id] ? `<button type="button" class="cimg" data-cimg="${esc(m.id)}" aria-label="Ver foto"><img src="${S.chatImgs[m.id]}" alt=""></button>` : '<div class="cimg ld"></div>') : ''}${m.hasImg && m.text === '📷 Foto' ? '' : `<div class="mt">${mentionHTML(m)}</div>`}<div class="tm">${m.edited ? '<span class="edt">editado · </span>' : ''}${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : (() => { const n = seenBy(m).length, all = S.participants.length - 1; return n && n >= all ? ' <span class="ok seen" title="Lo vieron todos">✓✓</span>' : n ? ` <span class="ok" title="Lo vieron ${n}">✓✓</span>` : ' <span class="ok" title="Enviado">✓</span>'; })()) : ''}</div>${rn ? `<button type="button" class="rxpill ${rk.some(e => rx[e].includes(S.uid)) ? 'me' : ''}" data-rx="${esc(m.id)}" aria-label="Ver reacciones">${rk.slice(0, 3).join('')}${rn > 1 ? `<b>${rn}</b>` : ''}</button>` : ''}</div></div>`;
   }).join('') : `<div class="empty" style="margin:auto"><span class="e">💬</span>Nadie ha escrito todavía.<br>¡Rompe el hielo! Toca 🎲 para una idea.</div>`;
   if (near || S.chatStick) { S.chatStick = false; l.scrollTop = l.scrollHeight; }
   syncSelBar();
@@ -3444,7 +3445,8 @@ function checkEvents() {
   const mine = Date.now() - (S.selfEditAt || 0) < 8000;
   if (!mine) added('acts').forEach(id => { const a = S.activities.find(x => x.id === id); if (a) notifyCat('actividades', `📅 Nueva actividad: ${a.title}`, actWhen(a), './#actividad-' + id, n => `📅 ${n} actividades nuevas en la agenda`); });
   // chat: cada mensaje avisa (la notificación nueva reemplaza la anterior); si te mencionan, aviso aparte aunque silencies el chat
-  const newMsgs = added('chatIds').map(id => S.chat.find(m => m.id === id)).filter(m => m && m.uid !== S.uid);
+  const readTo = Math.max(seenTs('chatSeen'), S.chatSeenAll?.[S.uid] || 0); // lo que ya leíste (aquí o en otro teléfono) no se avisa
+  const newMsgs = added('chatIds').map(id => S.chat.find(m => m.id === id)).filter(m => m && m.uid !== S.uid && (m.ts || 0) > readTo);
   const viewingChat = !document.hidden && $('#v-buzon').classList.contains('on') && S.buz === 'c';
   const tagged = newMsgs.filter(m => (m.mentions || []).includes(S.uid) || (m.mentions || []).includes('all'));
   if (tagged.length && !viewingChat) { const m = tagged[tagged.length - 1]; notifyCat('mencion', `📣 ${shortName(P(m.uid)) || 'Alguien'} te mencionó`, m.text.slice(0, 120), './#chat'); if (navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch { } }
@@ -3533,11 +3535,32 @@ function resumePending() { const st = nstate(); for (const c of Object.keys(st.p
 /* ---------- puntos rojos (sin leer) ---------- */
 const seenTs = k => { try { return +localStorage.getItem(`angelito:${k}:${S.uid}`) || 0; } catch { return 0; } };
 const setSeen = (k, v) => { try { localStorage.setItem(`angelito:${k}:${S.uid}`, String(v)); } catch { } };
-function chatUnread() { if (!S.me) return 0; const t = seenTs('chatSeen'); return S.chat.filter(m => m.uid !== S.uid && (m.ts || 0) > t).length; }
+function chatUnread() { if (!S.me) return 0; const t = Math.max(seenTs('chatSeen'), S.chatSeenAll?.[S.uid] || 0); return S.chat.filter(m => m.uid !== S.uid && (m.ts || 0) > t).length; }
 function sugUnread() { if (!S.me) return 0; const t = seenTs('sugSeen'); return S.suggestions.filter(x => sTs(x) > t && x.uid !== S.uid && !S.myCreated.has(x.id)).length; }
+// 👁️ «Visto»: guarda hasta qué mensaje leíste. Así el aviso del teléfono no te llega por lo que ya viste,
+// los avisos viejos del chat se borran al abrirlo, y el grupo puede ver quién leyó cada mensaje.
+let seenSent = 0, seenT = 0;
+function markChatSeen(mx) {
+  if (!S.me || !mx || mx <= seenSent || mx <= (S.chatSeenAll?.[S.uid] || 0)) return;
+  clearTimeout(seenT); seenT = setTimeout(() => {
+    seenSent = mx; setDoc(doc(db, 'chatSeen', S.uid), { ts: Math.min(mx, Date.now()), at: serverTimestamp() }).catch(() => { seenSent = 0; });
+    navigator.serviceWorker?.ready.then(r => r.getNotifications()).then(ns => ns.forEach(n => { const d = n.data || {}, items = d.items || []; if (/chat/.test(d.url || '') || (items.length && items.every(x => /💬|📣/.test(x.e || '')))) n.close(); })).catch(() => { });
+  }, 1200);
+}
+const seenBy = m => S.participants.filter(p => p.id !== m.uid && (S.chatSeenAll?.[p.id] || 0) >= (m.ts || 0));
+function showSeen(m) {
+  const yes = seenBy(m), no = S.participants.filter(p => p.id !== m.uid && !yes.includes(p)); let tab = 'si';
+  const s2 = openModal(`<h3>👁️ Visto por</h3><p class="muted small" style="margin-top:2px">${esc(m.text.slice(0, 80))}</p><div class="sw-tabs"></div><div class="rxw-list"></div><div class="actions"><button class="btn gold" data-a="x">Listo</button></div>`);
+  const paint = () => {
+    s2.querySelector('.sw-tabs').innerHTML = chipTabs([['si', '✓✓ Lo vieron', yes.length], ['no', '🕓 Todavía no', no.length]], tab, 'sw');
+    const l = tab === 'si' ? yes : no;
+    s2.querySelector('.rxw-list').innerHTML = l.length ? l.map(p => `<div class="rxw-row"><span class="rxw-av">${esc(p.emoji)}</span><span class="grow"><b>${p.id === S.uid ? 'Tú' : esc(p.name)}</b></span></div>`).join('') : `<p class="ar-empty">${tab === 'si' ? 'Nadie lo ha visto todavía' : '🎉 Ya lo vieron todos'}</p>`;
+  };
+  paint(); s2.onclick = e => { const t = e.target.closest('[data-sw]'); if (t) { tab = t.dataset.sw; return paint(); } if (e.target.closest('[data-a]')) closeModal(); };
+}
 function renderBadges() {
   const onBuzon = !document.hidden && $('#v-buzon').classList.contains('on');
-  if (S.me && onBuzon && S.buz === 'c' && S.chat.length) { const mx = Math.max(...S.chat.map(m => m.ts || 0)); if (mx > seenTs('chatSeen')) setSeen('chatSeen', mx); }
+  if (S.me && onBuzon && S.buz === 'c' && S.chat.length) { const mx = Math.max(...S.chat.map(m => m.ts || 0)); if (mx > seenTs('chatSeen')) setSeen('chatSeen', mx); markChatSeen(mx); }
   if (S.me && onBuzon && S.buz === 's' && S.suggestions.length) { const mx = Math.max(...S.suggestions.map(x => sTs(x))); if (mx > seenTs('sugSeen')) setSeen('sugSeen', mx); }
   const c = mod('chat') ? chatUnread() : 0, g = mod('buzon') ? sugUnread() : 0;
   const put = (el, n) => { if (!el) return; let b = el.querySelector('.bd'); if (!n) { b?.remove(); return; } if (!b) { b = document.createElement('span'); b.className = 'bd'; el.appendChild(b); } b.textContent = n > 99 ? '99+' : n; };
@@ -3921,7 +3944,7 @@ function openMsgMenu(m) {
   const row = $(`#c-list [data-row="${CSS.escape(m.id)}"]`), bub = row?.querySelector('.bub');
   const mine = m.uid === S.uid, myR = (m.r || {})[S.uid], rn = Object.values(reactsFor(m.id)).flat().length;
   const acts = [S.me && ['reply', 'reply', 'Responder'], !(m.hasImg && m.text === '📷 Foto') && ['copy', 'copy', 'Copiar'], ['sel', 'check', 'Seleccionar'],
-    rn && ['rx', 'users', `Ver reacciones (${rn})`], mine && ['edit', 'edit', m.hasImg ? 'Editar comentario' : 'Editar'],
+    ['seen', 'check', `Visto por ${seenBy(m).length} de ${Math.max(0, S.participants.length - 1)}`], rn && ['rx', 'users', `Ver reacciones (${rn})`], mine && ['edit', 'edit', m.hasImg ? 'Editar comentario' : 'Editar'],
     canDelMsg(m) && ['del', 'trash', mine ? 'Eliminar' : 'Eliminar · moderador']].filter(Boolean);
   const ov = document.createElement('div'); ov.className = 'cfocus' + (mine ? ' me' : '');
   ov.innerHTML = `<div class="cf-col">
@@ -3938,7 +3961,7 @@ function openMsgMenu(m) {
     const r = e.target.closest('[data-re]'); if (r) return done(() => reactTo(m, r.dataset.re));
     const a = e.target.closest('[data-ca]')?.dataset.ca;
     if (!a) { if (!e.target.closest('.cf-msg')) done(); return; }
-    done(() => ({ reply: () => replyTo(m), copy: () => copyMsgs([m]), sel: () => selToggle(m.id), rx: () => showReacts(m), edit: () => editMsg(m), del: () => delMsgs([m]) })[a]?.());
+    done(() => ({ reply: () => replyTo(m), copy: () => copyMsgs([m]), sel: () => selToggle(m.id), seen: () => showSeen(m), rx: () => showReacts(m), edit: () => editMsg(m), del: () => delMsgs([m]) })[a]?.());
   });
 }
 // Gestos sobre la lista: deslizar a la derecha = responder · mantener = seleccionar · tocar = opciones

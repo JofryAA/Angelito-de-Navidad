@@ -483,6 +483,12 @@ service cloud.firestore {
     }
 
     // ---------- chat ----------
+    // 👁️ hasta qué mensaje leyó cada quien (para «visto por» y para no avisar de lo ya leído)
+    match /chatSeen/{uid} {
+      allow read: if member();
+      allow write: if isParticipant() && me() == uid && request.resource.data.keys().hasOnly(['ts', 'at'])
+        && request.resource.data.ts is int && request.resource.data.ts < request.time.toMillis() + 900000 && tsOk(request.resource.data);
+    }
     match /chat/{id} {
       allow read: if member();
       allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()

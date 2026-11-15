@@ -64,8 +64,11 @@ const put = (uid, cat, msg) => { if (!people[uid]) return; (out[uid] ||= {})[cat
 const chat = chatQ.docs.map(d => d.data());
 if (chat.length) {
   const last = chat[chat.length - 1];
+  // lo que cada quien ya leyó en la app no se le avisa (ni se le avisa si está mirando el chat ahora mismo)
+  const seen = Object.fromEntries((await db.collection('chatSeen').get()).docs.map(d => [d.id, d.data()]));
   for (const uid of all) {
-    const mine = chat.filter(m => m.uid !== uid); if (!mine.length) continue;
+    const sv = seen[uid] || {}, upTo = +sv.ts || 0, active = ms(sv.at) > now - 3 * 60e3;
+    const mine = chat.filter(m => m.uid !== uid && (m.ts || 0) > upTo); if (!mine.length || (active && !mine.some(m => (m.mentions || []).includes(uid)))) continue;
     const tag = mine.filter(m => (m.mentions || []).includes(uid) || (m.mentions || []).includes('all'));
     if (tag.length) { const m = tag[tag.length - 1]; put(uid, 'mencion', { title: (m.mentions || []).includes('all') ? `📣 ${short(m.uid)} avisó a todo el grupo` : `📣 ${short(m.uid)} te mencionó`, body: m.text.slice(0, 140), url: '#chat' }); continue; }
     const m = mine[mine.length - 1];
