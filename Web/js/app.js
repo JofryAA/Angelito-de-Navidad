@@ -12,6 +12,13 @@ import { runTransaction, deleteField, terminate, clearIndexedDbPersistence, getF
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const buzz = n => { if (navigator.vibrate) try { navigator.vibrate(n); } catch { } }; // vibración corta (si el teléfono la tiene)
+// 🎯 Sin «recargas» a la vista: dentro de las pantallas, si un pedazo se vuelve a dibujar IGUAL que ya está, no se toca
+// (antes cada dato nuevo, como un mensaje o una jugada, volvía a pintar listas enteras y las fotos parpadeaban).
+(() => {
+  const d = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML'); if (!d?.set) return;
+  Object.defineProperty(Element.prototype, 'innerHTML', { configurable: true, enumerable: d.enumerable, get() { return d.get.call(this); },
+    set(v) { const s = String(v); if (this.__ih === s && this.isConnected && this.closest('.view')) return; this.__ih = s; d.set.call(this, s); } });
+})();
 const rowsOf = s => s.docs.map(d => ({ id: d.id, ...d.data() })); // documentos de una consulta como lista
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ms = t => !t ? 0 : typeof t.toMillis === 'function' ? t.toMillis() : typeof t === 'number' ? t : t.seconds != null ? t.seconds * 1000 + Math.floor((t.nanoseconds || 0) / 1e6) : t.__t != null ? t.__t : t._ms != null ? t._ms : 0;
