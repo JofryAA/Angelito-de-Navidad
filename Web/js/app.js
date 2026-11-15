@@ -1150,7 +1150,7 @@ function renderWheel() {
   if (!S.me) {
     top.innerHTML = S.authReady ? needLogin('Entra con tu nombre y tu PIN para girar.') : ''; btn.style.display = 'none'; msg.textContent = '';
   } else {
-    top.innerHTML = `<div class="card who-card"><div class="av">${esc(S.me.emoji)}</div><div class="grow"><div class="muted small">Vas a girar como</div><b style="font-size:1.15rem">${esc(S.me.name)}</b><div class="wc-st" id="wc-st"></div></div></div>`;
+    top.innerHTML = `<div class="spinpass"><div class="sp-top"><span class="sp-av"><i></i><span>${esc(S.me.emoji)}</span></span><div class="grow"><small>Vas a girar como</small><b>${esc(S.me.name)}</b></div></div><div class="wc-st" id="wc-st"></div></div>`;
     if (!S.drawMeta || !drawReady() || !S.drawMeta.ids.includes(S.uid)) msg.textContent = 'La ruleta está inhabilitada por ahora. ¡Vuelve pronto! 🎄';
     else if (!S.assignment) msg.textContent = 'Cargando tu sorteo…';
     else { canSpin = true; msg.textContent = S.assignment.revealed ? 'Ya giraste. Puedes volver a verlo con tu PIN.' : `¡Mucha suerte, ${S.me.first}! 🍀`; }

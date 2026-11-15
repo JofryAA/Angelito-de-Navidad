@@ -575,3 +575,24 @@ body.ideas-on #buz-seg{display:none!important}
 .prize2 small{display:block;font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.75}
 .prize2 b{display:block;font-family:var(--serif,inherit);font-size:clamp(1.25rem,5.5vw,1.6rem);line-height:1.1;overflow-wrap:break-word}
 .pz-sp{position:relative;font-size:22px;animation:pzSpark 1.8s ease-in-out infinite}
+
+/* ---- Ruleta: tarjeta "Vas a girar como" ---- */
+@keyframes spRing{to{transform:rotate(360deg)}}
+@keyframes spDot{0%,100%{opacity:1}50%{opacity:.25}}
+.spinpass{position:relative;overflow:hidden;margin-bottom:16px;padding:16px;border-radius:24px;
+  background:radial-gradient(circle at 100% 0%,rgba(255,215,122,.22),transparent 45%),linear-gradient(140deg,#3d2c10 0%,#241b0b 55%,#15120a 100%);
+  border:1px solid rgba(236,188,92,.45);box-shadow:0 14px 30px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,235,180,.15)}
+.spinpass::after{content:'';position:absolute;inset:0;background:radial-gradient(rgba(255,230,160,.12) 1px,transparent 1.5px) 0 0/14px 14px;pointer-events:none}
+.sp-top{position:relative;z-index:1;display:flex;align-items:center;gap:14px;min-width:0}
+.sp-av{position:relative;flex:none;width:66px;height:66px;display:grid;place-items:center}
+.sp-av i{position:absolute;inset:0;border-radius:50%;background:conic-gradient(#ffd77a,#c8812a,#fff0b8,#e2a93b,#ffd77a);animation:spRing 6s linear infinite}
+.sp-av span{position:relative;display:grid;place-items:center;width:58px;height:58px;border-radius:50%;font-size:32px;background:radial-gradient(circle at 35% 30%,#3b3520,#16251c 75%);box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
+.sp-top small{display:block;font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+.sp-top b{display:block;font-family:var(--serif,inherit);font-size:clamp(1.25rem,5.6vw,1.6rem);line-height:1.15;color:#fff6e0;overflow-wrap:break-word}
+.spinpass .wc-st{position:relative;z-index:1;margin-top:14px;padding-top:12px;border-top:1px dashed rgba(236,188,92,.35)}
+.spinpass .wc-st:empty{display:none}
+.spinpass .wc-pill{display:flex;width:100%;margin:0;padding:10px 12px;border-radius:14px;font-size:.84rem;line-height:1.3;background:rgba(0,0,0,.28);border:1px solid rgba(236,188,92,.25)}
+.spinpass .wc-pill::before{content:'';flex:none;width:8px;height:8px;margin:5px 2px 0 0;border-radius:50%;background:#ffd77a;box-shadow:0 0 8px #ffd77a;animation:spDot 1.4s ease-in-out infinite}
+.spinpass .wc-pill .ic{flex:none;margin-top:1px}
+.spinpass .wc-pill.go{background:var(--c-green);border-color:transparent;color:#fff}
+.spinpass .wc-pill.go::before{background:#fff;box-shadow:0 0 8px #fff}
