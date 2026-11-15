@@ -24,3 +24,21 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
+  # Publica también las reglas de Firestore (antes había que correr "firebase deploy --only firestore:rules" a mano).
+  # Usa la misma cuenta de servicio; necesita los roles "Firebase Rules Admin" y "Service Usage Consumer".
+  rules:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Publicar reglas de Firestore
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx -y firebase-tools@14 deploy --only firestore:rules --project angelito-2026 --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"
