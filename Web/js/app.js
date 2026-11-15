@@ -96,7 +96,6 @@ function setBuz(b) {
   if (!mod(BUZ_MOD[b])) b = ['c', 's', 'f'].find(x => mod(BUZ_MOD[x])) || 'c';
   S.buz = b;
   $$('#buz-seg button').forEach(x => { x.classList.toggle('on', x.dataset.b === b); x.style.display = mod(BUZ_MOD[x.dataset.b]) ? '' : 'none'; });
-  $('#c-go-s').hidden = !mod(BUZ_MOD.s); $('#c-go-f').hidden = !mod(BUZ_MOD.f);
   $('#buz-s').style.display = b === 's' ? '' : 'none'; $('#buz-c').style.display = b === 'c' ? '' : 'none'; $('#buz-f').style.display = b === 'f' ? '' : 'none';
   if (b === 'f') { ensurePhotos(); renderPhotos(); }
   document.body.classList.toggle('chat-on', b === 'c' && $('#v-buzon').classList.contains('on')); syncImmersive();
@@ -1635,9 +1634,7 @@ function syncImmersive() {
   requestAnimationFrame(fitChat);
 }
 addEventListener('hashchange', () => setTimeout(syncImmersive, 0));
-setTimeout(() => { $('#c-back').innerHTML = ic('back', 22); $('#c-go-s').innerHTML = ic('bulb', 19); $('#c-go-f').innerHTML = ic('image', 19); $('#gear').innerHTML = ic('gear', 20); $('#inst-btn .ib-app').innerHTML = ic('install', 18); }, 0);
-$('#c-go-s').addEventListener('click', () => { location.hash = 'sugerencias'; });
-$('#c-go-f').addEventListener('click', () => { location.hash = 'fotos'; });
+setTimeout(() => { $('#c-back').innerHTML = ic('back', 22); $('#gear').innerHTML = ic('gear', 20); $('#inst-btn .ib-app').innerHTML = ic('install', 18); }, 0);
 $('#c-back').addEventListener('click', () => { location.hash = '#inicio'; });
 function fitChat() {
   if (!document.body.classList.contains('chat-on')) return;
@@ -3138,7 +3135,7 @@ function renderBadges() {
   if (S.me && onBuzon && S.buz === 's' && S.suggestions.length) { const mx = Math.max(...S.suggestions.map(x => sTs(x))); if (mx > seenTs('sugSeen')) setSeen('sugSeen', mx); }
   const c = mod('chat') ? chatUnread() : 0, g = mod('buzon') ? sugUnread() : 0;
   const put = (el, n) => { if (!el) return; let b = el.querySelector('.bd'); if (!n) { b?.remove(); return; } if (!b) { b = document.createElement('span'); b.className = 'bd'; el.appendChild(b); } b.textContent = n > 99 ? '99+' : n; };
-  put($('.tab[data-v=buzon]'), c); put($('.tab[data-v=sugerencias]'), g); put($('#buz-seg [data-b=c]'), c); put($('#buz-seg [data-b=s]'), g); put($('#c-go-s'), g);
+  put($('.tab[data-v=buzon]'), c); put($('.tab[data-v=sugerencias]'), g); put($('#buz-seg [data-b=c]'), c); put($('#buz-seg [data-b=s]'), g);
   const spinNow = !!(S.me && mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid) && !S.assignment?.revealed);
   put($('.tab[data-v=ruleta]'), spinNow ? '!' : 0);
   let myTurn = 0; try { myTurn = S.me ? GAMES.active() : 0; } catch { } put($('.tab[data-v=juegos]'), myTurn);
