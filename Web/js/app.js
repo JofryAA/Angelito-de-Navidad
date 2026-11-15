@@ -524,7 +524,7 @@ function openAuth(tab = 'login', then) {
         const pin = $('#l-pin', body).value, p = P(sel), err = $('#l-err', body), btn = $('#l-go', body);
         if (!p) return; if (!/^\d{4}$/.test(pin)) { err.textContent = 'El PIN tiene 4 números.'; return; }
         busy(btn, true); err.textContent = '';
-        try { try { localStorage.setItem('angelito:tourLogin', '1'); } catch { } await signInWithEmailAndPassword(auth, p.email, pinPass(pin)); closeModal(); toast(`¡Hola, ${p.first}! 👋`); then && then(); }
+        try { await signInWithEmailAndPassword(auth, p.email, pinPass(pin)); closeModal(); toast(`¡Hola, ${p.first}! 👋`); then && then(); }
         catch (e) { err.textContent = authErr(e); busy(btn, false); }
       };
       $('#l-go', body).addEventListener('click', go);
@@ -1152,7 +1152,7 @@ const TOUR_DEMOS = {
   mesa: () => `<div class="tdm tdm-mesa"><span>🙂<small>Tú</small></span><span class="inv">＋<small>Invitar</small></span><span class="bot">🤖<small>Robot</small></span><span class="bot">🤖<small>Robot</small></span></div>`,
 };
 const TOUR = () => [
-  { c: 'Empezar', v: 'inicio', e: '🎁', t: `¡Bienvenido, ${S.me?.first || ''}!`, d: 'Cada vez que entras te damos un paseo rápido por la app para que no se te escape nada. Toca <b>Siguiente</b>, o toca lo que se ilumina.' },
+  { c: 'Empezar', v: 'inicio', e: '🎁', t: `¡Bienvenido, ${S.me?.first || ''}!`, d: 'Te damos un paseo rápido por la app para que no se te escape nada. Toca <b>Siguiente</b>, o toca lo que se ilumina.' },
   { c: 'Empezar', v: 'inicio', s: '#tabs', e: '🧭', t: 'Las secciones', d: 'Abajo están todas las secciones. Toca una para entrar, o desliza la pantalla hacia un lado y pasas a la de al lado.' },
   { c: 'Empezar', v: 'inicio', s: '#help-btn', e: '❓', t: 'El botón de ayuda', d: 'Si te pierdes, toca el signo de pregunta. Te explica paso a paso lo que se puede hacer en la pantalla donde estás.' },
   { c: 'Empezar', v: 'inicio', s: '#userbox', e: '👤', t: 'Tu menú', d: 'Toca tu nombre para llenar tu perfil de gustos, escoger qué avisos te llegan, instalar la app o cerrar sesión.' },
@@ -1178,7 +1178,7 @@ const TOUR = () => [
 ];
 function openTour() {
   if (!S.me) return;
-  try { localStorage.setItem('angelito:tour4:' + S.uid, '1'); localStorage.removeItem('angelito:tourLogin'); } catch { }
+  try { localStorage.setItem('angelito:tourAt:' + S.uid, String(Date.now())); localStorage.removeItem('angelito:tourLogin'); } catch { }
   $('#tourx')?.remove(); closeModal();
   const T = TOUR().filter(s => !s.m || mod(s.m)), chaps = [...new Set(T.map(s => s.c))], back = location.hash || '#inicio';
   let i = 0, target = null, tok = 0;
@@ -1242,8 +1242,10 @@ function openTour() {
 let tourT = null;
 function maybeTour() {
   if (!S.me || S.forcePin || tourT || window.__noTour) return; // __noTour: solo para pruebas automáticas
-  // obligatoria cada vez que alguien inicia sesión (y una vez para quien ya estaba dentro cuando salió esta guía)
-  try { if (!localStorage.getItem('angelito:tourLogin') && localStorage.getItem('angelito:tour4:' + S.uid)) return; } catch { }
+  // La guía sale: 1) a quien se registra por primera vez, 2) a todos cuando el organizador pide que todos vuelvan a entrar (una actualización)
+  let seenAt = 0, isNew = false; try { seenAt = +localStorage.getItem('angelito:tourAt:' + S.uid) || 0; isNew = !!localStorage.getItem('angelito:tourLogin'); } catch { }
+  const relog = ms(S.event.reloginAt); // solo cuentan los pedidos hechos desde que existe esta guía
+  if (!isNew && !(relog > Date.parse('2026-11-15T18:20:00Z') && relog > seenAt)) return;
   tourT = setTimeout(function go() { tourT = null; if (!S.me) return; if ($('#modal').classList.contains('on') || S.spinning || S.forcePin || $('#tourx')) { tourT = setTimeout(go, 3000); return; } openTour(); }, 900);
 }
 /* ---------- lo que te toca ahora (cambia según el momento) ---------- */
