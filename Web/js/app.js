@@ -1290,6 +1290,11 @@ function showReveal(rid) {
 }
 
 /* ---------- deseos ---------- */
+// Presupuesto: toma el número más alto que aparezca ("RD$1,500 – 2,000" → 2000)
+const numsIn = t => (String(t || '').replace(/(\d),(\d{3})/g, '$1$2').match(/\d+(?:\.\d+)?/g) || []).map(Number).filter(n => n > 0);
+const budgetMax = () => Math.max(0, ...numsIn(S.event.budget));
+const overBudget = price => { const b = budgetMax(), p = Math.max(0, ...numsIn(price)); return b > 0 && p > b * 1.1; };
+const WISH_IDEAS = [['👕', 'Ropa'], ['👟', 'Zapatos'], ['📚', 'Un libro'], ['🎧', 'Tecnología'], ['🧴', 'Perfume'], ['🍫', 'Dulces'], ['🏠', 'Para la casa'], ['💄', 'Cuidado personal'], ['🎮', 'Juegos'], ['⌚', 'Accesorios']];
 function renderWishes() {
   const root = $('#w-root');
   if (!S.me) { root.innerHTML = S.authReady ? needLogin('Entra para ver las listas de deseos y escribir la tuya.') : ''; return; }
@@ -1311,15 +1316,26 @@ function renderWishes() {
       <div class="wc-body">
         ${img ? '' : `<span class="wi-ic c${k % 5 + 1}">${ic(w.top ? 'star' : 'gift', 22)}</span>`}
         <div class="grow"><div class="wc-t">${esc(w.text)}</div>
-          <div class="wc-meta">${w.price ? `<span class="wc-price">≈ ${esc(w.price)}</span>` : ''}${dom ? `<a class="wc-link" href="${esc(w.link)}" target="_blank" rel="noopener">${ic('link', 13)}<span>${esc(dom)}</span></a>` : ''}</div>
+          <div class="wc-meta">${w.price ? `<span class="wc-price ${overBudget(w.price) ? 'over' : ''}">≈ ${esc(w.price)}${overBudget(w.price) ? ' · pasa el presupuesto' : ''}</span>` : ''}${dom ? `<a class="wc-link" href="${esc(w.link)}" target="_blank" rel="noopener">${ic('link', 13)}<span>${esc(dom)}</span></a>` : ''}</div>
           ${isRec ? `<button class="wc-buy ${S.wishPick?.wishId === w.id ? 'on' : ''}" data-wpick="${esc(w.id)}">${S.wishPick?.wishId === w.id ? '🛒 Lo apartaste tú · solo tú lo ves' : '🛒 Este lo compro yo'}</button>` : ''}
         </div>
+        ${w.uid === S.uid ? `<button class="wstar ${w.top ? 'on' : ''}" data-wstar="${esc(w.id)}" aria-label="${w.top ? 'Quitar de favorito' : 'Marcar como favorito'}">${ic('star', 18)}</button>` : ''}
         ${w.uid === S.uid ? `<button class="wmore" data-wmore="${esc(w.id)}" aria-label="Opciones del deseo"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>` : ''}
       </div></article>`; }).join('')
     : `<div class="wempty"><div class="we-ic">🎁</div><b>${mine ? 'Tu lista está vacía' : esc(pName(S.wishPid)) + ' todavía no ha pedido nada'}</b><p class="muted small">${mine ? 'Agrega lo que te gustaría recibir: con foto y enlace tu angelito acierta seguro.' : isRec ? 'Mira su perfil de gustos para inspirarte 👆' : 'Vuelve más tarde 😉'}</p></div>`}</div>
+  ${mine && items.length ? (() => { const tips = [];
+      if (items.length >= 2 && !items.some(w => w.top)) tips.push(['⭐', 'Marca tu favorito', 'Toca la estrella del que más quieres']);
+      const noImg = items.filter(w => !w.hasImg).length; if (noImg) tips.push(['📷', `${noImg} sin foto`, 'Con foto tu angelito sabe exactamente cuál']);
+      const noP = items.filter(w => !w.price).length; if (noP) tips.push(['💰', `${noP} sin precio`, 'Ayuda a que quepa en el presupuesto']);
+      if (mod('perfil') && profDone() < PROF.length) tips.push(['👕', 'Completa tu perfil', 'Tallas y colores para acertar']);
+      return tips.length ? `<div class="wtips"><b>✨ Mejora tu lista</b><div class="wt-row">${tips.map(([e, t, h]) => `<div class="wt"><span>${e}</span><div><b>${t}</b><small>${h}</small></div></div>`).join('')}</div></div>` : `<div class="wtips ok"><b>🌟 ¡Tu lista está completa!</b><small>Tu angelito tiene todo para acertar.</small></div>`; })() : ''}
+  ${!mine && !items.length && mod('perfil') ? (() => { const pr = S.profiles[S.wishPid] || {}, ideas = String([pr.likes, pr.colors].filter(Boolean).join(';')).split(/[;,\n]| y /).map(x => x.trim()).filter(Boolean).slice(0, 8);
+      return ideas.length ? `<div class="wtips"><b>💡 Ideas según lo que le gusta</b><div class="wp-chips" style="margin-top:8px">${ideas.map(x => `<span class="wp-chip like">${esc(x)}</span>`).join('')}</div></div>` : ''; })() : ''}
   ${mine ? `<details class="wadd" id="w-add" ${S.wAddOpen || !items.length || keep.t ? 'open' : ''}><summary><span class="wa-ic">${ic('plus', 20)}</span><span><b>Agregar un deseo</b><small>Con foto, enlace y precio si quieres</small></span><span class="wa-ch">${ic('back', 18)}</span></summary><form class="card stack" id="w-form">
+    <div class="wi-chips">${WISH_IDEAS.map(([e, t]) => `<button type="button" class="wi-chip" data-widea="${esc(t)}">${e} ${t}</button>`).join('')}</div>
     <input class="in" id="w-text" maxlength="160" placeholder="Ej. Un libro de cocina, talla M, color azul…" required>
     <div class="row"><input class="in" id="w-link" maxlength="300" placeholder="Enlace (opcional)"><input class="in" id="w-price" maxlength="30" placeholder="Precio aprox. (opcional)"></div>
+    ${budgetMax() ? `<div class="wi-chips price"><small>Precio:</small>${[.5, .75, 1].map(f => Math.round(budgetMax() * f / 50) * 50).filter((v, i, a) => v > 0 && a.indexOf(v) === i).map(v => `<button type="button" class="wi-chip" data-wprice="RD$${v.toLocaleString('en-US')}">RD$${v.toLocaleString('en-US')}</button>`).join('')}</div>` : ''}
     ${S.wishDraftImg ? `<div class="wprev" style="background-image:url('${S.wishDraftImg}')"><button type="button" id="w-img-x" aria-label="Quitar foto">✕</button></div>`
       : `<div class="camrow"><label class="btn sm btn-ic">${ic('camera', 16)} Tomar foto<input type="file" class="w-img" accept="image/*" capture="environment" hidden></label><label class="btn sm btn-ic">${ic('image', 16)} Galería<input type="file" class="w-img" accept="image/*" hidden></label></div>`}
     <button class="btn gold" type="submit">✨ Agregar a mi lista</button></form></details>` : ''}`;
@@ -1364,6 +1380,9 @@ $('#w-root').addEventListener('change', async e => {
 });
 $('#w-root').addEventListener('click', e => {
   if (e.target.closest('#w-img-x')) { S.wishDraftImg = null; renderWishes(); return; }
+  const wi = e.target.closest('[data-widea]'); if (wi) { const t = $('#w-text'); if (!t.value.trim()) t.value = wi.dataset.widea + ': '; else if (!t.value.toLowerCase().includes(wi.dataset.widea.toLowerCase())) t.value = wi.dataset.widea + ': ' + t.value.replace(/^[^:]{1,20}: /, ''); t.focus(); t.setSelectionRange(t.value.length, t.value.length); return; }
+  const wp = e.target.closest('[data-wprice]'); if (wp) { $('#w-price').value = wp.dataset.wprice; return; }
+  const ws = e.target.closest('[data-wstar]'); if (ws) return toggleTop(ws.dataset.wstar);
   const im = e.target.closest('[data-wimg]'); if (!im) return;
   openModal(`<img src="${S.wishImgs[im.dataset.wimg] || ''}" alt="" style="width:100%;border-radius:14px"><div class="actions"><button class="btn gold" data-a="x">Cerrar</button></div>`).onclick = ev => { if (ev.target.closest('[data-a]')) closeModal(); };
 });
@@ -1840,7 +1859,7 @@ function wishHero(uid, mine, isRec, items) {
     <div class="wh-av"><span>${esc(pEmoji(uid))}</span></div>
     <div class="grow wh-tx">${isRec ? '<span class="wh-tag">🎯 ¡Es tu persona!</span>' : mine ? '<span class="wh-tag me">Tu lista</span>' : ''}
       <b>${esc(mine ? 'Mi lista de deseos' : p?.name || '')}</b>
-      <div class="wh-stats"><span>🎁 <b>${items.length}</b> ${items.length === 1 ? 'deseo' : 'deseos'}</span>${mod('perfil') ? `<span>👕 <b>${pd}/${PROF.length}</b> perfil</span>` : ''}</div></div>
+      <div class="wh-stats"><span>🎁 <b>${items.length}</b> ${items.length === 1 ? 'deseo' : 'deseos'}</span>${mod('perfil') ? `<span>👕 <b>${pd}/${PROF.length}</b> perfil</span>` : ''}${S.event.budget ? `<span>💰 ${esc(S.event.budget)}</span>` : ''}</div></div>
     ${mine ? `<div class="wh-act"><button class="whb" id="prof-icon" aria-label="Cambiar ícono">${esc(S.me.emoji)}<small>Ícono</small></button>${mod('perfil') ? `<button class="whb ${pd < PROF.length ? 'pend' : ''}" id="prof-edit">${ic('shirt', 20)}<small>Perfil</small></button>` : ''}</div>` : ''}
   </section>`;
 }
@@ -1853,9 +1872,9 @@ function profileHtml(uid, compact) {
   return `<section class="wprof">
     ${sizes.length ? `<div class="wp-sizes">${sizes.map(([k, e, l]) => `<div class="wp-size"><span>${e}</span><b>${esc(v(k))}</b><small>${l}</small></div>`).join('')}</div>` : ''}
     ${v('colors') ? `<div class="wp-row"><small>🎨 Colores favoritos</small><div class="wp-chips">${list('colors').map(c => `<span class="wp-chip color">${esc(c)}</span>`).join('')}</div></div>` : ''}
-    ${v('likes') ? `<div class="wp-row"><small>💛 Le gusta</small><div class="wp-chips">${list('likes').map(c => `<span class="wp-chip like">${esc(c)}</span>`).join('')}</div></div>` : ''}
-    ${v('allergy') && !/^(n\/?a|no|ninguna?|nada)$/i.test(v('allergy')) ? `<div class="wp-warn"><span>⚠️</span><div><small>Alergias o cosas que no puede usar</small><b>${esc(v('allergy'))}</b></div></div>` : ''}
-    ${v('nogift') ? `<div class="wp-warn no"><span>🙅</span><div><small>Por favor no le regales</small><b>${esc(v('nogift'))}</b></div></div>` : ''}
+    ${v('likes') ? `<div class="wp-row"><small>💛 ${uid === S.uid ? 'Me gusta' : 'Le gusta'}</small><div class="wp-chips">${list('likes').map(c => `<span class="wp-chip like">${esc(c)}</span>`).join('')}</div></div>` : ''}
+    ${v('allergy') && !/^(n\/?a|no|ninguna?|nada)$/i.test(v('allergy')) ? `<div class="wp-warn"><span>⚠️</span><div><small>${uid === S.uid ? 'Alergias o cosas que no puedo usar' : 'Alergias o cosas que no puede usar'}</small><b>${esc(v('allergy'))}</b></div></div>` : ''}
+    ${v('nogift') ? `<div class="wp-warn no"><span>🙅</span><div><small>${uid === S.uid ? 'Por favor no me regales' : 'Por favor no le regales'}</small><b>${esc(v('nogift'))}</b></div></div>` : ''}
   </section>`;
 }
 function openProfile() {

@@ -675,3 +675,23 @@ body.anim-in .wcard{animation:upin .4s var(--d,0ms) backwards}
 .lb-rules{margin:0 0 10px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
 .lb-rules summary{cursor:pointer;font-weight:800;font-size:.85rem;color:var(--gold)}
 .lb-rules ul{margin:8px 0 0;padding-left:18px;display:grid;gap:5px;font-size:.82rem;color:#d9e6dd}
+/* deseos: extras */
+.wstar{flex:none;display:grid;place-items:center;width:34px;height:34px;margin:-4px -2px 0 0;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:var(--muted);cursor:pointer;transition:transform .15s,background .2s,color .2s}
+.wstar:active{transform:scale(.85)}
+.wstar.on{background:linear-gradient(145deg,#ffd77a,#e2a93b);color:#3a2600;border-color:transparent;box-shadow:0 4px 10px rgba(226,169,59,.4)}
+.wstar.on .ic{fill:currentColor}
+.wc-price.over{background:rgba(217,70,107,.2);color:#ffc2d1;border-color:rgba(217,70,107,.45)}
+.wtips{margin:14px 0 4px;padding:14px;border-radius:20px;background:linear-gradient(150deg,rgba(138,74,216,.22),rgba(74,37,150,.12));border:1px solid rgba(138,74,216,.35)}
+.wtips>b{display:block;font-size:.95rem}
+.wtips.ok{background:linear-gradient(150deg,rgba(47,174,108,.25),rgba(17,96,58,.12));border-color:rgba(47,174,108,.4)}
+.wtips.ok small{display:block;color:var(--muted);margin-top:2px}
+.wt-row{display:grid;gap:8px;margin-top:10px}
+.wt{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:14px;background:rgba(0,0,0,.18)}
+.wt>span{font-size:20px}.wt b{display:block;font-size:.86rem}.wt small{display:block;font-size:.74rem;color:var(--muted)}
+.wi-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0}
+.wi-chips::-webkit-scrollbar{display:none}
+.wi-chips.price{align-items:center;flex-wrap:wrap;overflow:visible}
+.wi-chips small{color:var(--muted);font-weight:700;font-size:.75rem;margin-right:2px}
+.wi-chip{flex:none;padding:7px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:inherit;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer;transition:transform .12s,background .2s}
+.wi-chip:active{transform:scale(.94)}
+.wi-chips.price .wi-chip{background:rgba(47,174,108,.15);border-color:rgba(47,174,108,.35)}
