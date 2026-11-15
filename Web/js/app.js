@@ -1117,7 +1117,7 @@ function renderTodo() {
   if (!isInstalled()) items.push([false, 'Pon el angelito en tu pantalla de inicio', 'install']);
   if (!items.length) { box.innerHTML = anon; return; }
   const done = items.filter(x => x[0]).length;
-  if (done === items.length) { box.innerHTML = `<div class="card todo-ok">🎉 <b>¡Tienes todo listo!</b> <span class="muted small">Solo falta disfrutar el angelito.</span></div>` + anon; return; }
+  if (done === items.length) { box.innerHTML = anon; return; } // todo completo: la tarjeta desaparece y no ocupa espacio
   const TI = { att: ['calcheck', 'c1'], '#deseos': ['gift', 'c2'], '#ruleta': ['wheel', 'c3'], notif: ['bell', 'c4'], install: ['install', 'c5'] };
   const ord = [...items.filter(x => !x[0]), ...items.filter(x => x[0])], pct = Math.round(done / items.length * 100);
   box.innerHTML = `<div class="card todo"><div class="todo-h"><b>Tus pendientes</b><span class="todo-n">${done}/${items.length}</span></div>
