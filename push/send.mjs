@@ -26,12 +26,13 @@ const chatQ = await db.collection('chat').where('ts', '>', since).orderBy('ts').
 const noticesQ = await db.collection('notices').where('ts', '>', since).get();
 const actsQ = await db.collection('activities').where('at', '>', new Date(since)).get();
 const hintsQ = await db.collection('hints').where('ts', '>', since - 10 * 60e3).get();
+const invQ = await db.collection('gameInvites').where('ts', '>', since).get();
 const draw = (await db.doc('config/draw').get()).data();
 const ev = (await db.doc('config/event').get()).data() || {};
 const open = !!ev.revealNow || (ev.revealAt && ms(ev.revealAt) <= now);
 const openKey = open ? String(ev.revealNow ? 'now' : ms(ev.revealAt)) : '';
 const seenH = new Set(st.hints || []);
-const nothing = !PRUEBA && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
+const nothing = !PRUEBA && invQ.empty && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
   && !(open && st.revealSent !== openKey) && hintsQ.docs.every(d => seenH.has(d.id));
 if (nothing) { await stateRef.set({ last: now }, { merge: true }); console.log('Nada nuevo.'); process.exit(0); }
 
@@ -73,6 +74,9 @@ for (const d of hintsQ.docs) {
   put(d.data().to, 'angelito', { title: '💌 ¡Tu angelito te mandó una pista!', body: (d.data().text || '').slice(0, 140), url: '#ruleta' });
 }
 
+// 🎮 invitaciones a una mesa de juego
+for (const d of invQ.docs) { const v = d.data(); put(v.to, 'juegos', { title: `🎮 ${short(v.from)} te invitó a jugar`, body: `${v.title || 'Una partida'} · toca para unirte`, url: `#juego-${v.game}` }); }
+
 // prueba manual: un aviso a todos los teléfonos registrados
 if (PRUEBA) for (const uid of all) put(uid, 'avisos', { title: '🔔 Prueba de notificaciones', body: 'Si ves esto, los avisos con la app cerrada funcionan 🎁', url: '#inicio' });
 
@@ -86,7 +90,7 @@ if (Object.keys(out).length) {
   for (const t of tokens) {
     const { uid, token, off = [] } = t.data(); const mine = out[uid]; if (!mine || !token || done.has(token)) continue; done.add(token); // un aviso por teléfono
     // si hay varias cosas a la vez, va la más importante
-    const cat = ['mencion', 'angelito', 'avisos', 'actividades', 'chat'].find(c => mine[c] && (PRUEBA || !off.includes(c))); if (!cat) continue;
+    const cat = ['mencion', 'juegos', 'angelito', 'avisos', 'actividades', 'chat'].find(c => mine[c] && (PRUEBA || !off.includes(c))); if (!cat) continue;
     const m = mine[cat];
     jobs.push(fcm.send({ token, data: { title: m.title, body: m.body, url: BASE + m.url, cat },
       webpush: { headers: { Urgency: cat === 'chat' ? 'normal' : 'high', TTL: '86400' } } })

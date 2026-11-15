@@ -545,3 +545,20 @@ body.ideas-on #buz-seg{display:none!important}
 /* ideas: los ejemplos del estado vacío se ven completos */
 .s2-empty .if-chips{flex-wrap:wrap;overflow:visible;justify-content:center}
 .s2-empty .if-chip{white-space:normal}
+
+/* ---- Llenar asiento / invitar ---- */
+.sp-list{display:grid;gap:6px;max-height:44vh;overflow:auto}
+.sp-p,.sp-bot{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:inherit;font:inherit;text-align:left;cursor:pointer}
+.sp-bot{margin-top:10px;background:linear-gradient(145deg,rgba(55,121,222,.3),rgba(27,66,150,.25));border-color:rgba(55,121,222,.4)}
+.sp-bot small{display:block;color:var(--muted);font-size:.75rem}
+.sp-a{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.08);font-size:20px;flex:none}
+.sp-s{font-size:.75rem;font-weight:800;padding:5px 10px;border-radius:999px;background:var(--gold);color:#2b1a00;flex:none}
+.sp-p.sent .sp-s{background:rgba(47,174,108,.3);color:#d6ffe6}
+/* ---- Elegir lado ---- */
+.lb-pick{display:flex;align-items:center;gap:8px;margin:12px 0 2px;flex-wrap:wrap;justify-content:center}
+.lb-pick>span{font-size:.78rem;color:var(--muted);font-weight:700;width:100%;text-align:center}
+.lbp{flex:1 1 120px;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border-radius:14px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:inherit;font:inherit;font-weight:700;cursor:pointer;transition:transform .12s,background .2s,border-color .2s}
+.lbp b{font-size:1.1rem}
+.lbp:active{transform:scale(.96)}
+.lbp.on{border-color:var(--gold);background:rgba(236,188,92,.16);box-shadow:0 0 0 3px rgba(236,188,92,.15)}
+.lbp.ta.on{border-color:#2aa565;background:rgba(42,165,101,.2)}.lbp.tb.on{border-color:#d9466b;background:rgba(217,70,107,.2)}

@@ -176,6 +176,18 @@ service cloud.firestore {
         && d.get('title', '') is string && d.get('title', '').size() <= 80
         && d.get('turn', 0) is int && d.get('round', 0) is int && d.get('winners', []) is list && d.get('winners', []).size() <= 6;
     }
+    // Invitaciones a una mesa: quien está jugando invita a alguien del grupo (le llega notificación)
+    match /gameInvites/{id} {
+      allow read: if signedIn() && (resource.data.to == me() || resource.data.from == me());
+      allow create: if isParticipant() && request.resource.data.from == me() && okId(id)
+        && id == request.resource.data.game + '_' + request.resource.data.to
+        && exists(/databases/$(database)/documents/participants/$(request.resource.data.to))
+        && exists(/databases/$(database)/documents/games/$(request.resource.data.game))
+        && request.resource.data.keys().hasOnly(['to', 'from', 'game', 'type', 'title', 'ts'])
+        && str(request.resource.data.title, 60) && request.resource.data.ts is number;
+      allow update: if false;
+      allow delete: if signedIn() && (resource.data.to == me() || resource.data.from == me() || isOwner());
+    }
     match /games/{gid} {
       allow read: if member();
       // La hora que manda el teléfono debe ser real (±30 min): así nadie marca una mesa ajena como "abandonada" para borrarla.
@@ -201,10 +213,12 @@ service cloud.firestore {
               && changed().hasOnly(['seq', 'updatedAt', 'idle', 'turn', 'status', 'result', 'winners', 'want', 'round', 'starter',
                    'board', 'lastCell', 'guessed', 'scores', 'errors', 'word', 'wcat',
                    'passes', 'last', 'chain', 'counts', 'pips', 'mustOpen', 'locker', 'handOver', 'nextStarter']))
-          // en la sala de espera: solo sentarse o levantarse uno mismo
+          // en la sala de espera: sentarse, levantarse o cambiarse de lado (reordenar los mismos asientos)
           || (resource.data.status == 'lobby' && changed().hasOnly(['players', 'seq', 'updatedAt'])
               && ((!(me() in resource.data.players) && request.resource.data.players == resource.data.players.concat([me()]))
-                  || (me() in resource.data.players && request.resource.data.players == resource.data.players.removeAll([me()]))))
+                  || (me() in resource.data.players && request.resource.data.players == resource.data.players.removeAll([me()]))
+                  || (me() in resource.data.players && request.resource.data.players.size() == resource.data.players.size()
+                      && request.resource.data.players.hasAll(resource.data.players))))
         );
       // Cualquiera del grupo puede cerrar una mesa abandonada (45 min sin jugadas, o 2 h si ya terminó).
       allow delete: if (signedIn() && resource.data.host == me()) || can('moderar')

@@ -243,7 +243,8 @@ const BOT_NAMES = { bot1: '🤖 Robertico', bot2: '🤖 Chispita', bot3: '🤖 T
 
 export function initGames(X) {
   const { db, fs, S, esc, toast, $, openModal, closeModal, confirmBox, render, confetti } = X;
-  const { doc, collection, onSnapshot, query, orderBy, limit, setDoc, getDoc, writeBatch, runTransaction } = fs;
+  const { doc, collection, onSnapshot, query, orderBy, limit, setDoc, getDoc, writeBatch, runTransaction, where } = fs;
+  const deleteDoc = ref => { const b = writeBatch(db); b.delete(ref); return b.commit(); };
   const G = { list: [], wins: [], cur: null, hand: [], botHands: {}, sub: null, subHand: null, subBots: {}, subList: null, subWins: null, botT: null, credited: new Set(), busy: false, seenTurn: '', srv: null, srvHand: [], srvBots: {}, pend: 0 };
   const seatName = s => BOT_NAMES[s] || (isBot(s) ? '🤖' : (X.P(s) ? X.shortName(X.P(s)) : 'Alguien'));
   const seatEmoji = s => isBot(s) ? '🤖' : X.pEmoji(s);
@@ -422,6 +423,65 @@ export function initGames(X) {
   const kick = s => tx((t, g) => { if (g.host !== me() || g.status !== 'lobby') return; upd(t, g, { players: g.players.filter(x => x !== s) }); });
   const swapSeats = () => tx((t, g) => { if (g.host !== me() || g.players.length < 3) return; const p = g.players.slice(); p.splice(1, 0, p.pop()); upd(t, g, { players: p }); });
 
+  // Cambiarse de lado en la sala de espera (intercambia el asiento con quien esté en el lado elegido)
+  function pickSide(k) {
+    return tx((t, g) => {
+      if (g.status !== 'lobby') throw new Error('Ya empezó');
+      const p = g.players.slice(), i = p.indexOf(me()); if (i < 0) return;
+      const pz = g.type === 'domino' && g.mode === 'parejas', ok = j => pz ? j % 2 === k : j === k;
+      if (ok(i)) return;
+      let j = p.findIndex((s, n) => n !== i && ok(n) && isBot(s)); if (j < 0) j = p.findIndex((s, n) => n !== i && ok(n));
+      if (j >= 0) { [p[i], p[j]] = [p[j], p[i]]; return upd(t, g, { players: p }); }
+      // nadie en ese lado: quien creó la mesa sienta un 🤖 delante para ocupar el otro lugar
+      if (g.host !== me()) throw new Error('Pídele a quien creó la mesa que te cambie');
+      if (p.length >= g.max) return;
+      const b = ['bot1', 'bot2', 'bot3'].find(x => !p.includes(x)); if (!b) return;
+      p.splice(i, 0, b); upd(t, g, { players: p });
+    });
+  }
+  // ＋ en un asiento libre: invitar a alguien inscrito (le llega notificación), poner un 🤖 o compartir el enlace
+  function seatPicker() {
+    const g = G.cur; if (!g || g.status !== 'lobby') return;
+    const host = g.host === me(), sent = G.invited ||= {};
+    const ppl = (S.participants || []).filter(p => !g.players.includes(p.id)).sort((a, b) => a.name.localeCompare(b.name));
+    const row = p => `<button class="sp-p ${sent[g.id + p.id] ? 'sent' : ''}" data-inv="${esc(p.id)}"><span class="sp-a">${esc(p.emoji || '🙂')}</span><span class="grow"><b>${esc(p.name)}</b></span><span class="sp-s">${sent[g.id + p.id] ? '✓ Invitado' : 'Invitar'}</span></button>`;
+    const s2 = openModal(`<h3>＋ Llenar asiento</h3><p class="muted small">Elige a alguien del grupo: le llega una notificación para unirse. ${host && g.type !== 'ahorcado' ? 'Si lo dejas vacío, al empezar se llena con un 🤖.' : ''}</p>
+      ${host && g.type !== 'ahorcado' ? '<button class="sp-bot" data-a="bot"><span class="sp-a">🤖</span><span class="grow"><b>Poner un robot ahora</b><small>Juega solo y al instante</small></span></button>' : ''}
+      <input class="in" id="sp-q" placeholder="🔍 Buscar a alguien…" autocomplete="off" style="margin:12px 0 8px">
+      <div class="sp-list" id="sp-list">${ppl.map(row).join('') || '<p class="muted small center">No hay más personas para invitar.</p>'}</div>
+      <div class="actions"><button class="btn" data-a="link">📲 Enviar enlace</button><button class="btn gold" data-a="x">Listo</button></div>`);
+    $('#sp-q', s2).addEventListener('input', e => { const q = e.target.value.trim().toLowerCase(); s2.querySelectorAll('[data-inv]').forEach(b => { b.style.display = !q || b.textContent.toLowerCase().includes(q) ? '' : 'none'; }); });
+    s2.onclick = async ev => {
+      const a = ev.target.closest('[data-a]')?.dataset.a, inv = ev.target.closest('[data-inv]');
+      if (a === 'x') return closeModal();
+      if (a === 'bot') { closeModal(); return addBot(); }
+      if (a === 'link') { closeModal(); return document.querySelector('[data-gact="share"]')?.click(); }
+      if (inv && !inv.classList.contains('sent')) {
+        const to = inv.dataset.inv; inv.classList.add('sent'); inv.querySelector('.sp-s').textContent = 'Enviando…';
+        try {
+          await setDoc(doc(db, 'gameInvites', g.id + '_' + to), { to, from: me(), game: g.id, type: g.type, title: g.title || 'una partida', ts: Date.now() });
+          sent[g.id + to] = 1; inv.querySelector('.sp-s').textContent = '✓ Invitado'; toast(`📨 Invitación enviada a ${X.shortName(X.P(to))}`);
+        } catch (e) { inv.classList.remove('sent'); inv.querySelector('.sp-s').textContent = 'Invitar'; toast(X.authErr(e)); }
+      }
+    };
+  }
+  // Invitaciones que me llegan con la app abierta: aviso con botón para entrar a la mesa
+  let unsubInv = null, invUid = null;
+  function watchInvites() {
+    if (invUid === me()) return; invUid = me(); if (unsubInv) { unsubInv(); unsubInv = null; } if (!me()) return;
+    unsubInv = onSnapshot(query(collection(db, 'gameInvites'), where('to', '==', me())), s => {
+      const seen = G.invSeen ||= new Set();
+      s.docs.forEach(d => {
+        if (seen.has(d.id)) return; seen.add(d.id); const ch = { doc: d }, v = d.data();
+        if (Date.now() - (v.ts || 0) > 15 * 60e3) { deleteDoc(ch.doc.ref).catch(() => { }); return; } // vieja: se limpia
+        if (location.hash === '#juego-' + v.game) { deleteDoc(ch.doc.ref).catch(() => { }); return; }
+        const s2 = openModal(`<div class="center"><div style="font-size:46px">🎮</div><h3>${esc(X.shortName(X.P(v.from)) || 'Alguien')} te invitó a jugar</h3><p class="muted">${esc(v.title)}</p></div>
+          <div class="actions"><button class="btn" data-a="no">Ahora no</button><button class="btn gold" data-a="go">¡Vamos!</button></div>`);
+        s2.onclick = e => { const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return; closeModal(); deleteDoc(ch.doc.ref).catch(() => { }); if (a === 'go') location.hash = 'juego-' + v.game; };
+      });
+    }, () => { });
+  }
+  setInterval(watchInvites, 3000); setTimeout(watchInvites, 1500);
   // Quién sale en la partida siguiente: quien ganó la anterior; si hubo empate, se alterna.
   function nextStarterOf(g, players) {
     const n = players.length, w = (g.winners || []).find(s => players.includes(s)), rs = g.result?.seat;
@@ -605,8 +665,8 @@ export function initGames(X) {
     const n = g.players.length;
     const pz = g.type === 'domino' && g.mode === 'parejas';
     const free = g.status === 'lobby' ? Math.max(0, (g.max || 0) - n) : 0;
-    const freeH = Array.from({ length: Math.min(free, 4) }, (_, k) => { const i = n + k; return `<button class="seat free ${pz ? 't' + (i % 2 ? 'b' : 'a') : ''}" ${g.host === me() && g.type !== 'ahorcado' ? 'data-gact="bot"' : 'disabled'}>
-      <span class="se">＋</span><span class="sn">Asiento libre</span><span class="sc">${g.host === me() && g.type !== 'ahorcado' ? 'Toca para 🤖' : 'Esperando…'}</span>${pz ? `<span class="team t${i % 2}">${i % 2 ? 'B' : 'A'}</span>` : ''}</button>`; }).join('');
+    const freeH = Array.from({ length: Math.min(free, 4) }, (_, k) => { const i = n + k; return `<button class="seat free ${pz ? 't' + (i % 2 ? 'b' : 'a') : ''}" ${g.players.includes(me()) ? 'data-gact="seat"' : 'disabled'}>
+      <span class="se">＋</span><span class="sn">Asiento libre</span><span class="sc">${g.players.includes(me()) ? 'Toca para invitar' : 'Esperando…'}</span>${pz ? `<span class="team t${i % 2}">${i % 2 ? 'B' : 'A'}</span>` : ''}</button>`; }).join('');
     return `<div class="seats ${n + free > 2 ? 'four' : 'two'}">${g.players.map((s, i) => `<div class="seat ${pz ? (i % 2 ? 'tb' : 'ta') : ''} ${g.status === 'playing' && !g.handOver && g.turn === i ? 'turn' : ''} ${s === me() ? 'me' : ''}" style="--d:${i * 60}ms">
       <span class="se">${esc(seatEmoji(s))}</span><span class="sn">${esc(s === me() ? 'Tú' : seatName(s).replace('🤖 ', ''))}</span>${live(g) && g.turn === i ? clockBar() : ''}
       ${g.type === 'domino' && g.status !== 'lobby' ? `<span class="sc">${g.counts?.[i] ?? 7} fichas</span>` : ''}
@@ -614,6 +674,14 @@ export function initGames(X) {
       ${g.type === 'ahorcado' && g.scores ? `<span class="sc">${g.scores[i] || 0} pts</span>` : ''}
       ${g.type === 'ttt' ? `<span class="sc">${i === 0 ? '❌' : '⭕'}</span>` : ''}${g.type === 'c4' ? `<span class="sc">${i === 0 ? '🔴' : '🟡'}</span>` : ''}
       ${g.status === 'lobby' && g.host === me() && s !== me() ? `<button class="x" data-gkick="${esc(s)}" aria-label="Quitar">✕</button>` : ''}</div>`).join('')}${freeH}</div>`;
+  }
+  // Elegir lado: ❌/⭕, 🔴/🟡 o Pareja A/B (nada queda por defecto sin que lo puedas cambiar)
+  function sideHTML(g) {
+    const i = g.players.indexOf(me()), pz = g.type === 'domino' && g.mode === 'parejas';
+    const opts = g.type === 'ttt' ? [['❌', 'Ser X'], ['⭕', 'Ser O']] : g.type === 'c4' ? [['🔴', 'Rojas'], ['🟡', 'Amarillas']] : pz ? [['A', 'Pareja A'], ['B', 'Pareja B']] : null;
+    if (!opts) return '';
+    const cur = pz ? i % 2 : i;
+    return `<div class="lb-pick"><span>${pz ? 'Tu pareja' : 'Tus fichas'}</span>${opts.map(([e, l], k) => `<button class="lbp ${cur === k ? 'on' : ''} ${pz ? 't' + 'ab'[k] : ''}" data-gact="side" data-k="${k}"><b>${e}</b>${l}</button>`).join('')}</div>`;
   }
   function lobbyHTML(g) {
     const inIt = g.players.includes(me()), host = g.host === me(), full = g.players.length >= g.max;
@@ -624,12 +692,12 @@ export function initGames(X) {
         <div class="lb-hd"><span class="lb-ic">${GI}</span><div class="grow"><b>Sala de espera</b><span class="lb-st">${g.players.length} de ${g.max} jugadores${!host && inIt ? '<i class="dots"><i></i><i></i><i></i></i>' : ''}</span></div></div>
         ${seatsHTML(g)}
         ${g.type === 'domino' && g.mode === 'parejas' ? '<p class="lb-note">🤝 Pareja A: asientos 1 y 3 · Pareja B: asientos 2 y 4</p>' : ''}
+        ${inIt ? sideHTML(g) : ''}
         <p class="lb-msg">${msg}</p>
         <div class="lb-act">
           ${!inIt && !full ? '<button class="btn gold lb-main" data-gact="join">🙋 Unirme a la mesa</button>' : ''}
           ${host ? '<button class="btn gold lb-main" data-gact="start">▶ Empezar partida</button>' : ''}
           <div class="lb-row">
-            ${host && !full && g.type !== 'ahorcado' ? '<button class="btn" data-gact="bot">🤖 Agregar robot</button>' : ''}
             ${host && g.type === 'domino' && g.mode === 'parejas' && g.players.length >= 3 ? '<button class="btn" data-gact="swap">🔀 Cambiar parejas</button>' : ''}
             <button class="btn" data-gact="share">📲 Invitar</button>
             ${inIt && !host ? '<button class="btn ghost" data-gact="leave">Salir de la mesa</button>' : ''}
@@ -738,6 +806,8 @@ export function initGames(X) {
     if (a === 'leave') return leave();
     if (a === 'start') return start();
     if (a === 'bot') return addBot();
+    if (a === 'seat') return seatPicker();
+    if (a === 'side') return pickSide(+e.target.closest('[data-k]').dataset.k);
     if (a === 'swap') return swapSeats();
     if (a === 'next') return G.cur.host === me() ? nextHand() : askNext();
     if (a === 'again') return again();
