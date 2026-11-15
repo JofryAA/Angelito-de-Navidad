@@ -421,3 +421,25 @@ body:not(.anim-in) :is(.todo .step,.witem,.sug2){animation:none!important}
 .rl-steps>div{display:grid;grid-template-columns:34px 1fr;column-gap:10px;align-items:center;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
 .rl-steps span{grid-row:span 2;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--c-amber);font-weight:900;color:#fff}
 .rl-steps small{color:var(--muted)}
+
+/* ---- Pestañas: Chat e Ideas por separado (7 pestañas) ---- */
+.tabs .tab{font-size:clamp(.54rem,2.5vw,.64rem)!important;padding-left:0!important;padding-right:0!important}
+.tabs .tab .i{font-size:clamp(17px,5vw,20px)}
+body.ideas-on #buz-seg{display:none!important}
+
+/* ---- Ruleta: confirmación de privacidad y nombre que se oculta ---- */
+.pg{text-align:center}
+.pg-ic{font-size:44px;animation:bob 3s ease-in-out infinite}
+.pg-list{display:grid;gap:8px;margin:14px 0;text-align:left}
+.pg-it{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:inherit;font:inherit;font-weight:600;cursor:pointer;transition:background .2s,border-color .2s,transform .12s;animation:upin .35s var(--d) backwards}
+.pg-it:active{transform:scale(.98)}
+.pg-ck{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:9px;border:2px solid rgba(255,255,255,.3);color:transparent;transition:.2s}
+.pg-it.on{background:rgba(47,174,108,.16);border-color:rgba(47,174,108,.6)}
+.pg-it.on .pg-ck{background:var(--c-green);border-color:transparent;color:#fff;transform:scale(1.08)}
+.pg-note{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:12px;border-radius:14px;background:rgba(236,188,92,.12);border:1px solid rgba(236,188,92,.35);font-size:.85rem;color:#f6e3b4}
+.pg-note .ic{flex:none;margin-top:2px}
+.pg .btn[disabled]{opacity:.45}
+.rv-timer{height:6px;border-radius:9px;background:rgba(0,0,0,.3);overflow:hidden;margin-top:16px}
+.rv-timer i{display:block;height:100%;background:linear-gradient(90deg,#ffd77a,#d9466b);animation:rvt 5s linear forwards}
+@keyframes rvt{from{width:100%}to{width:0}}
+.pg-it{text-align:left}.pg-it>span:last-child{flex:1}

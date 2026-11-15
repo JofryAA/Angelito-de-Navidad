@@ -841,7 +841,10 @@ function route() {
   if (!viewOn(v)) v = 'inicio';
   if (v === 'buzon') setBuz(S.buz);
   $$('.view').forEach(el => el.classList.toggle('on', el.id === 'v-' + v));
-  $$('.tab').forEach(el => el.classList.toggle('on', el.dataset.v === (v === 'actividad' ? 'actividades' : v === 'anonimos' ? 'actividades' : v)));
+  const tv = v === 'actividad' || v === 'anonimos' ? 'actividades' : v === 'buzon' && S.buz === 's' ? 'sugerencias' : v;
+  $$('.tab').forEach(el => el.classList.toggle('on', el.dataset.v === tv));
+  document.body.classList.toggle('ideas-on', v === 'buzon' && S.buz === 's');
+  $('#v-buzon .sec-title').textContent = v === 'buzon' && S.buz === 's' ? 'Ideas' : v === 'buzon' && S.buz === 'f' ? 'Fotos' : 'Grupo';
   try { renderHelper(); } catch { }
   document.body.classList.toggle('adm-view', v === 'admin');
   $('#gear').style.background = v === 'admin' ? 'var(--cream)' : '';
@@ -853,7 +856,7 @@ function route() {
   if (!same) requestAnimationFrame(() => { scrollTo({ top: v === 'actividad' || (v === 'buzon' && S.buz === 'c') || (v === 'juegos' && location.hash.includes('juego-')) ? 0 : (tabScroll[v] || 0) }); fitChat(); });
 }
 document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) location.hash = g.dataset.go; });
-$$('.tab').forEach(t => t.addEventListener('click', () => { if (t.dataset.v === 'buzon') S.buz = 'c'; if (location.hash === '#' + t.dataset.v) route(); else location.hash = t.dataset.v; }));
+$$('.tab').forEach(t => t.addEventListener('click', () => { if (t.dataset.v === 'buzon') S.buz = mod('chat') ? 'c' : 'f'; if (t.dataset.v === 'sugerencias') S.buz = 's'; if (location.hash === '#' + t.dataset.v) route(); else location.hash = t.dataset.v; }));
 $('#gear').addEventListener('click', () => { location.hash = 'admin'; });
 $('#h-sug').addEventListener('click', e => { if (location.hash === '#sugerencias') { e.preventDefault(); route(); } });
 let logoTaps = [];
@@ -867,7 +870,7 @@ addEventListener('hashchange', route);
 let rq = false;
 function render() { if (rq) return; rq = true; requestAnimationFrame(() => { rq = false; renderAll(); }); }
 function applyMods() {
-  $$('.tab').forEach(t => { t.style.display = viewOn(t.dataset.v) ? '' : 'none'; });
+  $$('.tab').forEach(t => { const v = t.dataset.v; t.style.display = (v === 'sugerencias' ? mod('buzon') : v === 'buzon' ? (mod('chat') || mod('fotos')) : viewOn(v)) ? '' : 'none'; });
   const cur = location.hash.slice(1).startsWith('actividad-') ? 'actividad' : location.hash.slice(1);
   if (!viewOn(cur)) route();
   if ($('#v-buzon').classList.contains('on')) setBuzQuiet();
@@ -1220,10 +1223,10 @@ $('#spinBtn').addEventListener('click', async e => {
 $('#spinBtn').addEventListener('click', async () => {
   if (S.spinning || !S.me || !S.assignment) return;
   const a = S.assignment, rid = a.recipient;
-  if (a.revealed) {
-    const ok = await askPin(`Hola, ${S.me.first} 👋`, 'Confirma tu PIN para ver de nuevo a quién te tocó.');
-    if (!ok) return;
-  } else {
+  // Siempre (al girar y cada vez que quiera volver a verlo): confirmar privacidad + PIN
+  if (!(await privacyGate(a.revealed))) return;
+  if (!(await askPin(`Hola, ${S.me.first} 👋`, a.revealed ? 'Confirma tu PIN para ver de nuevo a quién te tocó.' : 'Confirma tu PIN para girar la ruleta.'))) return;
+  if (!a.revealed) {
     try { await setDoc(doc(db, 'assignments', S.uid), { revealed: true, revealedAt: serverTimestamp() }, { merge: true }); }
     catch (e) { toast(authErr(e)); return; }
   }
@@ -1233,6 +1236,24 @@ $('#spinBtn').addEventListener('click', async () => {
   showReveal(rid);
   setTimeout(() => { const cv = $('#wheel'); cv.style.transition = 'none'; S.rot = 0; cv.style.transform = ''; requestAnimationFrame(() => { cv.style.transition = ''; }); }, 800); // la ruleta no queda señalando a tu persona
 });
+// Antes de girar o de volver a ver: confirmar que nadie más está mirando
+function privacyGate(again) {
+  return new Promise(res => {
+    const items = [['lugar', 'Estoy en un lugar seguro'], ['solo', 'No hay nadie a mi alrededor mirando la pantalla'], ['yo', 'Confirmo que solo yo veré esta información']];
+    const s = openModal(`<div class="pg"><div class="pg-ic">🤫</div><h3>${again ? 'Antes de verlo otra vez' : 'Antes de girar'}</h3>
+      <p class="muted small">Tu angelito es un secreto. Confirma estas tres cosas:</p>
+      <div class="pg-list">${items.map(([k, t], i) => `<button type="button" class="pg-it" data-k="${k}" style="--d:${i * 80}ms"><span class="pg-ck">${ic('check', 16)}</span><span>${t}</span></button>`).join('')}</div>
+      <div class="pg-note">${ic('clock', 18)}<span>El nombre se verá <b>solo 5 segundos</b> y luego se ocultará. Para verlo de nuevo tendrás que pasar por estos pasos otra vez.</span></div>
+      <div class="actions"><button class="btn" data-a="no">Ahora no</button><button class="btn gold" data-a="ok" disabled>Continuar</button></div></div>`);
+    s.onclick = e => {
+      const it = e.target.closest('.pg-it');
+      if (it) { it.classList.toggle('on'); s.querySelector('[data-a=ok]').disabled = s.querySelectorAll('.pg-it.on').length < items.length; return; }
+      const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+      if (a === 'ok' && s.querySelectorAll('.pg-it.on').length < items.length) return;
+      closeModal(); res(a === 'ok');
+    };
+  });
+}
 function showReveal(rid) {
   confetti();
   const w = S.wishes.filter(x => x.uid === rid);
@@ -1247,7 +1268,12 @@ function showReveal(rid) {
     <div class="stack" style="margin-top:10px">${w.length ? w.slice(0, 4).map(x => `<div class="item"><span>🎁</span><div class="grow"><div class="t">${esc(x.text)}</div></div></div>`).join('') : '<p class="muted small">Todavía no ha escrito deseos. ¡Revisa más tarde!</p>'}</div>
   </div>
   <p class="muted small center" style="margin-top:14px">🤫 Shhh… es un secreto.</p>
+  <div class="rv-timer"><i></i></div><p class="muted small center" id="rv-left">Se oculta en 5 segundos…</p>
   <div class="actions"><button class="btn" data-a="close">Cerrar</button><button class="btn gold" data-a="list">Ver su lista</button></div>`);
+  let left = 5; const tick = setInterval(() => {
+    left--; const el = $('#rv-left', s); if (el) el.textContent = left > 0 ? `Se oculta en ${left} segundo${left === 1 ? '' : 's'}…` : '';
+    if (left <= 0 || !$('#modal').classList.contains('on') || !s.querySelector('.reveal-name')) { clearInterval(tick); if (s.querySelector('.reveal-name') && $('#modal').classList.contains('on')) { closeModal(); toast('🔒 Se ocultó. Para verlo otra vez, toca «Ver a quién me tocó».'); } }
+  }, 1000);
   s.onclick = e => {
     const x = e.target.closest('[data-a]')?.dataset.a; if (!x) return;
     closeModal(); if (x === 'list') { S.wishPid = rid; location.hash = 'deseos'; render(); }
@@ -1610,8 +1636,8 @@ function syncImmersive() {
 }
 addEventListener('hashchange', () => setTimeout(syncImmersive, 0));
 setTimeout(() => { $('#c-back').innerHTML = ic('back', 22); $('#c-go-s').innerHTML = ic('bulb', 19); $('#c-go-f').innerHTML = ic('image', 19); $('#gear').innerHTML = ic('gear', 20); $('#inst-btn .ib-app').innerHTML = ic('install', 18); }, 0);
-$('#c-go-s').addEventListener('click', () => setBuz('s'));
-$('#c-go-f').addEventListener('click', () => setBuz('f'));
+$('#c-go-s').addEventListener('click', () => { location.hash = 'sugerencias'; });
+$('#c-go-f').addEventListener('click', () => { location.hash = 'fotos'; });
 $('#c-back').addEventListener('click', () => { location.hash = '#inicio'; });
 function fitChat() {
   if (!document.body.classList.contains('chat-on')) return;
@@ -1976,7 +2002,7 @@ function renderRevealBtn() { const b = $('#d-reveal'); if (b) b.textContent = S.
 /* ---------- sugerencias ---------- */
 const sTs = x => x.ts || ms(x.at);
 const ST = { nueva: ['🆕', 'Nueva'], revision: ['👀', 'En revisión'], aprobada: ['👍', 'Aprobada'], hecho: ['✅', 'Hecho'], no: ['❌', 'No se hará'] };
-$('#buz-seg').addEventListener('click', e => { const b = e.target.closest('[data-b]'); if (b) setBuz(b.dataset.b); });
+$('#buz-seg').addEventListener('click', e => { const b = e.target.closest('[data-b]'); if (b) location.hash = { c: 'chat', s: 'sugerencias', f: 'fotos' }[b.dataset.b]; });
 function setBuzQuiet() {
   const want = !mod(BUZ_MOD[S.buz]);
   $$('#buz-seg button').forEach(x => { x.style.display = mod(BUZ_MOD[x.dataset.b]) ? '' : 'none'; });
@@ -3112,7 +3138,7 @@ function renderBadges() {
   if (S.me && onBuzon && S.buz === 's' && S.suggestions.length) { const mx = Math.max(...S.suggestions.map(x => sTs(x))); if (mx > seenTs('sugSeen')) setSeen('sugSeen', mx); }
   const c = mod('chat') ? chatUnread() : 0, g = mod('buzon') ? sugUnread() : 0;
   const put = (el, n) => { if (!el) return; let b = el.querySelector('.bd'); if (!n) { b?.remove(); return; } if (!b) { b = document.createElement('span'); b.className = 'bd'; el.appendChild(b); } b.textContent = n > 99 ? '99+' : n; };
-  put($('.tab[data-v=buzon]'), c + g); put($('#buz-seg [data-b=c]'), c); put($('#buz-seg [data-b=s]'), g); put($('#c-go-s'), g);
+  put($('.tab[data-v=buzon]'), c); put($('.tab[data-v=sugerencias]'), g); put($('#buz-seg [data-b=c]'), c); put($('#buz-seg [data-b=s]'), g); put($('#c-go-s'), g);
   const spinNow = !!(S.me && mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid) && !S.assignment?.revealed);
   put($('.tab[data-v=ruleta]'), spinNow ? '!' : 0);
   let myTurn = 0; try { myTurn = S.me ? GAMES.active() : 0; } catch { } put($('.tab[data-v=juegos]'), myTurn);
