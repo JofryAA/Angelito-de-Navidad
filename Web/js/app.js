@@ -11,6 +11,7 @@ import { runTransaction, deleteField, terminate, clearIndexedDbPersistence, getF
 /* ---------- helpers ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const rowsOf = s => s.docs.map(d => ({ id: d.id, ...d.data() })); // documentos de una consulta como lista
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ms = t => !t ? 0 : typeof t.toMillis === 'function' ? t.toMillis() : typeof t === 'number' ? t : t.seconds != null ? t.seconds * 1000 + Math.floor((t.nanoseconds || 0) / 1e6) : t.__t != null ? t.__t : t._ms != null ? t._ms : 0;
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -295,7 +296,7 @@ function startUserSubs(user) {
     }, ufail('wishes')));
     unsubUser.push(onSnapshot(doc(db, 'staff', user.uid), s => { S.myStaff = s.exists() ? s.data() : null; syncAdminMode(); }, () => { S.myStaff = null; syncAdminMode(); }));
     unsubUser.push(onSnapshot(doc(db, 'assignments', user.uid), s => { S.assignment = s.exists() ? s.data() : null; render(); }, ufail('assignment')));
-    const rows = s => s.docs.map(d => ({ id: d.id, ...d.data() }));
+    const rows = rowsOf;
     unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('uid', '==', user.uid)), s => { S.myPicks = rows(s); render(); }, ufail('myPicks')));
     unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('public', '==', true)), s => { S.publicPicks = rows(s); render(); }, ufail('publicPicks')));
     unsubUser.push(onSnapshot(query(collection(db, 'votes'), where('uid', '==', user.uid)), s => { S.myVotes = Object.fromEntries(rows(s).map(v => [v.act, v.choice])); render(); }, ufail('myVotes')));
@@ -375,7 +376,7 @@ function startAdminSubs() {
   S.assignments = {}; S.adminVotes = []; S.sugAuthors = {}; S.adminGuesses = []; S.staffList = [];
   if (!S.isAdmin) return;
   const sub = (q, f, n) => unsubAdm.push(onSnapshot(q, f, fail(n)));
-  const rows = s => s.docs.map(d => ({ id: d.id, ...d.data() }));
+  const rows = rowsOf;
   if (S.isOwner) {
     sub(doc(adb, 'drawRules', 'main'), s => { S.drawRules = s.exists() ? (s.data().pairs || []) : []; render(); }, 'drawRules');
     sub(collection(adb, 'assignments'), s => { S.assignments = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); render(); }, 'assignments');
@@ -449,6 +450,11 @@ addEventListener('popstate', () => {
   history.back(); // la hoja ya estaba cerrada: este "atrás" era para navegar
 });
 function openModal(html) { $('#sheet').className = 'sheet'; $('#sheet').innerHTML = html; $('#modal').classList.add('on'); sheetHistory(); return $('#sheet'); }
+function viewImage(src) { openModal(`<img src="${src || ''}" alt="" style="width:100%;border-radius:14px"><div class="actions"><button class="btn gold" data-a="x">Cerrar</button></div>`).onclick = ev => { if (ev.target.closest('[data-a]')) closeModal(); }; }
+// Cabecera de una hoja con la persona (menú ⋯, asistencia…)
+const personHead = (p, sub) => `<div class="wm-h who-card" style="display:flex;gap:12px;align-items:center"><span class="av">${esc(p.emoji)}</span><div><div class="muted small">${esc(sub)}</div><b>${esc(p.name)}</b></div></div>`;
+// Pestañas en forma de chips (ayuda, reacciones, asistencia): [clave, texto, número?]
+const chipTabs = (list, cur, attr) => `<div class="chips" data-noswipe>${list.map(([k, l, n]) => `<button type="button" class="${k === cur ? 'on' : ''}" data-${attr}="${esc(k)}">${l}${n != null ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
 function closeModal() { $('#modal').classList.remove('on'); $('#sheet').onclick = null; }
 // En computadora, la tecla Esc cierra la ventanita abierta (como tocar fuera o el botón atrás en el teléfono).
 addEventListener('keydown', e => {
@@ -880,7 +886,7 @@ function openHelp(cat) {
   let q = '', open = 0;
   const s = openModal(`<div class="hc"><div class="hc-hd"><h3>❓ Ayuda</h3><p class="muted small">Busca lo que quieres hacer o elige un tema.</p>
       <input class="in" id="hc-q" type="text" placeholder="🔍 Ej. responder, PIN, foto, dominó…" autocomplete="off" enterkeyhint="search"></div>
-    <div class="hc-cats">${cats.map(([k, e, l]) => `<button type="button" data-hc="${k}">${e} ${l}</button>`).join('')}</div>
+    ${chipTabs(cats.map(([k, e, l]) => [k, `${e} ${l}`]), '', 'hc')}
     <div class="hc-list" id="hc-list"></div>
     <div class="mlist hc-foot">
       <button class="mrow" data-a="tour"><span class="me-e">${ic('book', 22)}</span><span class="grow"><b>Ver la guía paso a paso</b><span class="muted small">Te lleva por cada pantalla de la app</span></span><span class="chev">›</span></button>
@@ -918,7 +924,8 @@ const VIEWS = ['inicio', 'ruleta', 'deseos', 'actividades', 'anonimos', 'buzon',
 const tabScroll = {}; let curView = null;
 function route() {
   // las animaciones de entrada de listas solo al cambiar de pantalla (no cada vez que llegan datos nuevos)
-  document.body.classList.add('anim-in'); clearTimeout(route.t); route.t = setTimeout(() => document.body.classList.remove('anim-in'), 1100);
+  // la entrada animada de listas solo la primera vez que abre la app; al cambiar de pestaña la pantalla ya está lista (nada de «recargas»)
+  if (!route.n) { route.n = 1; document.body.classList.add('anim-in'); route.t = setTimeout(() => { document.body.classList.remove('anim-in'); document.body.classList.add('navd'); }, 1100); } else document.body.classList.add('navd');
   if (!history.state?.sheet) sheetEntry = false;
   if (curView) tabScroll[curView] = scrollY;
   let v = location.hash.slice(1);
@@ -1479,7 +1486,7 @@ $('#w-root').addEventListener('click', e => {
   const ws = e.target.closest('[data-wstar]'); if (ws) return toggleTop(ws.dataset.wstar);
   if (e.target.closest('[data-wadd]')) { S.wAddOpen = true; const d = $('#w-add'); if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => $('#w-text')?.focus(), 350); } return; }
   const im = e.target.closest('[data-wimg]'); if (!im) return;
-  openModal(`<img src="${S.wishImgs[im.dataset.wimg] || ''}" alt="" style="width:100%;border-radius:14px"><div class="actions"><button class="btn gold" data-a="x">Cerrar</button></div>`).onclick = ev => { if (ev.target.closest('[data-a]')) closeModal(); };
+  viewImage(S.wishImgs[im.dataset.wimg]);
 });
 $('#w-root').addEventListener('input', e => {
   if (e.target.id !== 'w-q') return;
@@ -1679,7 +1686,7 @@ function renderAttReport(sm, amt, num, pre) {
       <div class="ar-mbar"><i style="width:${mp}%"></i></div>
       <div class="ar-mstats"><span><b>${sm.paid}</b> pagaron</span><span><b>${sm.going - sm.paid}</b> faltan</span>${sm.said ? `<span class="said"><b>${sm.said}</b> dicen que ya pagaron</span>` : ''}</div>
     </div>` : ''}
-    <div class="ar-tabs">${tabs.map(([k, e, l, n]) => `<button type="button" class="${S.attTab === k ? 'on' : ''}" data-atab="${k}">${e} ${l}<i>${n}</i></button>`).join('')}</div>
+    ${chipTabs(tabs.map(([k, e, l, n]) => [k, `${e} ${l}`, n]), S.attTab, 'atab')}
     <div class="ar-list">${list.length ? list.map((p, k) => { const a = S.att[p.id] || {};
       return `<button type="button" class="ar-p" data-aped="${esc(p.id)}" style="--d:${k * 25}ms"><span class="ar-av">${esc(p.emoji)}</span><span class="grow"><b>${esc(p.name)}</b><small>${a.status === 'si' ? (amt ? (a.confirmed ? '💵 Aporte recibido' : a.paid ? '🟡 Dice que ya pagó' : '⏳ Falta su aporte') : 'Va') : a.status === 'no' ? 'No va' : 'No ha respondido'}${a.setBy ? ' · marcado por el organizador' : ''}</small></span><span class="ar-ed">${ic('edit', 16)}</span></button>`; }).join('') : '<p class="ar-empty">Nadie en esta lista 🎉</p>'}</div>
     <div class="ar-acts">
@@ -1699,7 +1706,7 @@ $('#att-sum').addEventListener('click', e => {
 async function editAtt(id) {
   const p = P(id), a = S.att[id] || {}; if (!p || !can('aportes')) return;
   const amt = S.event.contribAmount;
-  const k = await sheet({ head: `<div class="wm-h who-card" style="display:flex;gap:12px;align-items:center"><span class="av">${esc(p.emoji)}</span><div><div class="muted small">Asistencia${amt ? ' y aporte' : ''}</div><b>${esc(p.name)}</b></div></div>`, items: [
+  const k = await sheet({ head: personHead(p, amt ? 'Asistencia y aporte' : 'Asistencia'), items: [
     a.status !== 'si' && { k: 'si', icon: 'check', label: 'Marcar que va' },
     a.status !== 'no' && { k: 'no', icon: 'xcircle', label: 'Marcar que no va' },
     a.status && { k: 'pend', icon: 'undo', label: 'Dejar sin responder' },
@@ -1767,7 +1774,7 @@ $('#h-att').addEventListener('click', async e => {
 document.addEventListener('click', e => {
   const m = e.target.closest('[data-pmore]'); if (!m) return;
   const id = m.dataset.pmore, p = P(id), a = S.att[id] || {}; if (!p) return;
-  sheet({ head: `<div class="wm-h who-card" style="display:flex;gap:12px;align-items:center"><span class="av">${esc(p.emoji)}</span><div><div class="muted small">Participante</div><b>${esc(p.name)}</b></div></div>`, items: [
+  sheet({ head: personHead(p, 'Participante'), items: [
     can('aportes') && { k: 'attEdit', icon: 'calcheck', label: 'Asistencia y aporte', hint: a.status === 'si' ? 'Va' + (a.confirmed ? ' · pagó' : '') : a.status === 'no' ? 'No va' : 'Sin responder' },
     S.isOwner && { k: 'presetPin', icon: 'key', label: 'Darle un PIN temporal', hint: 'Si olvidó su PIN; conserva todo lo suyo' },
     { k: 'pedit', icon: 'edit', label: 'Editar nombre o ícono' },
@@ -1780,16 +1787,11 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('click', e => { const f = e.target.closest('[data-pf2]'); if (f) { S.pFilter = f.dataset.pf2; renderAdmin(); } });
 document.addEventListener('input', e => { if (e.target.id === 'p-q') { S.pQuery = e.target.value; renderAdmin(); } });
-$('#p-list').addEventListener('click', async e => {
-  const b = e.target.closest('[data-conf]'); if (!b) return;
-  try { await setDoc(doc(adb, 'attendance', b.dataset.conf), { uid: b.dataset.conf, confirmed: b.dataset.v === '1' }, { merge: true }); toast(b.dataset.v === '1' ? '💵 Marcado como pagó' : 'Pago quitado'); }
-  catch (err) { toast(authErr(err)); }
-});
-$('#att-list').addEventListener('click', async e => {
-  const b = e.target.closest('[data-conf]'); if (!b) return;
-  try { await setDoc(doc(adb, 'attendance', b.dataset.conf), { uid: b.dataset.conf, confirmed: b.dataset.v === '1' }, { merge: true }); }
-  catch (err) { toast(authErr(err)); }
-});
+// 💵 Marcar o quitar un pago (lista de participantes y menú ⋯ usan lo mismo)
+async function setPaid(id, v) {
+  try { await setDoc(doc(adb, 'attendance', id), { uid: id, confirmed: v }, { merge: true }); toast(v ? '💵 Marcado como pagó' : 'Pago quitado'); } catch (err) { toast(authErr(err)); }
+}
+['#p-list', '#att-list'].forEach(sel => $(sel).addEventListener('click', e => { const b = e.target.closest('[data-conf]'); if (b) setPaid(b.dataset.conf, b.dataset.v === '1'); }));
 
 /* ---------- chat ---------- */
 const OCURRENCIAS = [
@@ -1815,10 +1817,9 @@ $('#c-back').addEventListener('click', () => { location.hash = '#inicio'; });
 function fitChat() {
   if (!document.body.classList.contains('chat-on')) return;
   const l = $('#c-list'), d = $('#c-dock'); if (!l || !d || !l.offsetParent) return;
-  const vh = visualViewport?.height || innerHeight, top = l.getBoundingClientRect().top + scrollY;
-  const low = document.body.classList.contains('kb') || document.body.classList.contains('immersive');
-  const h = Math.max(96, Math.round(vh - d.getBoundingClientRect().height - (low ? 14 : 100) - top - 8));
-  l.style.height = h + 'px';
+  // el chat termina 12px arriba de la barra de escribir (medido sobre la barra real: nunca se tocan)
+  const h = Math.max(96, Math.round(d.getBoundingClientRect().top - l.getBoundingClientRect().top - 12));
+  if (Math.abs((parseFloat(l.style.height) || 0) - h) > 1) l.style.height = h + 'px';
 }
 addEventListener('resize', () => requestAnimationFrame(fitChat));
 visualViewport?.addEventListener('resize', () => requestAnimationFrame(fitChat));
@@ -1973,7 +1974,7 @@ function renderChatImgPrev() {
 $('#c-imgprev').addEventListener('click', e => { if (e.target.closest('[data-cipx]')) { S.chatDraftImg = null; renderChatImgPrev(); } });
 $('#c-list').addEventListener('click', e => {
   const im = e.target.closest('[data-cimg]'); if (!im || S.chatSel?.size) return; e.stopPropagation();
-  openModal(`<img src="${S.chatImgs[im.dataset.cimg] || ''}" alt="" style="width:100%;border-radius:14px"><div class="actions"><button class="btn gold" data-a="x">Cerrar</button></div>`).onclick = ev => { if (ev.target.closest('[data-a]')) closeModal(); };
+  viewImage(S.chatImgs[im.dataset.cimg]);
 }, true);
 $('#c-ngate').addEventListener('click', e => { if (e.target.closest('[data-nact]')) enableNotifications(); });
 /* (toques del chat: ver «💬 chat estilo WhatsApp») */
@@ -3814,7 +3815,7 @@ addEventListener('hashchange', selClear);
 function showReacts(m) {
   const rx = reactsFor(m.id), all = Object.entries(rx).flatMap(([e, us]) => us.map(u => [e, u])).sort((a, b) => (b[1] === S.uid) - (a[1] === S.uid));
   if (!all.length) return; let tab = '';
-  const s2 = openModal(`<h3>Reacciones</h3><div class="rxw-tabs"><button type="button" data-rt="">Todas ${all.length}</button>${Object.keys(rx).map(e => `<button type="button" data-rt="${e}">${e} ${rx[e].length}</button>`).join('')}</div><div class="rxw-list"></div><div class="actions"><button class="btn gold" data-a="x">Listo</button></div>`);
+  const s2 = openModal(`<h3>Reacciones</h3>${chipTabs([['', 'Todas', all.length], ...Object.keys(rx).map(e => [e, e, rx[e].length])], '', 'rt')}<div class="rxw-list"></div><div class="actions"><button class="btn gold" data-a="x">Listo</button></div>`);
   const paint = () => {
     s2.querySelector('.rxw-list').innerHTML = all.filter(([e]) => !tab || e === tab).map(([e, u]) => `<div class="rxw-row ${u === S.uid ? 'me' : ''}" ${u === S.uid ? `data-rmx="${e}" role="button"` : ''}><span class="rxw-av">${esc(pEmoji(u))}</span><span class="grow"><b>${u === S.uid ? 'Tú' : esc(pName(u))}</b>${u === S.uid ? '<small>Toca para quitarla</small>' : ''}</span><span class="rxw-e">${e}</span></div>`).join('');
     s2.querySelectorAll('[data-rt]').forEach(b => b.classList.toggle('on', b.dataset.rt === tab));
@@ -4237,27 +4238,43 @@ snow(); buildBulbs(); route(); renderAll(); tick(); maybeAskInstall();
 try { if (sessionStorage.getItem('angelito:afterLogout') === 'reg') { sessionStorage.removeItem('angelito:afterLogout'); setTimeout(() => openAuth('reg'), 1200); } } catch { }
 
 
-/* ---------- 👉 gestos: deslizar a los lados cambia de pestaña · deslizar hacia abajo cierra las ventanas ---------- */
+/* ---------- 👉 gestos: la pantalla sigue al dedo y pasa a la pestaña de al lado · deslizar hacia abajo cierra las ventanas ---------- */
+const visibleTabs = () => $$('.tab').filter(t => t.style.display !== 'none' && t.offsetParent !== null);
+function goTab(dir) { // dir: +1 siguiente, -1 anterior
+  const tabs = visibleTabs(), i = tabs.findIndex(t => t.classList.contains('on')), nx = tabs[i + dir];
+  if (i < 0 || !nx) return false;
+  document.body.dataset.swipe = dir > 0 ? 'l' : 'r'; clearTimeout(goTab.t); goTab.t = setTimeout(() => { delete document.body.dataset.swipe; }, 400);
+  nx.click(); return true;
+}
 (() => {
-  const NOSWIPE = 'input,textarea,select,button.tg,#c-list,.pscroll,.hand,.mesa,.ttt,.c4,.hkb,.wheel,canvas,iframe,.evmap,.rxw-tabs,.wi-chips,.podium,[data-noswipe]';
+  const NOSWIPE = 'input,textarea,select,button.tg,#c-list,.pscroll,.hand,.mesa,.ttt,.c4,.hkb,.wheel,canvas,iframe,.evmap,.rxw-tabs,.wi-chips,.podium,.chips,.ar-tabs,.hc-cats,[data-noswipe]';
   const scrollsX = el => { for (let n = el; n && n !== document.body; n = n.parentElement) { if (n.scrollWidth > n.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(n).overflowX)) return true; } return false; };
   let st = null;
+  const reset = (v, anim) => { if (!v) return; v.style.transition = anim ? 'transform .22s cubic-bezier(.2,.9,.3,1), opacity .22s' : ''; v.style.transform = ''; v.style.opacity = ''; if (anim) setTimeout(() => { v.style.transition = ''; }, 240); };
   document.addEventListener('touchstart', e => {
     st = null; if (e.touches.length !== 1) return;
     const t = e.target, view = t.closest?.('.view.on');
-    if (!view || $('#modal').classList.contains('on') || $('.cfocus') || document.body.classList.contains('kb') || document.body.classList.contains('csel')) return;
+    if (!view || $('#modal').classList.contains('on') || $('.cfocus') || $('#tourx') || document.body.classList.contains('kb') || document.body.classList.contains('csel')) return;
     if (t.closest(NOSWIPE) || scrollsX(t) || ($('#v-juegos')?.classList.contains('ingame') && view.id === 'v-juegos')) return;
-    const p = e.touches[0]; st = { x: p.clientX, y: p.clientY, t: Date.now() };
+    const p = e.touches[0], tabs = visibleTabs(), i = tabs.findIndex(x => x.classList.contains('on'));
+    st = { x: p.clientX, y: p.clientY, t: Date.now(), view, fixed: view.id === 'v-buzon', lock: null, dx: 0, canL: i >= 0 && i < tabs.length - 1, canR: i > 0 };
   }, { passive: true });
-  document.addEventListener('touchend', e => {
-    if (!st) return; const p = e.changedTouches[0], dx = p.clientX - st.x, dy = p.clientY - st.y, dt = Date.now() - st.t; st = null;
-    if (Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy) * 2.2 || dt > 700) return;
-    const tabs = $$('.tab').filter(t => t.style.display !== 'none' && t.offsetParent !== null), i = tabs.findIndex(t => t.classList.contains('on'));
-    const nx = tabs[i + (dx < 0 ? 1 : -1)]; if (i < 0 || !nx) return;
+  document.addEventListener('touchmove', e => {
+    if (!st) return; const p = e.touches[0], dx = p.clientX - st.x, dy = p.clientY - st.y;
+    if (!st.lock) { if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.4) st.lock = 'h'; else if (Math.abs(dy) > 10) { st = null; return; } else return; }
+    const ok = dx < 0 ? st.canL : st.canR, k = ok ? .9 : .25; st.dx = dx; // sin pestaña a ese lado: se estira un poquito y vuelve
+    st.view.style.transition = 'none'; if (!st.fixed) st.view.style.transform = `translateX(${dx * k}px)`; st.view.style.opacity = String(1 - Math.min(.35, Math.abs(dx * k) / 900));
+  }, { passive: true });
+  const end = () => {
+    if (!st) return; const { view, dx, lock, t } = st, ok = dx < 0 ? st.canL : st.canR; st = null;
+    if (lock !== 'h') return reset(view);
+    const fast = Math.abs(dx) / Math.max(1, Date.now() - t) > .45;
+    if (!ok || (Math.abs(dx) < 70 && !(fast && Math.abs(dx) > 30))) return reset(view, true);
     if (navigator.vibrate) try { navigator.vibrate(8); } catch { }
-    document.body.dataset.swipe = dx < 0 ? 'l' : 'r'; setTimeout(() => { delete document.body.dataset.swipe; }, 450);
-    nx.click();
-  }, { passive: true });
+    view.style.transition = 'transform .14s ease-in, opacity .14s ease-in'; if (view.id !== 'v-buzon') view.style.transform = `translateX(${dx < 0 ? '-38%' : '38%'})`; view.style.opacity = '0';
+    setTimeout(() => { reset(view); goTab(dx < 0 ? 1 : -1); }, 130);
+  };
+  document.addEventListener('touchend', end, { passive: true }); document.addEventListener('touchcancel', () => { if (st) reset(st.view, true); st = null; }, { passive: true });
   // Ventanas (hojas de abajo): arrastrar hacia abajo para cerrar
   let sd = null; const sh = $('#sheet');
   sh.addEventListener('touchstart', e => { sd = null; if (S.spinning || S.forcePin || sh.scrollTop > 2 || e.target.closest('input,textarea,select,.wheel,canvas')) return; sd = { y: e.touches[0].clientY, dy: 0 }; }, { passive: true });

@@ -825,9 +825,6 @@ body.csel .msg{cursor:pointer}
 .cf-menu button:active{background:rgba(255,255,255,.08)}.cf-menu button.danger{color:#ff9b8f}
 .cf-menu svg{opacity:.85}
 /* quién reaccionó */
-.rxw-tabs{display:flex;gap:6px;overflow-x:auto;margin:10px 0 6px;padding-bottom:4px}
-.rxw-tabs button{flex-shrink:0;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.07);font-size:.9rem;color:inherit}
-.rxw-tabs button.on{background:var(--gold);color:#1b2a22;font-weight:700}
 .rxw-list{display:flex;flex-direction:column;gap:2px;max-height:50vh;overflow:auto}
 .rxw-row{display:flex;align-items:center;gap:12px;padding:9px 6px;border-radius:12px}
 .rxw-row.me{cursor:pointer}.rxw-row.me:active{background:rgba(255,255,255,.06)}
@@ -840,10 +837,15 @@ body.csel .msg{cursor:pointer}
 .autopass{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:rgba(236,188,92,.18);color:var(--gold);font-size:.85rem;font-weight:700;animation:apPulse 1s ease-in-out infinite alternate}
 @keyframes apPulse{to{opacity:.55}}
 /* 👉 deslizar entre pestañas */
-body[data-swipe=l] .view.on{animation:swL .32s cubic-bezier(.2,.9,.3,1)}
-body[data-swipe=r] .view.on{animation:swR .32s cubic-bezier(.2,.9,.3,1)}
-@keyframes swL{from{opacity:.3;transform:translateX(40px)}}
-@keyframes swR{from{opacity:.3;transform:translateX(-40px)}}
+/* al cambiar de pestaña la pantalla ya está lista: solo se desliza (sin «recarga» de cada elemento) */
+.view{touch-action:pan-y}
+body.navd .view,body.navd .view.on>*{animation:none!important}
+body.navd .view.on{animation:vIn .2s ease-out!important}
+body.navd[data-swipe=l] .view.on{animation:swL .26s cubic-bezier(.2,.9,.3,1)!important}
+body.navd[data-swipe=r] .view.on{animation:swR .26s cubic-bezier(.2,.9,.3,1)!important}
+@keyframes vIn{from{opacity:.75;transform:translateY(4px)}}
+@keyframes swL{from{opacity:.2;transform:translateX(38%)}}
+@keyframes swR{from{opacity:.2;transform:translateX(-38%)}}
 .sheet::before{content:'';display:block;width:40px;height:5px;border-radius:9px;background:rgba(255,255,255,.22);margin:-12px auto 12px}
 /* 💡 bombillo más pequeño */
 .hb-btn{width:40px!important;height:40px!important}
@@ -854,10 +856,6 @@ body[data-swipe=r] .view.on{animation:swR .32s cubic-bezier(.2,.9,.3,1)}
 .sheet.sheet-tall{max-width:560px;height:min(92vh,calc(100dvh - 40px));max-height:none}
 .hc-hd h3{margin:0}
 .hc-hd .in{margin-top:10px}
-.hc-cats{display:flex;gap:6px;overflow-x:auto;margin:12px -4px 4px;padding:2px 4px 6px;scrollbar-width:none}
-.hc-cats::-webkit-scrollbar{display:none}
-.hc-cats button{flex-shrink:0;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);color:inherit;font-size:.88rem;white-space:nowrap}
-.hc-cats button.on{background:var(--gold);color:#1b2a22;font-weight:700;border-color:transparent}
 .hc-ttl{font-weight:800;font-size:1.05rem;margin:10px 2px 8px}
 .hc-list{display:flex;flex-direction:column;gap:8px}
 .hc-a{border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);overflow:hidden}
@@ -909,10 +907,6 @@ body[data-swipe=r] .view.on{animation:swR .32s cubic-bezier(.2,.9,.3,1)}
 .ar-mbar{height:10px;border-radius:9px;background:rgba(0,0,0,.25);overflow:hidden;margin-top:8px}
 .ar-mbar i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#d99a2b,#ffd36b);box-shadow:0 0 12px rgba(255,211,107,.5);animation:arGrow 1s cubic-bezier(.2,.9,.3,1)}
 .ar-mstats{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:.82rem;color:var(--muted)}.ar-mstats b{color:#fff}.ar-mstats .said b{color:var(--gold)}
-.ar-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}.ar-tabs::-webkit-scrollbar{display:none}
-.ar-tabs button{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:inherit;font-size:.86rem;white-space:nowrap}
-.ar-tabs button i{font-style:normal;font-weight:800;font-size:.75rem;min-width:20px;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.12)}
-.ar-tabs button.on{background:var(--gold);color:#1b2a22;font-weight:700}.ar-tabs button.on i{background:rgba(0,0,0,.15)}
 .ar-list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto}
 .ar-p{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);text-align:left;color:inherit;animation:arIn .3s var(--d) backwards}
 .ar-p:active{background:rgba(255,255,255,.09)}
@@ -926,3 +920,17 @@ body[data-swipe=r] .view.on{animation:swR .32s cubic-bezier(.2,.9,.3,1)}
 .ar-act span{font-size:20px}.ar-act:active{transform:scale(.97)}
 .ar-act.gold{background:linear-gradient(150deg,#f2c76a,#d79a2c);color:#2b1d00;border-color:transparent}
 .ar-p .grow{flex:1;min-width:0}
+/* Nada «se recarga» a la vista: lo que se vuelve a dibujar por datos nuevos aparece quieto (las entradas animadas solo al abrir la app) */
+body:not(.anim-in) :is(.qcard,.rf,.pg-it,.seat,.wprof,.ar-p,.ar-ring,.ar-bar i,.ar-mbar i,.rxpill,.msg:last-child,.todo .step,.witem,.sug2,.wcard,.wsc){animation:none!important}
+
+/* chips reutilizables (ayuda, reacciones, asistencia) */
+.chips{display:flex;gap:6px;overflow-x:auto;margin:10px -4px 6px;padding:2px 4px 6px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chips button{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);color:inherit;font-size:.88rem;white-space:nowrap}
+.chips button i{font-style:normal;font-weight:800;font-size:.75rem;min-width:20px;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.12);text-align:center}
+.chips button.on{background:var(--gold);color:#1b2a22;font-weight:700;border-color:transparent}.chips button.on i{background:rgba(0,0,0,.15)}
+
+/* El chat tiene la barra de escribir fija: su pantalla aparece sin moverse (solo se ilumina), así la barra ya está en su sitio desde el primer instante */
+body.navd #v-buzon.on,body.navd[data-swipe] #v-buzon.on{animation:vFade .2s ease-out!important}
+@keyframes vFade{from{opacity:.4}}
+#v-buzon.on,#v-buzon.on>*{transform:none!important}

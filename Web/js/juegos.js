@@ -401,6 +401,8 @@ export function initGames(X) {
     if (!G.subList) { const mix = () => { G.list = [...localGames(), ...(G.remote || [])].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)); }; if (!G.lHook) { G.lHook = () => { mix(); render(); }; lListSubs.add(G.lHook); } mix(); G.subList = onSnapshot(query(collection(db, 'games'), orderBy('updatedAt', 'desc'), limit(40)), s => { G.remote = s.docs.map(d => ({ id: d.id, ...sane(d.data()) })); mix(); creditWins(); cleanupStale(); render(); }, e => { console.warn('games', e); G.subList = null; }); }
     if (!G.subWins) G.subWins = onSnapshot(query(collection(db, 'gameWins'), limit(1000)), s => { G.wins = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, e => { console.warn('gameWins', e); G.subWins = null; });
   }
+  // Borra una mesa con las fichas de cada asiento
+  function dropGame(g) { const b = writeBatch(db); (g.players || []).forEach(s => b.delete(doc(db, 'games', g.id, 'hands', s))); b.delete(doc(db, 'games', g.id)); return b.commit(); }
   function stop() {
     SND.music(null); closeGame(); [G.subList, G.subWins].forEach(u => u && u());
     Object.assign(G, { subList: null, subWins: null, list: [], wins: [], seenTurn: '' }); G.credited.clear();
@@ -414,7 +416,7 @@ export function initGames(X) {
     if (cleaning) return; const old = G.list.filter(isStale).slice(0, 5); if (!old.length) return;
     cleaning = true;
     try {
-      for (const g of old) { const b = writeBatch(db); (g.players || []).forEach(s => b.delete(doc(db, 'games', g.id, 'hands', s))); b.delete(doc(db, 'games', g.id)); await b.commit().catch(() => { }); }
+      for (const g of old) await dropGame(g).catch(() => { });
     } finally { cleaning = false; }
   }
   // Cada ganador anota su propia victoria (las reglas verifican que la mesa terminó y que está en winners).
@@ -487,9 +489,14 @@ export function initGames(X) {
   // Alguien no está (se le fue el internet o salió): en X y O y 4 en línea juega un 🤖 por esa persona; en los demás se salta su turno
   function absentMove(seat) {
     const g = G.cur; if (!live(g) || g.players[g.turn] !== seat) return;
+    return (g.type !== 'domino' && robotMove(g, seat)) || skipTurn(seat);
+  }
+  // La jugada de un 🤖 (también cuando juega por ti o por alguien que no está). hand: fichas, solo en dominó
+  function robotMove(g, seat, hand) {
+    if (g.type === 'domino') { if (!hand) return null; const c = botChoice(hand, g.chain || [], g.mustOpen); return playDomino(seat, c ? c.tile : null, c?.side); }
     if (g.type === 'ttt') return playTTT(seat, tttBot(g.board, g.turn === 0 ? 'X' : 'O'));
     if (g.type === 'c4') return playC4(seat, c4Bot(g.board, g.turn === 0 ? 'R' : 'Y'));
-    return skipTurn(seat);
+    return null;
   }
   function onGameChange(prev) {
     const g = G.cur; armClock(); sounds(prev, g); autoPass();
@@ -539,10 +546,7 @@ export function initGames(X) {
   function autoMove() { // se acabó tu tiempo: la app juega por ti
     const g = G.cur; if (!live(g) || g.players[g.turn] !== me()) return;
     toast('⏰ Se acabó el tiempo: jugamos por ti');
-    if (g.type === 'domino') { const c = botChoice(G.hand, g.chain || [], g.mustOpen); return playDomino(me(), c ? c.tile : null, c?.side); }
-    if (g.type === 'ttt') return playTTT(me(), tttBot(g.board, g.turn === 0 ? 'X' : 'O'));
-    if (g.type === 'c4') return playC4(me(), c4Bot(g.board, g.turn === 0 ? 'R' : 'Y'));
-    return skipTurn(me());
+    return robotMove(g, me(), G.hand) || skipTurn(me());
   }
   function skipTurn(seat) {
     return tx((t, g) => { if (!live(g) || g.players[g.turn] !== seat) return; upd(t, g, { turn: (g.turn + 1) % g.players.length, last: { seat, timeout: true, root: g.last?.root || 0 }, idle: (g.idle || 0) + 1, ...(g.type === 'domino' && !(g.chain || []).length ? { mustOpen: null } : {}) }); });
@@ -685,12 +689,7 @@ export function initGames(X) {
       if (players.length < 2) { players.push('bot1'); }
       if (isLoc(g.id)) while (players.length < (g.max || 4)) players.push(['bot1', 'bot2', 'bot3'].find(x => !players.includes(x)));
       const ng = { ...g, players, nextStarter: -1, hand: 0 };
-      const { hands, patch } = dealHand(ng);
-      const b = writeBatch(db);
-      players.forEach(s => b.set(doc(db, 'games', g.id, 'hands', s), { tiles: hands[s] }));
-      b.update(doc(db, 'games', g.id), { ...patch, players, status: 'playing', scores: g.mode === 'parejas' ? [0, 0] : players.map(() => 0), nextStarter: -1, seq: (g.seq || 0) + 1, updatedAt: Date.now() });
-      try { await b.commit(); } catch (e) { toast(X.authErr(e)); }
-      return;
+      return deal(g, ng, players, { players, status: 'playing', scores: g.mode === 'parejas' ? [0, 0] : players.map(() => 0), nextStarter: -1 });
     }
     if (g.type === 'ttt' || g.type === 'c4') {
       const players = g.players.length < 2 ? [...g.players, 'bot1'] : g.players;
@@ -703,10 +702,13 @@ export function initGames(X) {
   }
   async function nextHand() {
     const g = G.cur; if (g.host !== me() || !g.handOver || g.status !== 'playing' || G.starting) return; G.starting = true; setTimeout(() => { G.starting = false; }, 2000);
-    const { hands, patch } = dealHand(g);
-    const b = writeBatch(db);
-    g.players.forEach(s => b.set(doc(db, 'games', g.id, 'hands', s), { tiles: hands[s] }));
-    b.update(doc(db, 'games', g.id), { ...patch, result: null, want: null, idle: 0, seq: (g.seq || 0) + 1, updatedAt: Date.now() });
+    return deal(g, g, g.players, { result: null, want: null, idle: 0 });
+  }
+  // Reparte una mano: cada asiento recibe sus fichas en secreto y la mesa se actualiza, todo en una sola escritura
+  async function deal(g, ng, players, extra) {
+    const { hands, patch } = dealHand(ng), b = writeBatch(db);
+    players.forEach(s => b.set(doc(db, 'games', g.id, 'hands', s), { tiles: hands[s] }));
+    b.update(doc(db, 'games', g.id), { ...patch, ...extra, seq: (g.seq || 0) + 1, updatedAt: Date.now() });
     try { await b.commit(); } catch (e) { toast(X.authErr(e)); }
   }
   // "Otra partida": arranca de una vez con los mismos jugadores y sale quien ganó.
@@ -718,11 +720,7 @@ export function initGames(X) {
       if (g.host !== me()) return tx((t, gg) => { if (gg.status === 'done' && !gg.want) upd(t, gg, { want: 'again' }); }); // reparte quien creó la mesa
       G.starting = true; setTimeout(() => { G.starting = false; }, 2000);
       const ng = { ...g, hand: 0, nextStarter: typeof g.result?.seat === 'number' ? g.result.seat : -1 };
-      const { hands, patch } = dealHand(ng), b = writeBatch(db);
-      g.players.forEach(s => b.set(doc(db, 'games', g.id, 'hands', s), { tiles: hands[s] }));
-      b.update(doc(db, 'games', g.id), { ...patch, status: 'playing', round: (g.round || 0) + 1, winners: [], result: null, want: null, idle: 0, scores: g.mode === 'parejas' ? [0, 0] : g.players.map(() => 0), seq: (g.seq || 0) + 1, updatedAt: Date.now() });
-      try { await b.commit(); } catch (e) { toast(X.authErr(e)); }
-      return;
+      return deal(g, ng, g.players, { status: 'playing', round: (g.round || 0) + 1, winners: [], result: null, want: null, idle: 0, scores: g.mode === 'parejas' ? [0, 0] : g.players.map(() => 0) });
     }
     const np = g.type === 'ahorcado' ? pickWord(g.cat) : null;
     return tx((t, gg) => {
@@ -741,10 +739,7 @@ export function initGames(X) {
   const askNext = () => tx((t, g) => { if (g.status === 'playing' && g.handOver && !g.want) upd(t, g, { want: 'next' }); });
   async function del() {
     if (!(await confirmBox('¿Cerrar esta mesa?', 'Se borra la partida para todos.', 'Cerrar mesa'))) return;
-    const g = G.cur, b = writeBatch(db);
-    (g.players || []).forEach(s => b.delete(doc(db, 'games', g.id, 'hands', s)));
-    b.delete(doc(db, 'games', g.id));
-    try { await b.commit(); location.hash = 'juegos'; } catch (e) { toast(X.authErr(e)); }
+    try { await dropGame(G.cur); location.hash = 'juegos'; } catch (e) { toast(X.authErr(e)); }
   }
 
   /* ----- jugadas ----- */
@@ -763,9 +758,8 @@ export function initGames(X) {
       if (g.type === 'domino') {
         const hand = G.botHands[seat]; if (!hand) return;
         if ((g.counts?.[g.turn] ?? hand.length) !== hand.length) return; // la mano del 🤖 aún no llegó; el reloj lo reintenta
-        const c = botChoice(hand, g.chain || [], g.mustOpen); playDomino(seat, c ? c.tile : null, c?.side);
-      } else if (g.type === 'ttt') playTTT(seat, tttBot(g.board, g.turn === 0 ? 'X' : 'O'));
-      else if (g.type === 'c4') playC4(seat, c4Bot(g.board, g.turn === 0 ? 'R' : 'Y'));
+        robotMove(g, seat, hand);
+      } else robotMove(g, seat);
     }, g0.type === 'domino' ? 420 + Math.random() * 260 : 360);
   }
   function playTTT(seat, cell) {
