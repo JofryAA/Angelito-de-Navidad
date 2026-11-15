@@ -736,7 +736,8 @@ async function fullLogout() {
   toast('Cerrando sesión…');
   try { await signOut(auth); } catch { }
   try { await terminate(db); await clearIndexedDbPersistence(db); } catch (e) { console.warn(e); }  // borra la copia local de esta persona
-  for (const k of Object.keys(localStorage)) if (/^angelito:(remind|ms|chatSeen|sugSeen):/.test(k)) try { localStorage.removeItem(k); } catch { }
+  for (const k of Object.keys(localStorage)) if (/^angelito:(remind|ms|chatSeen|sugSeen|lg|tour2?):/.test(k)) try { localStorage.removeItem(k); } catch { } // en un teléfono prestado no queda nada tuyo
+  try { sessionStorage.clear(); } catch { }
   location.reload();
 }
 const staffEmail = u => `${u.trim().toLowerCase()}@staff.angelito.app`;
