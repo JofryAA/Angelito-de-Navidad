@@ -90,8 +90,8 @@ const isRevealed = () => !!S.event.revealNow || (!!S.event.revealAt && Date.now(
 const guessesOpen = () => !!S.event.guessesOpen;
 const MODS = { ruleta: ['🎡', 'Ruleta'], deseos: ['🎁', 'Lista de deseos'], agenda: ['📅', 'Agenda de actividades'], anonimos: ['💌', 'Preguntas anónimas'], buzon: ['💡', 'Sugerencias'], chat: ['💬', 'Chat'],
   asistencia: ['🎉', 'Confirmar asistencia y aporte'], estado: ['🛍️', 'Estado del regalo'], adivinanza: ['🔮', '¿Qué crees que te van a regalar?'], reglas: ['📜', 'Reglas y normas'],
-  pistas: ['💌', 'Pistas secretas'], adivinaAngel: ['🕵️', '¿Quién es mi angelito? + gran revelación'], perfil: ['👕', 'Perfil de gustos'], gracias: ['💛', 'Recibí mi regalo + agradecimiento'], juegos: ['🎮', 'Juegos (dominó, X y O, ahorcado)'] };
-const mod = k => (S.event.modules || {})[k] !== false;
+adivinaAngel: ['🕵️', '¿Quién es mi angelito? + gran revelación'], perfil: ['👕', 'Perfil de gustos'], gracias: ['💛', 'Recibí mi regalo + agradecimiento'], juegos: ['🎮', 'Juegos (dominó, X y O, ahorcado)'] };
+const mod = k => k !== 'pistas' && (S.event.modules || {})[k] !== false; // las pistas del angelito se quitaron
 const TAB_MOD = { ruleta: 'ruleta', deseos: 'deseos', actividades: 'agenda', actividad: 'agenda', anonimos: 'anonimos', juegos: 'juegos' };
 const BUZ_MOD = { s: 'buzon', c: 'chat', f: 'fotos' };
 const viewOn = v => v === 'buzon' ? (mod('buzon') || mod('chat')) : v === 'actividades' ? (mod('agenda') || mod('anonimos')) : !(TAB_MOD[v] && !mod(TAB_MOD[v]));
@@ -558,7 +558,7 @@ function maybeAskNotif() {
     if (!S.me || S.forcePin || Notification.permission !== 'default') return;
     if (busyNow()) { askT = setTimeout(tryAsk, 8000); return; } // espera un momento tranquilo
     openModal(`<div style="text-align:center"><div style="font-size:46px">🔔</div><h3>¿Te avisamos?</h3>
-      <p class="muted">Te llegará un aviso cuando haya mensajes, actividades, pistas de tu angelito o cambios del evento. Nunca varios seguidos: el nuevo reemplaza al anterior.</p>
+      <p class="muted">Te llegará un aviso cuando haya mensajes, actividades, invitaciones a jugar o cambios del evento. Nunca varios seguidos: el nuevo reemplaza al anterior.</p>
       <p class="muted small">Puedes apagarlas cuando quieras en 🔔 Notificaciones.</p></div>
       <div class="actions"><button class="btn" data-a="no">Ahora no</button><button class="btn gold" data-a="ok">🔔 Activar</button></div>`).onclick = async e => {
       const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
@@ -1050,7 +1050,7 @@ const TOUR = () => [
   ['🎡', 'La ruleta', 'Cuando el organizador haga el sorteo, gira la ruleta para descubrir a quién le regalas. ¡Es secreto!'],
   ['💬', 'Chat del grupo', 'Escribe ocurrencias, menciona a alguien con @ para que le llegue el aviso, y si no sabes qué decir toca el 🎲.'],
   ['🎮', 'Juegos', 'Dominó, ahorcado, 4 en línea y X y O con el grupo o contra 🤖. Ganar suma puntos en la tabla de campeones.'],
-  ['📲', 'Instálala y activa los avisos', 'Así te enteras de la ruleta, las pistas de tu angelito y los mensajes. Busca el 📲 arriba.'],
+  ['📲', 'Instálala y activa los avisos', 'Así te enteras de la ruleta, las actividades y los mensajes. Busca el 📲 arriba.'],
 ];
 function openTour(force) {
   if (!S.me) return;
@@ -2634,7 +2634,10 @@ $('#d-gen').addEventListener('click', async () => {
     if (S.drawMeta) { const b0 = writeBatch(adb); b0.delete(doc(adb, 'config', 'draw')); await b0.commit(); }
     // 2) limpieza de giros, pistas y estados anteriores (puede ir en tandas)
     const ops = [];
-    (await getDocs(collection(adb, 'assignments'))).forEach(d => { if (!ids.includes(d.id)) ops.push(['del', d.ref]); }); // solo la ruleta: deseos y lo demás no se tocan
+    // parejas nuevas: se borra solo lo que dependía de la pareja anterior (estado del regalo, "mi regalo", pistas, sospechas y apartados).
+    // Deseos, fotos, perfiles, chat, ideas, asistencia y aportes NO se tocan.
+    for (const c of ['giftStatus', 'giftIncoming', 'hints', 'hintsSent', 'angelGuess', 'wishPick']) (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
+    (await getDocs(collection(adb, 'assignments'))).forEach(d => { if (!ids.includes(d.id)) ops.push(['del', d.ref]); });
     await commitOps(ops);
     // 3) el sorteo nuevo completo en UNA sola escritura: o queda todo o no queda nada
     const b = writeBatch(adb);
@@ -3281,7 +3284,7 @@ async function openParty() {
   try { ag = (await getDocs(collection(adb, 'angelGuess'))).docs.map(d => ({ id: d.id, ...d.data() })); } catch { }
   let authors = {}; try { (await getDocs(collection(adb, 'questionAuthors'))).forEach(d => { authors[d.id] = d.data().uid; }); } catch { }
   const choice = await new Promise(res => {
-    const s2 = openModal(`<h3>📺 Abrir el modo fiesta</h3><p class="muted">Al abrirlo ya nadie podrá mandar pistas ni cambiar su sospecha.</p>
+    const s2 = openModal(`<h3>📺 Abrir el modo fiesta</h3><p class="muted">Al abrirlo ya nadie podrá cambiar su sospecha.</p>
       <div class="stack" style="margin-top:14px"><button class="btn gold" data-a="cont">▶️ Continuar donde quedé</button>
       <button class="btn" data-a="fresh">🧹 Empezar desde cero <span class="muted small" style="display:block;font-weight:400">Borra trivia y votos de ensayos</span></button>
       <button class="btn ghost" data-a="no">Cancelar</button></div>`);
