@@ -902,14 +902,19 @@ function renderHelper() {
   const tips = helperTips();
   el.hidden = busy || !tips.length; if (el.hidden) { el.classList.remove('open'); return; }
   el.classList.toggle('pend', tips[0][2] !== '#sugerencias'); // brilla solo si hay algo pendiente de verdad
+  { const n = tips.filter(t => t[2] !== '#sugerencias').length, bt = $('#helper-btn'); if (bt.dataset.n !== String(n)) { bt.dataset.n = n; bt.innerHTML = `<span class="hb-orb">${ic('bulb', 24)}</span>${n ? `<span class="hb-n">${n}</span>` : ''}`; } }
   if (el.classList.contains('open')) fillHelper(tips);
   // se asoma una vez por sesión, un rato después de entrar y en un momento tranquilo
   let shown = false; try { shown = sessionStorage.getItem('angelito:helper') === '1'; } catch { }
   if (!shown && !helpT && !$('#modal').classList.contains('on')) helpT = setTimeout(() => { helpT = null; if ($('#modal').classList.contains('on') || $('#helper').hidden) return; try { sessionStorage.setItem('angelito:helper', '1'); } catch { } openHelper(true); }, 6000);
 }
 function fillHelper(tips) {
-  const [e, txt, go, cta] = tips[helpI % tips.length];
-  $('#helper-b').innerHTML = `<span class="hb-e">${e}</span><span class="hb-t">${esc(txt)}</span><span class="hb-a"><button class="btn sm gold" data-hgo="${esc(go)}">${esc(cta)}</button>${tips.length > 1 ? '<button class="btn sm ghost" data-hnext>Otro ›</button>' : ''}<button class="x" data-hclose aria-label="Cerrar">✕</button></span>`;
+  const n = tips.length, k = helpI % n, [e, txt, go, cta] = tips[k];
+  $('#helper-b').innerHTML = `<div class="hb-top"><span class="hb-k">${ic('bulb', 14)} Consejo${n > 1 ? ` ${k + 1} de ${n}` : ''}</span><button class="hb-x" data-hclose aria-label="Cerrar">${ic('x', 16)}</button></div>
+    <div class="hb-main"><span class="hb-e">${e}</span><span class="hb-t">${esc(txt)}</span></div>
+    ${n > 1 ? `<div class="hb-dots">${tips.map((_, i) => `<i class="${i === k ? 'on' : ''}"></i>`).join('')}</div>` : ''}
+    <div class="hb-a"><button class="btn sm gold" data-hgo="${esc(go)}">${esc(cta)}</button>${n > 1 ? `<button class="btn sm ghost" data-hnext>Siguiente ${ic('back', 14)}</button>` : ''}</div>`;
+  const b = $('#helper-b'); b.classList.remove('swap'); void b.offsetWidth; b.classList.add('swap');
 }
 function openHelper(auto) {
   const tips = helperTips(); if (!tips.length) return;
