@@ -15,6 +15,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const ms = t => !t ? 0 : typeof t.toMillis === 'function' ? t.toMillis() : typeof t === 'number' ? t : t.seconds != null ? t.seconds * 1000 + Math.floor((t.nanoseconds || 0) / 1e6) : t.__t != null ? t.__t : t._ms != null ? t._ms : 0;
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const cap = t => t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+// Nombres: lo que va entre paréntesis también empieza en mayúscula, p. ej. "Luis Miguel (Cristofel)"
+const upParen = t => typeof t === 'string' ? t.replace(/\(\s*(\p{Ll})/gu, m => m.slice(0, -1) + m.slice(-1).toUpperCase()) : t;
+const fixPerson = p => ({ ...p, name: upParen(p.name), first: upParen(p.first), last: upParen(p.last) });
 const fmtDate = (s, opts = { weekday: 'long', day: 'numeric', month: 'long' }) => {
   if (!s) return ''; const d = new Date(s.length <= 10 ? s + 'T12:00' : s); return isNaN(d) ? '' : cap(d.toLocaleDateString('es', opts));
 };
@@ -72,7 +75,7 @@ const S = {
 };
 // Arranque instantáneo: si ya habías entrado en este teléfono, se muestra tu sesión con los datos guardados
 // mientras Firebase la confirma por detrás (sin la ruedita de "cargando" cada vez que abres la app).
-try { const b = JSON.parse(localStorage.getItem('angelito:boot:v1') || 'null'); if (b) { S.event = b.event || {}; S.participants = b.participants || []; S.activities = b.activities || []; S.drawMeta = b.drawMeta || null; S.notices = b.notices || []; S.qCount = b.qCount || 0; } } catch { }
+try { const b = JSON.parse(localStorage.getItem('angelito:boot:v1') || 'null'); if (b) { S.event = b.event || {}; S.participants = (b.participants || []).map(fixPerson); S.activities = b.activities || []; S.drawMeta = b.drawMeta || null; S.notices = b.notices || []; S.qCount = b.qCount || 0; } } catch { }
 try { const lu = localStorage.getItem('angelito:lastUid'); if (lu && S.participants.some(p => p.id === lu)) { S.uid = lu; S.me = S.participants.find(p => p.id === lu); S.bootGuess = true; } } catch { }
 const P = id => S.participants.find(p => p.id === id);
 const pName = id => P(id)?.name || '—';
@@ -187,7 +190,7 @@ function startCoreSubs() {
   unsubCore.push(onSnapshot(doc(db, 'config', 'draw'), s => { S.drawMeta = s.exists() ? s.data() : null; render(); }, coreRetry('draw')));
   unsubCore.push(onSnapshot(collection(db, 'participants'), { includeMetadataChanges: true }, s => { // avisa también cuando el servidor confirma
     if (fromServer(s)) { SYNC.people = true; SYNC.tries = 0; }
-    S.participants = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at));
+    S.participants = s.docs.map(d => fixPerson({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at));
     S.me = S.uid ? P(S.uid) || null : null; maybeForcePin(); maybeAskNotif(); syncAdminMode();
     ensureUserSubs(); checkGone(); checkRelogin();
     if (S.me && userSubDenied) retryUserSubs();
@@ -212,7 +215,7 @@ async function healthCheck() {
   const stuckPeople = !SYNC.people, stuckWishes = !!S.me && !SYNC.wishes && Date.now() - SYNC.wishesT0 > 9000;
   if (!stuckPeople && !stuckWishes) { $('#datafail').hidden = true; return; }
   let ok = false;
-  try { const r = await getDocsFromServer(collection(db, 'participants')); ok = true; if (stuckPeople && !SYNC.people) { S.participants = r.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at)); S.me = S.uid ? P(S.uid) || null : null; render(); } } catch (e) { console.warn('health', e); }
+  try { const r = await getDocsFromServer(collection(db, 'participants')); ok = true; if (stuckPeople && !SYNC.people) { S.participants = r.docs.map(d => fixPerson({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at)); S.me = S.uid ? P(S.uid) || null : null; render(); } } catch (e) { console.warn('health', e); }
   if (SYNC.people && (!S.me || SYNC.wishes)) return;
   let done = 0; try { done = +sessionStorage.getItem('angelito:repaired') || 0; } catch { done = 1; } // sin sessionStorage no se arriesga un bucle de recargas
   if (ok && !done) return repairData(true);
@@ -1707,7 +1710,7 @@ const mLabel = p => { const dup = S.participants.filter(x => normName(x.first) =
 function mentionHTML(m) {
   let h = esc(m.text);
   if ((m.mentions || []).includes('all')) h = h.replace(/(^|\s)@todos\b/gi, '$1<b class="mention me">@todos</b>');
-  for (const uid of (m.mentions || [])) { const p = P(uid); if (!p) continue; const lab = esc('@' + mLabel(p)); h = h.split(lab).join(`<b class="mention ${uid === S.uid ? 'me' : ''}">${lab}</b>`); }
+  for (const uid of (m.mentions || [])) { const p = P(uid); if (!p) continue; const lab = esc('@' + mLabel(p)); h = h.replace(new RegExp(lab.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), `<b class="mention ${uid === S.uid ? 'me' : ''}">${lab}</b>`); }
   return h;
 }
 function mentionQuery() { const i = $('#c-text'), v = i.value.slice(0, i.selectionStart ?? i.value.length), mm = v.match(/(^|\s)@([^\s@]{0,20})$/); return mm ? mm[2] : null; }
