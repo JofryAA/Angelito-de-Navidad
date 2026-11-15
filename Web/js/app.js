@@ -1763,6 +1763,13 @@ function loadChatImgs() {
       .catch(() => { }).finally(() => chatImgLoading.delete(m.id));
   }
 }
+// Cámara del chat: elegir entre tomar una foto o enviar una de la galería
+$('#c-imgbtn').addEventListener('click', async () => {
+  const k = await sheet({ title: 'Enviar una foto', items: [{ k: 'cam', icon: 'camera', label: 'Tomar foto', hint: 'Abre la cámara' }, { k: 'gal', icon: 'image', label: 'Elegir de la galería', hint: 'Una foto que ya tienes' }] });
+  if (!k) return;
+  const f = $('#c-file'); if (k === 'cam') f.setAttribute('capture', 'environment'); else f.removeAttribute('capture');
+  f.click();
+});
 $('#c-file').addEventListener('change', async e => {
   const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
   if (!/^image\//.test(f.type)) return toast('Eso no es una foto');
