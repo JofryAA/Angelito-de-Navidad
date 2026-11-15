@@ -603,32 +603,45 @@ export function initGames(X) {
   }
   function seatsHTML(g) {
     const n = g.players.length;
-    return `<div class="seats">${g.players.map((s, i) => `<div class="seat ${g.status === 'playing' && !g.handOver && g.turn === i ? 'turn' : ''} ${s === me() ? 'me' : ''}">
+    const pz = g.type === 'domino' && g.mode === 'parejas';
+    const free = g.status === 'lobby' ? Math.max(0, (g.max || 0) - n) : 0;
+    const freeH = Array.from({ length: Math.min(free, 4) }, (_, k) => { const i = n + k; return `<button class="seat free ${pz ? 't' + (i % 2 ? 'b' : 'a') : ''}" ${g.host === me() && g.type !== 'ahorcado' ? 'data-gact="bot"' : 'disabled'}>
+      <span class="se">＋</span><span class="sn">Asiento libre</span><span class="sc">${g.host === me() && g.type !== 'ahorcado' ? 'Toca para 🤖' : 'Esperando…'}</span>${pz ? `<span class="team t${i % 2}">${i % 2 ? 'B' : 'A'}</span>` : ''}</button>`; }).join('');
+    return `<div class="seats ${n + free > 2 ? 'four' : 'two'}">${g.players.map((s, i) => `<div class="seat ${pz ? (i % 2 ? 'tb' : 'ta') : ''} ${g.status === 'playing' && !g.handOver && g.turn === i ? 'turn' : ''} ${s === me() ? 'me' : ''}" style="--d:${i * 60}ms">
       <span class="se">${esc(seatEmoji(s))}</span><span class="sn">${esc(s === me() ? 'Tú' : seatName(s).replace('🤖 ', ''))}</span>${live(g) && g.turn === i ? clockBar() : ''}
       ${g.type === 'domino' && g.status !== 'lobby' ? `<span class="sc">${g.counts?.[i] ?? 7} fichas</span>` : ''}
       ${g.type === 'domino' && g.mode === 'parejas' ? `<span class="team t${i % 2}">${i % 2 ? 'B' : 'A'}</span>` : ''}
       ${g.type === 'ahorcado' && g.scores ? `<span class="sc">${g.scores[i] || 0} pts</span>` : ''}
       ${g.type === 'ttt' ? `<span class="sc">${i === 0 ? '❌' : '⭕'}</span>` : ''}${g.type === 'c4' ? `<span class="sc">${i === 0 ? '🔴' : '🟡'}</span>` : ''}
-      ${g.status === 'lobby' && g.host === me() && s !== me() ? `<button class="x" data-gkick="${esc(s)}" aria-label="Quitar">✕</button>` : ''}</div>`).join('')}</div>`;
+      ${g.status === 'lobby' && g.host === me() && s !== me() ? `<button class="x" data-gkick="${esc(s)}" aria-label="Quitar">✕</button>` : ''}</div>`).join('')}${freeH}</div>`;
   }
   function lobbyHTML(g) {
     const inIt = g.players.includes(me()), host = g.host === me(), full = g.players.length >= g.max;
     const need = g.type === 'domino' && g.mode === 'parejas' ? 'Faltan asientos: se llenan con 🤖 al empezar.' : (g.type === 'ttt' || g.type === 'c4') && g.players.length < 2 ? 'Si nadie se une, juegas contra 🤖.' : '';
-    return `${seatsHTML(g)}
-      ${g.type === 'domino' && g.mode === 'parejas' && g.players.length >= 3 ? '<p class="muted small center">Pareja A: asientos 1 y 3 · Pareja B: asientos 2 y 4</p>' : ''}
-      <div class="card center" style="margin-top:12px">
-        <p class="muted">${host ? (need || '¡Listo para empezar!') : inIt ? 'Esperando a que quien creó la mesa empiece…' : full ? 'La mesa está llena.' : '¿Te unes?'}</p>
-        <div class="qa" style="justify-content:center">
-          ${!inIt && !full ? '<button class="btn gold" data-gact="join">🙋 Unirme</button>' : ''}
-          ${host ? `<button class="btn gold" data-gact="start">▶️ Empezar</button>${!full && g.type !== 'ahorcado' ? '<button class="btn" data-gact="bot">🤖 Agregar</button>' : ''}${g.type === 'domino' && g.mode === 'parejas' && g.players.length >= 3 ? '<button class="btn" data-gact="swap">🔀 Cambiar parejas</button>' : ''}` : ''}
-          ${inIt && !host ? '<button class="btn" data-gact="leave">Salir de la mesa</button>' : ''}
-          <button class="btn" data-gact="share">📲 Invitar</button>
+    const GI = { domino: '🎲', ahorcado: '🔤', ttt: '❌', c4: '🔴' }[g.type] || '🎮';
+    const msg = host ? (need || '¡Todo listo para empezar!') : inIt ? 'Esperando a que quien creó la mesa empiece' : full ? 'La mesa está llena.' : '¿Te unes a la mesa?';
+    return `<div class="lobby2">
+        <div class="lb-hd"><span class="lb-ic">${GI}</span><div class="grow"><b>Sala de espera</b><span class="lb-st">${g.players.length} de ${g.max} jugadores${!host && inIt ? '<i class="dots"><i></i><i></i><i></i></i>' : ''}</span></div></div>
+        ${seatsHTML(g)}
+        ${g.type === 'domino' && g.mode === 'parejas' ? '<p class="lb-note">🤝 Pareja A: asientos 1 y 3 · Pareja B: asientos 2 y 4</p>' : ''}
+        <p class="lb-msg">${msg}</p>
+        <div class="lb-act">
+          ${!inIt && !full ? '<button class="btn gold lb-main" data-gact="join">🙋 Unirme a la mesa</button>' : ''}
+          ${host ? '<button class="btn gold lb-main" data-gact="start">▶ Empezar partida</button>' : ''}
+          <div class="lb-row">
+            ${host && !full && g.type !== 'ahorcado' ? '<button class="btn" data-gact="bot">🤖 Agregar robot</button>' : ''}
+            ${host && g.type === 'domino' && g.mode === 'parejas' && g.players.length >= 3 ? '<button class="btn" data-gact="swap">🔀 Cambiar parejas</button>' : ''}
+            <button class="btn" data-gact="share">📲 Invitar</button>
+            ${inIt && !host ? '<button class="btn ghost" data-gact="leave">Salir de la mesa</button>' : ''}
+          </div>
         </div></div>`;
   }
   function dominoHTML(g) {
     const mySeat = g.players.indexOf(me()), myTurn = g.status === 'playing' && !g.handOver && g.turn === mySeat;
     const chain = g.chain || [], can = mySeat >= 0 ? playable(G.hand, chain, g.mustOpen) : [];
-    const sc = g.mode === 'parejas' ? `<div class="score2"><div class="${teamOfSeat(g, me()) === 0 ? 'mine' : ''}"><span>Pareja A</span><b>${g.scores?.[0] || 0}</b></div><span class="muted small">a ${g.target}</span><div class="${teamOfSeat(g, me()) === 1 ? 'mine' : ''}"><span>Pareja B</span><b>${g.scores?.[1] || 0}</b></div></div>`
+    const tm = t => g.players.filter((_, i) => i % 2 === t).map(x => esc(seatEmoji(x))).join('');
+    const pc = t => Math.min(100, (g.scores?.[t] || 0) / (g.target || 200) * 100);
+    const sc = g.mode === 'parejas' ? `<div class="sb2"><div class="sb-t ta ${teamOfSeat(g, me()) === 0 ? 'mine' : ''}" style="--p:${pc(0)}%"><span class="sb-l">Pareja A <i>${tm(0)}</i></span><b>${g.scores?.[0] || 0}</b><span class="sb-bar"><i></i></span></div><div class="sb-goal"><span>🏆</span><b>${g.target}</b><small>meta</small></div><div class="sb-t tb ${teamOfSeat(g, me()) === 1 ? 'mine' : ''}" style="--p:${pc(1)}%"><span class="sb-l">Pareja B <i>${tm(1)}</i></span><b>${g.scores?.[1] || 0}</b><span class="sb-bar"><i></i></span></div></div>`
       : `<div class="score2 solo">${g.players.map((s, i) => `<div class="${s === me() ? 'mine' : ''}"><span>${esc(s === me() ? 'Tú' : seatName(s))}</span><b>${g.scores?.[i] || 0}</b></div>`).join('')}<span class="muted small">a ${g.target}</span></div>`;
     const last = g.last ? (g.last.timeout ? `⏰ A ${esc(seatName(g.last.seat))} se le acabó el tiempo` : g.last.pass ? `${esc(seatName(g.last.seat))} pasó` : `${esc(g.last.seat === me() ? 'Jugaste' : seatName(g.last.seat) + ' jugó')}`) : g.mustOpen && !chain.length ? `Sale ${esc(seatName(g.players[g.turn]))} con el doble ${g.mustOpen[0]}` : '';
     const R = g.result, why = { domino: '¡Dominó!', capicua: '¡Capicúa! (+25)', tranque: '¡Tranque! Gana quien tiene menos puntos en fichas', 'tranque-empate': '¡Tranque con empate! Gana quien trancó', empate: 'Tranque empatado' };
@@ -639,7 +652,7 @@ export function initGames(X) {
       ${g.handOver ? `<div class="card center hover"><div style="font-size:36px">${R?.team < 0 ? '🤝' : '🎉'}</div><b>${winnerTxt}</b>
           ${g.status === 'done' ? `<p style="margin-top:8px">🏆 ${(g.winners || []).length ? 'Ganan ' + g.winners.map(s => esc(seatName(s))).join(' y ') : 'Ganaron los 🤖'}</p>` : ''}
           ${againHTML(g, g.status === 'done' ? '🔁 Otra partida' : '')}${g.status !== 'done' ? `<div class="qa" style="justify-content:center">${mySeat >= 0 ? `<button class="btn gold" data-gact="next" ${g.want && g.host !== me() ? 'disabled' : ''}>Siguiente mano ▶️</button>` : ''}</div><p class="muted small" style="margin-top:6px">Sale ${esc(seatName(g.players[R?.seat ?? 0]))} · sigue sola en unos segundos</p>` : ''}</div>` : ''}
-      ${mySeat >= 0 && g.status === 'playing' ? `<div class="myhand ${myTurn ? 'turn' : ''}"><div class="mh-h"><b>${myTurn ? '👉 ¡Te toca!' : `Turno de ${esc(seatName(g.players[g.turn]))}`}</b>${myTurn && !can.length && !g.handOver ? '<button class="btn sm gold" data-gact="pass">Paso 🙅</button>' : ''}</div>${myTurn && !g.handOver ? `<div class="tline">${clockBar()}</div>` : ''}
+      ${mySeat >= 0 && g.status === 'playing' ? `<div class="myhand ${myTurn ? 'turn' : ''}"><div class="mh-h"><b>${myTurn ? '<span class="mh-go">👉</span> ¡Te toca!' : `<span class="mh-av">${esc(seatEmoji(g.players[g.turn]))}</span> Turno de ${esc(seatName(g.players[g.turn]).replace('🤖 ', ''))}`}</b>${myTurn && !can.length && !g.handOver ? '<button class="btn sm gold" data-gact="pass">Paso 🙅</button>' : ''}</div>${myTurn && !g.handOver ? `<div class="tline">${clockBar()}</div>` : ''}
         <div class="hand">${G.hand.map(t => tileHTML(t, `big ${myTurn && can.includes(t) ? 'ok' : 'no'}`, `data-tile="${esc(t)}"`)).join('')}</div></div>` : ''}`;
   }
   // Al terminar: cualquiera de la mesa pide otra partida (sale quien ganó); quien la creó puede además cambiar jugadores.

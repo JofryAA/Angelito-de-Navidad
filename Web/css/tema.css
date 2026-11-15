@@ -487,3 +487,54 @@ body.ideas-on #buz-seg{display:none!important}
 .hb-a .btn{flex:1 1 auto}
 .hb-a .btn.ghost{display:inline-flex;align-items:center;justify-content:center;gap:4px}
 .hb-a .btn.ghost .ic{transform:rotate(180deg)}
+
+/* =================== Partidas: sala de espera, marcador, asientos y mano =================== */
+.lobby2{padding:16px;border-radius:24px;background:var(--surf);border:1px solid var(--surf-line);box-shadow:var(--surf-shadow)}
+.lb-hd{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.lb-ic{display:grid;place-items:center;width:50px;height:50px;border-radius:16px;font-size:26px;background:var(--c-green);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 14px rgba(0,0,0,.3);animation:bob 3.2s ease-in-out infinite}
+.lb-hd b{display:block;font-size:1.15rem}
+.lb-st{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted)}
+.dots{display:inline-flex;gap:3px}.dots i{width:5px;height:5px;border-radius:50%;background:var(--gold);animation:blink 1.2s infinite}.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+.lb-note{text-align:center;font-size:.76rem;color:var(--muted);margin:-2px 0 8px}
+.lb-msg{text-align:center;margin:6px 0 12px;font-weight:600;color:#d9e6dd}
+.lb-act{display:grid;gap:10px}
+.lb-main{width:100%;padding:15px!important;font-size:1.02rem!important;border-radius:16px!important}
+.lb-row{display:flex;flex-wrap:wrap;gap:8px}.lb-row .btn{flex:1 1 130px}
+/* asientos */
+.seats.four{grid-template-columns:repeat(4,1fr)!important}
+.seats.two{grid-template-columns:repeat(2,1fr)!important}
+@media(max-width:360px){.seats.four{grid-template-columns:repeat(2,1fr)!important}}
+.seat{min-width:0;padding:14px 4px 12px!important;border-radius:18px!important;border-width:1.5px!important;animation:popin .35s var(--d,0ms) backwards}
+.seat .se{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;font-size:26px;background:rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 4px 10px rgba(0,0,0,.25)}
+.seat.ta .se{background:linear-gradient(145deg,rgba(42,165,101,.5),rgba(17,96,58,.4))}
+.seat.tb .se{background:linear-gradient(145deg,rgba(217,70,107,.5),rgba(143,33,71,.4))}
+.seat .sn{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800;font-size:.82rem}
+.seat .sc{font-size:.7rem;color:var(--muted)}
+.seat.me .sn{color:var(--gold)}
+.seat.turn{border-color:var(--gold)!important;box-shadow:0 0 0 3px rgba(236,188,92,.25),0 10px 22px rgba(0,0,0,.35)!important;animation:none!important;transform:translateY(-3px)}
+.seat.turn .se{animation:pulse2 1.2s ease-in-out infinite;box-shadow:0 0 0 3px rgba(236,188,92,.6),0 0 18px rgba(236,188,92,.5)}
+.seat.free{border-style:dashed!important;background:rgba(255,255,255,.02)!important;color:var(--muted);font:inherit;cursor:pointer}
+.seat.free .se{background:transparent;border:2px dashed rgba(255,255,255,.25);box-shadow:none;font-size:20px;color:var(--muted)}
+.seat.free:not([disabled]):active{transform:scale(.96)}
+.seat.free[disabled]{cursor:default}
+/* marcador */
+.sb2{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:stretch;margin-bottom:12px}
+.sb-t{position:relative;display:flex;flex-direction:column;gap:2px;padding:10px 12px 12px;border-radius:18px;overflow:hidden;color:#fff;box-shadow:0 8px 18px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.18)}
+.sb-t.ta{background:var(--c-green)}.sb-t.tb{background:var(--c-rose);text-align:right}
+.sb-t.mine{outline:2px solid #ffd77a;outline-offset:2px}
+.sb-l{font-size:.72rem;font-weight:800;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sb-l i{font-style:normal;letter-spacing:-3px;margin-left:4px}
+.sb-t b{font-size:1.9rem;line-height:1;font-family:var(--serif,inherit)}
+.sb-bar{height:5px;border-radius:9px;background:rgba(0,0,0,.25);overflow:hidden;margin-top:6px}
+.sb-bar i{display:block;height:100%;width:var(--p);background:#fff;border-radius:inherit;transition:width .6s}
+.sb-t.tb .sb-bar i{margin-left:auto}
+.sb-goal{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 6px;color:var(--muted)}
+.sb-goal span{font-size:20px}.sb-goal b{color:var(--gold);font-size:1rem}.sb-goal small{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em}
+/* tu mano */
+.myhand{background:linear-gradient(165deg,#2b2712,#14130a)!important;border:1px solid rgba(236,188,92,.35)!important;border-radius:22px!important;padding:14px!important}
+.myhand.turn{border-color:var(--gold)!important;box-shadow:0 0 0 3px rgba(236,188,92,.22),0 -8px 26px rgba(0,0,0,.45)!important}
+.mh-h b{display:inline-flex;align-items:center;gap:8px;font-size:1.02rem}
+.mh-av{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.1);font-size:17px}
+.mh-go{display:inline-block;animation:wiggle 1s ease-in-out infinite}
+.hand .dmn.ok{animation:okglow 1.6s ease-in-out infinite}
+@keyframes okglow{50%{box-shadow:0 0 0 2px #ffd77a,0 0 16px rgba(255,215,122,.55),0 6px 10px rgba(0,0,0,.4)}}
+.myhand:not(.turn) .hand .dmn{opacity:.9}
