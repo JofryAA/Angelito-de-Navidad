@@ -6,6 +6,9 @@
 export const PANEL_ICONS = {
   resumen: '<path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"/>',
   evento: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  sorteo: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/>',
+  asistencia: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M9 15l2 2 4-4"/>',
+  aportes: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v.01M18 15v.01"/>',
   personas: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 015.5 5"/>',
   actividades: '<path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/>',
   mensajes: '<path d="M4 5h16v11H9l-5 4z"/>',
@@ -30,7 +33,7 @@ export const pic = (n, sz = 20) => `<svg class="ic" viewBox="0 0 24 24" width="$
 
 // Cada tarjeta del panel: el emoji del título se cambia por un ícono y se agrupa con su descripción.
 const CARD_ICON = [
-  [/^🎄\s*Evento/, 'evento'], [/^📜/, 'rules'], [/^🎡/, 'wheel'], [/^👥/, 'personas'], [/^🎉\s*Asistencia/, 'money'],
+  [/^🎄\s*Evento/, 'evento'], [/^📜/, 'rules'], [/^🎡/, 'wheel'], [/^👥/, 'personas'], [/^🎉\s*Asistencia/, 'asistencia'], [/^💵/, 'money'],
   [/^📅/, 'actividades'], [/^💌/, 'mail'], [/^📣/, 'megaphone'], [/^💬/, 'mensajes'], [/^🔮/, 'crystal'],
   [/^📺/, 'fiesta'], [/^🧩/, 'puzzle'], [/^👮/, 'team'], [/^📖/, 'book'],
 ];

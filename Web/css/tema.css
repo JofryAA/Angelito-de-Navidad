@@ -1031,3 +1031,10 @@ body.touring #helper{display:none!important}
 .userchip{max-width:58vw}
 .userchip .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 @media(max-width:460px){.brand span{display:none}}
+/* panel: qué se hace en cada sección */
+#adm-intro{display:flex;gap:12px;align-items:flex-start;margin:4px 0 14px;padding:12px 14px;border-radius:18px;background:linear-gradient(150deg,rgba(236,188,92,.13),rgba(236,188,92,.03));border:1px solid rgba(236,188,92,.25)}
+#adm-intro[hidden]{display:none}
+#adm-intro span{font-size:22px;line-height:1}
+#adm-intro p{margin:0;font-size:.88rem;line-height:1.45;color:#f3ead6}
+#adm-intro ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:.88rem;line-height:1.4;color:#f3ead6}
+#adm-intro li::marker{color:var(--gold);font-weight:800}

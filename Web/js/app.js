@@ -1761,7 +1761,7 @@ function renderAttReport(sm, amt, num, pre) {
   $('#pay-sum').innerHTML = `<div class="ar">
     <div class="pay-cfg"><div class="grow"><b>${esc(amt)} por persona</b><small>${[S.event.contribFor && esc(S.event.contribFor), S.event.contribDue && `Hasta el ${esc(fmtDate(S.event.contribDue, { day: 'numeric', month: 'long' }))}${payLate() ? ' · <em>venció</em>' : ` · ${payDaysLeft()}`}`].filter(Boolean).join(' · ') || 'Toca «Editar» para poner para qué es y la fecha límite'}</small></div><button type="button" class="btn sm" data-payset>${ic('edit', 14)} Editar</button></div>
     <div class="ar-money"><div class="ar-mh"><span>Recogido</span><b>${mp}%</b></div>
-      ${num ? `<div class="ar-mv"><b>${money(num * nP)}</b><span>recogido de ${money(num * base)}</span></div>` : `<div class="ar-mv"><b>${nP} de ${base}</b><span>ya pagaron</span></div>`}
+      ${num ? `<div class="ar-mv"><b>${money(num * nP)}</b><span>de ${money(num * base)}</span></div>` : `<div class="ar-mv"><b>${nP} de ${base}</b><span>ya pagaron</span></div>`}
       <div class="ar-mbar"><i style="width:${mp}%"></i></div></div>
     ${segTabs(ptabs, S.payTab, 'ptab')}
     <div class="ar-list">${personRows(plist, 'pped', a => a.confirmed ? '💵 Aporte recibido' : a.paid ? '🟡 Dice que ya pagó · confírmalo' : a.status === 'si' ? '⏳ Va y no ha pagado' : '⏳ Sin pagar', S.payTab === 'debe' ? ['💰', 'Nadie debe'] : S.payTab === 'dice' ? ['👍', 'Nada por confirmar'] : ['🕐', 'Nadie ha pagado todavía'])}</div>
@@ -2432,7 +2432,20 @@ function syncCfgBar() { const b = $('#cfg-bar'); if (b) b.hidden = !(cfgDirty &&
 $('#cfg-bar').addEventListener('click', e => { if (e.target.closest('[data-cfg=save]')) $('#cfg-form').requestSubmit(); if (e.target.closest('[data-cfg=undo]')) { cfgDirty = false; syncCfgBar(); renderAdmin(); toast('Cambios descartados'); } });
 
 /* ---------- panel del organizador: secciones ---------- */
-const ADM_GROUPS = [['resumen', '🏠', 'Resumen'], ['evento', '🎄', 'Evento'], ['personas', '👥', 'Personas'], ['actividades', '📅', 'Actividades'], ['mensajes', '💬', 'Mensajes'], ['fiesta', '🎉', 'Fiesta'], ['ajustes', '⚙️', 'Ajustes']];
+// Secciones del panel en el orden en que se prepara el angelito
+const ADM_GROUPS = [['resumen', '🏠', 'Resumen'], ['evento', '🎄', 'Evento'], ['personas', '👥', 'Personas'], ['asistencia', '✅', 'Asistencia'], ['aportes', '💵', 'Aportes'], ['sorteo', '🎡', 'Sorteo'], ['actividades', '📅', 'Actividades'], ['mensajes', '💬', 'Mensajes'], ['fiesta', '🎉', 'Fiesta'], ['ajustes', '⚙️', 'Ajustes']];
+// Qué se hace en cada sección (se muestra arriba, para que siempre se sepa el paso a paso)
+const ADM_INTRO = {
+  evento: ['🎄', 'Lo primero: la fecha, el lugar con su mapa, el presupuesto del regalo y las reglas. Todo el grupo lo ve en Inicio.'],
+  personas: ['👥', 'Quién está inscrito y quién te ayuda a organizar. Si alguien olvida su PIN, toca ⋯ junto a su nombre y dale uno temporal.'],
+  asistencia: ['✅', ['Cada quien confirma si va desde su Inicio.', 'Si alguien te avisa por otro lado, tócalo y cambia su respuesta.', 'Recuérdales a los que faltan con un toque.']],
+  aportes: ['💵', ['Pon el monto, para qué es y cómo pagar.', 'Cada quien toca «Ya lo di» en su Inicio.', 'Tú confirmas cuando te llega el dinero.', 'La app les recuerda a los que deben.']],
+  sorteo: ['🎡', ['Espera a que estén todos inscritos.', 'Pon las restricciones, por ejemplo esposos.', 'Genera el sorteo: a todos les llega el aviso para girar.', 'En la fiesta haz la gran revelación.']],
+  actividades: ['📅', 'Votaciones, trivias y dinámicas para la fiesta. Cada una avisa al grupo cuando empieza.'],
+  mensajes: ['💬', 'Avisos para todo el grupo, el chat y el buzón anónimo.'],
+  fiesta: ['🎉', 'Lo que se usa el día de la fiesta: el modo pantalla grande y las adivinanzas.'],
+  ajustes: ['⚙️', 'Qué secciones ve el grupo, pedir que todos vuelvan a entrar y preparar el próximo año.'],
+};
 function sortAdm() { // ordena las tarjetas por sección
   const panel = $('#adm-panel'), ord = g => ADM_GROUPS.findIndex(x => x[0] === g);
   [...panel.querySelectorAll(':scope > .admin-sec')].sort((a, b) => ord(a.dataset.grp) - ord(b.dataset.grp) || (+a.dataset.ord - +b.dataset.ord)).forEach(el => panel.appendChild(el));
@@ -2445,6 +2458,7 @@ function applyAdmGroups() {
   const avail = ADM_GROUPS.filter(([g]) => secs.some(el => el.dataset.grp === g && allowed(el)));
   if (!avail.some(([g]) => g === S.admGrp)) S.admGrp = 'resumen';
   $('#adm-nav').innerHTML = navHTML(avail, S.admGrp); decoratePanel($('#adm-panel'));
+  { let it = $('#adm-intro'); if (!it) { it = document.createElement('div'); it.id = 'adm-intro'; $('#adm-nav').after(it); } const x = ADM_INTRO[S.admGrp]; it.hidden = !x; if (x) it.innerHTML = `<span>${x[0]}</span>${Array.isArray(x[1]) ? `<ol>${x[1].map(l => `<li>${l}</li>`).join('')}</ol>` : `<p>${x[1]}</p>`}`; }
   secs.forEach(el => el.classList.toggle('gh', el.dataset.grp !== S.admGrp));
 }
 function admGo(g) {
@@ -2481,18 +2495,18 @@ function renderAdmDash() {
     [(c.rules || []).length > 0, '📜 Escribe las reglas', 'evento', can('evento') && mod('reglas')],
     [S.activities.length > 0, '📅 Crea las actividades', 'actividades', can('actividades')],
     [ps.length >= 3, '👥 Que se inscriban al menos 3 personas', 'personas', can('participantes')],
-    [drawn, S.drawMeta && !drawReady() ? '🎡 La lista cambió: limpia el sorteo y genera uno nuevo' : '🎡 Genera el sorteo', 'personas', S.isOwner],
-    [!c.contribAmount || (sm.going > 0 && sm.paid >= sm.going), '💵 Recibe los aportes', 'personas', can('aportes') && !!c.contribAmount && mod('asistencia')],
+    [drawn, S.drawMeta && !drawReady() ? '🎡 La lista cambió: limpia el sorteo y genera uno nuevo' : '🎡 Genera el sorteo', 'sorteo', S.isOwner],
+    [!c.contribAmount || (sm.going > 0 && sm.paid >= sm.going), '💵 Recibe los aportes', 'aportes', can('aportes') && !!c.contribAmount && mod('asistencia')],
   ].filter(x => x[3]);
   const done = steps.filter(x => x[0]).length;
   const nextStep = steps.find(x => !x[0]);
   const cta = nextStep ? `<button class="card nextc hot" data-ag="${nextStep[2]}" data-nextgo="${nextStep[1].includes('sorteo') ? 'd-gen' : ''}" style="width:100%;text-align:left;margin-bottom:14px"><div class="nx-e">👉</div><div class="grow"><span class="muted small">Siguiente paso</span><b style="display:block">${nextStep[1]}</b></div><span class="btn sm gold">Hacerlo ahora</span></button>` : `<div class="card nextc" style="margin-bottom:14px"><div class="nx-e">✅</div><div class="grow"><b>${S.isOwner ? '¡Todo listo!' : 'Tus tareas están al día'}</b><div class="muted small">${S.isOwner ? 'Solo falta disfrutar la fiesta.' : 'Lo demás le toca al organizador principal.'}</div></div></div>`;
   box.innerHTML = cta + `<div class="dgrid">
       ${tile('👥 Inscritos', ps.length, regOpen() ? 'Inscripciones abiertas' : '🔒 Inscripciones cerradas', 'personas')}
-      ${tile('✅ Van', sm.going, sm.pending ? `${sm.pending} sin responder` : 'Todos respondieron', 'personas')}
-      ${c.contribAmount && mod('asistencia') && can('aportes') ? tile('💵 Aportes', `${sm.paid}/${sm.going}`, sm.said ? `${sm.said} dicen que ya` : 'recibidos', 'personas') : tile('📅 Actividades', S.activities.length, 'programadas', 'actividades')}
+      ${tile('✅ Van', sm.going, sm.pending ? `${sm.pending} sin responder` : 'Todos respondieron', 'asistencia')}
+      ${c.contribAmount && mod('asistencia') && can('aportes') ? tile('💵 Aportes', `${sm.paid}/${sm.going}`, sm.said ? `${sm.said} dicen que ya` : 'recibidos', 'aportes') : tile('📅 Actividades', S.activities.length, 'programadas', 'actividades')}
       ${tile('🎁 Con lista', `${withW}/${ps.length}`, 'ya escribieron deseos', 'personas')}
-      ${tile('🎡 Sorteo', drawn ? '✅' : '⏳', drawn ? 'Listo' : S.drawMeta ? 'Hay que repetirlo' : 'Pendiente', 'personas')}
+      ${tile('🎡 Sorteo', drawn ? '✅' : '⏳', drawn ? 'Listo' : S.drawMeta ? 'Hay que repetirlo' : 'Pendiente', 'sorteo')}
       ${S.isOwner && drawn && mod('estado') ? (() => { const ids = S.drawMeta.ids.filter(id => P(id)), b = ids.filter(id => ['comprado', 'envuelto'].includes(S.giftStatus[id])).length; return `<button class="dt" id="gs-who"><div class="dk">🛍️ Regalos</div><div class="dv">${b}/${ids.length}</div><div class="ds">ya lo compraron</div></button>`; })() : ''}
       ${tile('💌 Anónimos', S.qCount || 0, 'preguntas', 'mensajes')}
     </div>
