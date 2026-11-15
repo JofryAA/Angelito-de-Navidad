@@ -2208,7 +2208,7 @@ function renderAdmDash() {
     [(c.rules || []).length > 0, '📜 Escribe las reglas', 'evento', can('evento') && mod('reglas')],
     [S.activities.length > 0, '📅 Crea las actividades', 'actividades', can('actividades')],
     [ps.length >= 3, '👥 Que se inscriban al menos 3 personas', 'personas', can('participantes')],
-    [drawn, S.drawMeta && !drawReady() ? '🎡 Vuelve a generar el sorteo (cambió la lista)' : '🎡 Genera el sorteo', 'personas', S.isOwner],
+    [drawn, S.drawMeta && !drawReady() ? '🎡 La lista cambió: limpia el sorteo y genera uno nuevo' : '🎡 Genera el sorteo', 'personas', S.isOwner],
     [!c.contribAmount || (sm.going > 0 && sm.paid >= sm.going), '💵 Recibe los aportes', 'personas', can('aportes') && !!c.contribAmount && mod('asistencia')],
   ].filter(x => x[3]);
   const done = steps.filter(x => x[0]).length;
@@ -2296,7 +2296,8 @@ function renderAdmin() {
   $('#d-status').innerHTML = !hasDraw ? `Hay ${S.participants.length} inscritos. Cuando estén todos, genera el sorteo (mínimo 3).`
     : drawReady() ? `✅ Sorteo listo · <b>${spun} de ${S.participants.length}</b> ya giraron. Las parejas no se muestran aquí.`
       : '⚠️ Los participantes cambiaron después del sorteo. Vuelve a generarlo.';
-  $('#d-gen').textContent = hasDraw ? 'Volver a sortear' : 'Generar sorteo';
+  $('#d-gen').textContent = hasDraw ? '🧹 Limpiar sorteo' : '🎡 Generar sorteo';
+  $('#d-gen').classList.toggle('danger', !!hasDraw);
   $('#q-count').textContent = `${nMsg(S.qCount)} en el buzón · ${isRevealed() ? 'abiertos ahora' : 'se abren el ' + (revealWhen() || 'día del evento')}`;
   $('#relog-last').textContent = S.event.reloginAt ? 'Último pedido: ' + new Date(ms(S.event.reloginAt)).toLocaleString('es-DO', { dateStyle: 'medium', timeStyle: 'short' }) : '';
   if (![$('#q-date'), $('#q-time')].includes(document.activeElement) && !syncCfgBar.qEdit) { $('#q-date').value = revealDay() || ''; $('#q-time').value = S.event.revealTime || '00:00'; }
@@ -2581,7 +2582,7 @@ function renderDrawRules() {
   const ck = rules.length ? drawCheck() : { ok: true, msgs: [] };
   if (ck.ok && !ck.msgs.length && rules.length) ck.msgs.push(['ok', '✅ Todo bien: el sorteo se puede hacer respetando estas restricciones.']);
   $('#x-list').insertAdjacentHTML('beforeend', ck.msgs.map(([k, m]) => `<div class="xck ${k}">${k === 'err' ? '⛔ ' : k === 'warn' ? '⚠️ ' : ''}${esc(m)}</div>`).join(''));
-  $('#d-gen').disabled = !ck.ok; $('#d-gen').title = ck.ok ? '' : 'Arregla las restricciones primero';
+  $('#d-gen').disabled = !S.drawMeta && !ck.ok; $('#d-gen').title = S.drawMeta || ck.ok ? '' : 'Arregla las restricciones primero';
 }
 const saveRules = pairs => setDoc(doc(adb, 'drawRules', 'main'), { pairs, at: serverTimestamp() });
 $('#x-form').addEventListener('submit', async e => {
@@ -2604,7 +2605,20 @@ $('#x-list').addEventListener('click', async e => {
   const pairs = (S.drawRules || []).filter(r => P(r.a) && P(r.b)); pairs.splice(+b.dataset.xdel, 1);
   try { await saveRules(pairs); toast('Restricción quitada'); } catch (err) { toast(authErr(err)); }
 });
+// 🧹 Limpiar sorteo: todo vuelve al inicio (sin sorteo, ruleta cerrada, inscripciones abiertas)
+async function clearDraw() {
+  if (!(await confirmBox('¿Limpiar el sorteo?', 'Se borra el sorteo y todos los giros: la ruleta volverá a decir «Se abre cuando el organizador haga el sorteo» y se reabren las inscripciones. También se borran el estado de los regalos, las pistas, las sospechas, los agradecimientos y los deseos apartados. Luego puedes generar uno nuevo.', 'Limpiar'))) return;
+  try {
+    const b0 = writeBatch(adb); b0.delete(doc(adb, 'config', 'draw')); await b0.commit(); // primero: la ruleta se cierra para todos al instante
+    const ops = [];
+    for (const c of ['assignments', 'giftStatus', 'giftIncoming', 'hints', 'hintsSent', 'angelGuess', 'reveal', 'thanks', 'wishPick']) (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
+    ops.push(['set', doc(adb, 'config', 'event'), { registrationOpen: true, angelLocked: false }, true]);
+    await commitOps(ops);
+    toast('🧹 Sorteo limpio. Ya puedes generar uno nuevo.');
+  } catch (err) { toast(authErr(err) + ' · Vuelve a intentarlo'); }
+}
 $('#d-gen').addEventListener('click', async () => {
+  if (S.drawMeta) return clearDraw();
   const ids = S.participants.map(p => p.id);
   if (ids.length < 3) return toast('Necesitas al menos 3 participantes');
   const msg = S.drawMeta ? 'Se borrarán todos los giros y cada quien tendrá que girar de nuevo. Las inscripciones se cerrarán.' : `Se sortearán ${ids.length} personas y se cerrarán las inscripciones.`;

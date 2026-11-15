@@ -781,3 +781,4 @@ body.anim-in .wsc{animation:popin .4s var(--d,0ms) backwards}
 .wsc-link{font-size:.82rem!important}
 .wsc-buy{padding:12px!important;font-size:.92rem!important}
 .wsc-add{min-height:120px!important;flex-direction:row!important;gap:14px!important}
+#d-gen.danger{background:linear-gradient(145deg,#d9466b,#8f2147)!important;color:#fff!important;border-color:transparent!important}
