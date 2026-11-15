@@ -255,9 +255,126 @@ const LAST = { k: -1 };
 export const tileHTML = (t, cls = '', attrs = '') => `<span class="dmn ${isDouble(t) ? 'dbl' : ''} ${cls}" ${attrs}>${half(+t[0])}<b></b>${half(+t[1])}</span>`;
 const BOT_NAMES = { bot1: '🤖 Robertico', bot2: '🤖 Chispita', bot3: '🤖 Turrón' };
 
+
+/* ================= 🔊 sonido: música de fondo, efectos y voz (todo generado en el teléfono, sin archivos) ================= */
+export const SND = (() => {
+  let ctx = null, master = null, musicBus = null, fxBus = null, seqT = 0, kind = null, step = 0, nextT = 0;
+  const pref = (() => { try { return { m: 1, f: 1, ...JSON.parse(localStorage.getItem('angelito:snd') || '{}') }; } catch { return { m: 1, f: 1 }; } })();
+  const save = () => { try { localStorage.setItem('angelito:snd', JSON.stringify(pref)); } catch { } };
+  function ac() {
+    if (ctx) { if (ctx.state === 'suspended') ctx.resume().catch(() => { }); return ctx; }
+    const C = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext); if (!C) return null;
+    ctx = new C(); master = ctx.createGain(); master.gain.value = .9; master.connect(ctx.destination);
+    musicBus = ctx.createGain(); musicBus.gain.value = .085; musicBus.connect(master);
+    fxBus = ctx.createGain(); fxBus.gain.value = .5; fxBus.connect(master);
+    return ctx;
+  }
+  if (typeof document !== 'undefined') ['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => { if (ctx) ac(); }, { passive: true }));
+  const hz = n => 440 * Math.pow(2, (n - 69) / 12);
+  function tone(bus, t, n, d, { type = 'sine', vol = .5, a = .005, slide = 0 } = {}) {
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.setValueAtTime(hz(n), t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(hz(n + slide), t + d);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + a); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    o.connect(g); g.connect(bus); o.start(t); o.stop(t + d + .02);
+  }
+  let noiseBuf = null;
+  function noise(bus, t, d, { vol = .3, f = 6000, q = 1, type = 'highpass' } = {}) {
+    if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate * .5, ctx.sampleRate); const c = noiseBuf.getChannelData(0); for (let i = 0; i < c.length; i++) c[i] = Math.random() * 2 - 1; }
+    const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + d); s.connect(fl); fl.connect(g); g.connect(bus); s.start(t); s.stop(t + d + .02);
+  }
+  // 🎶 Ritmos originales: dominó con sabor a merengue (tambora, güira, bajo y acordes de piano); los demás, campanitas navideñas.
+  const SONGS = {
+    domino: { bpm: 132, chords: [[57, 60, 64], [62, 65, 69], [64, 68, 71], [57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 56, 59], [57, 61, 64]],
+      beat(t, s, sp, ch) { const k = s % 8; // 8 corcheas por compás
+        noise(musicBus, t, .05, { vol: k % 2 ? .12 : .22, f: 7000 }); // güira
+        if (k === 0 || k === 4) tone(musicBus, t, 38 + (ch[0] % 12), .22, { vol: .9, slide: -7 }); // tambora
+        if (k === 7) noise(musicBus, t, .08, { vol: .25, f: 900, type: 'bandpass', q: 3 }); // golpe al aro
+        if (k === 0 || k === 3 || k === 4 || k === 6) tone(musicBus, t, ch[k === 3 || k === 6 ? 2 : 0] - 24, sp * 1.6, { type: 'triangle', vol: .7 }); // bajo
+        if (k === 1 || k === 3 || k === 5 || k === 7) ch.forEach(n => tone(musicBus, t, n + 12, sp * .8, { type: 'triangle', vol: .16 })); // piano a contratiempo
+      } },
+    fiesta: { bpm: 112, chords: [[60, 64, 67], [57, 60, 64], [53, 57, 60], [55, 59, 62]],
+      beat(t, s, sp, ch) { const k = s % 8;
+        if (k % 2 === 0) noise(musicBus, t, .04, { vol: .1, f: 8000 });
+        tone(musicBus, t, ch[[0, 1, 2, 1, 0, 2, 1, 2][k]] + 24, sp * 2.2, { vol: .22 }); // campanitas
+        if (k === 0) tone(musicBus, t, ch[0] - 12, sp * 3.5, { type: 'triangle', vol: .5 });
+        if (k === 4) tone(musicBus, t, ch[2] - 12, sp * 3, { type: 'triangle', vol: .4 });
+      } },
+  };
+  function tick() {
+    if (!ctx || !kind) return; const song = SONGS[kind], sp = 60 / song.bpm / 2;
+    while (nextT < ctx.currentTime + .15) { const ch = song.chords[Math.floor(step / 8) % song.chords.length]; try { song.beat(nextT, step, sp, ch); } catch { } nextT += sp; step++; }
+  }
+  function music(k) {
+    k = k && pref.m ? (SONGS[k] ? k : 'fiesta') : null;
+    if (k === kind) return; kind = k; clearInterval(seqT);
+    if (!k) return; if (!ac()) return;
+    step = 0; nextT = ctx.currentTime + .08; seqT = setInterval(tick, 40); tick();
+  }
+  const FX = {
+    clack: t => { noise(fxBus, t, .05, { vol: .9, f: 2500, type: 'bandpass', q: 2 }); tone(fxBus, t, 88, .04, { type: 'square', vol: .12 }); },
+    pop: t => tone(fxBus, t, 72, .12, { vol: .5, slide: 7 }),
+    drop: t => { tone(fxBus, t, 79, .18, { vol: .4, slide: -12 }); noise(fxBus, t + .16, .06, { vol: .4, f: 1200, type: 'bandpass' }); },
+    good: t => { tone(fxBus, t, 76, .1, { vol: .4 }); tone(fxBus, t + .08, 83, .16, { vol: .4 }); },
+    bad: t => { tone(fxBus, t, 50, .25, { type: 'sawtooth', vol: .15, slide: -3 }); },
+    pass: t => noise(fxBus, t, .3, { vol: .35, f: 1500, type: 'bandpass', q: .7 }),
+    turn: t => { tone(fxBus, t, 84, .09, { vol: .25 }); tone(fxBus, t + .1, 88, .12, { vol: .25 }); },
+    win: t => { [72, 76, 79, 84, 88].forEach((n, i) => tone(fxBus, t + i * .09, n, .35, { type: 'triangle', vol: .45 })); [96, 100, 103].forEach((n, i) => tone(fxBus, t + .5 + i * .05, n, .3, { vol: .15 })); },
+    lose: t => { [67, 64, 60, 55].forEach((n, i) => tone(fxBus, t + i * .16, n, .3, { type: 'triangle', vol: .35 })); },
+    lock: t => { tone(fxBus, t, 40, .5, { vol: .9, slide: -5 }); noise(fxBus, t, .2, { vol: .5, f: 400, type: 'lowpass' }); },
+  };
+  function fx(name) { if (!pref.f || !FX[name] || !ac()) return; try { FX[name](ctx.currentTime + .01); } catch { } }
+  let voice = null;
+  function pickVoice() {
+    const vs = (typeof speechSynthesis !== 'undefined' && speechSynthesis.getVoices()) || [];
+    return vs.find(v => /es[-_](DO|US|MX|419)/i.test(v.lang)) || vs.find(v => /^es/i.test(v.lang)) || null;
+  }
+  if (typeof speechSynthesis !== 'undefined') try { speechSynthesis.onvoiceschanged = () => { voice = pickVoice(); }; } catch { }
+  function say(text) {
+    if (!pref.f || typeof speechSynthesis === 'undefined' || !text) return;
+    try {
+      voice ||= pickVoice(); const u = new SpeechSynthesisUtterance(text); u.lang = voice?.lang || 'es-US'; if (voice) u.voice = voice; u.rate = 1.05; u.pitch = 1.05; u.volume = 1;
+      if (musicBus && ctx) { musicBus.gain.setTargetAtTime(.03, ctx.currentTime, .05); u.onend = () => musicBus.gain.setTargetAtTime(.085, ctx.currentTime, .2); }
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    } catch { }
+  }
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) { const k = kind; music(null); SND._resume = k; } else if (SND._resume) { const k = SND._resume; SND._resume = null; music(k); } });
+  const SND = { music, fx, say, pref, set(k, v) { pref[k] = v ? 1 : 0; save(); if (k === 'm' && !v) music(null); }, get playing() { return kind; } };
+  return SND;
+})();
+
 export function initGames(X) {
   const { db, fs, S, esc, toast, $, openModal, closeModal, confirmBox, render, confetti } = X;
-  const { doc, collection, onSnapshot, query, orderBy, limit, setDoc, getDoc, writeBatch, runTransaction, where } = fs;
+  const { collection, query, orderBy, limit, getDoc, where } = fs, fsDoc = fs.doc, fsSnap = fs.onSnapshot, fsSet = fs.setDoc, fsBatch = fs.writeBatch, fsTx = fs.runTransaction;
+  /* ----- 📴 partidas en este teléfono (contra 🤖 o sin internet): ids que empiezan con L, se guardan aunque cierres la app ----- */
+  const isLoc = id => typeof id === 'string' && id[0] === 'L';
+  let LSk = null, LS = {};
+  const ls = () => { const k = 'angelito:lg:' + (S.uid || 'x'); if (LSk !== k) { LSk = k; try { LS = JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch { LS = {}; } } return LS; };
+  const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
+  const lsnap = path => { const v = ls()[path]; return { id: path.split('/').pop(), exists: () => v != null, data: () => clone(v), metadata: {} }; };
+  const lsubs = new Map(), lListSubs = new Set();
+  function lput(path, v) {
+    const o = ls(); if (v == null) delete o[path]; else o[path] = clone(v);
+    try { localStorage.setItem(LSk, JSON.stringify(o)); } catch { }
+    setTimeout(() => { (lsubs.get(path) || []).forEach(f => f(lsnap(path))); lListSubs.forEach(f => f()); }, 0);
+  }
+  const lmerge = (path, v) => lput(path, { ...(ls()[path] || {}), ...v });
+  const doc = (d, ...p) => (p[0] === 'games' && isLoc(p[1])) ? { __l: 1, path: p.join('/'), id: p[p.length - 1] } : fsDoc(d, ...p);
+  const onSnapshot = (ref, ...a) => {
+    if (!ref?.__l) return fsSnap(ref, ...a);
+    const cb = a.find(x => typeof x === 'function'), set = lsubs.get(ref.path) || new Set(); lsubs.set(ref.path, set); set.add(cb);
+    setTimeout(() => { if (set.has(cb)) cb(lsnap(ref.path)); }, 0); return () => set.delete(cb);
+  };
+  const setDoc = (ref, d, o) => ref?.__l ? (o?.merge ? lmerge(ref.path, d) : lput(ref.path, d), Promise.resolve()) : fsSet(ref, d, o);
+  function writeBatch(d) {
+    let rb = null; const L = [], R = () => rb ||= fsBatch(d);
+    const b = { set: (r, v, o) => { if (r.__l) L.push(() => o?.merge ? lmerge(r.path, v) : lput(r.path, v)); else R().set(r, v, o); return b; },
+      update: (r, v) => { if (r.__l) L.push(() => lmerge(r.path, v)); else R().update(r, v); return b; },
+      delete: r => { if (r.__l) L.push(() => lput(r.path, null)); else R().delete(r); return b; },
+      commit: async () => { L.forEach(f => f()); if (rb) await rb.commit(); } };
+    return b;
+  }
+  const localGames = () => Object.entries(ls()).filter(([k]) => /^games\/L[^/]*$/.test(k)).map(([k, v]) => ({ id: k.slice(6), ...sane(v) }));
   const deleteDoc = ref => { const b = writeBatch(db); b.delete(ref); return b.commit(); };
   const G = { list: [], wins: [], cur: null, hand: [], botHands: {}, sub: null, subHand: null, subBots: {}, subList: null, subWins: null, botT: null, credited: new Set(), busy: false, seenTurn: '', srv: null, srvHand: [], srvBots: {}, pend: 0 };
   const seatName = s => BOT_NAMES[s] || (isBot(s) ? '🤖' : (X.P(s) ? X.shortName(X.P(s)) : 'Alguien'));
@@ -281,17 +398,17 @@ export function initGames(X) {
 
   function ensure() {
     if (!S.me) return;
-    if (!G.subList) G.subList = onSnapshot(query(collection(db, 'games'), orderBy('updatedAt', 'desc'), limit(40)), s => { G.list = s.docs.map(d => ({ id: d.id, ...sane(d.data()) })); creditWins(); cleanupStale(); render(); }, e => { console.warn('games', e); G.subList = null; });
+    if (!G.subList) { const mix = () => { G.list = [...localGames(), ...(G.remote || [])].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)); }; if (!G.lHook) { G.lHook = () => { mix(); render(); }; lListSubs.add(G.lHook); } mix(); G.subList = onSnapshot(query(collection(db, 'games'), orderBy('updatedAt', 'desc'), limit(40)), s => { G.remote = s.docs.map(d => ({ id: d.id, ...sane(d.data()) })); mix(); creditWins(); cleanupStale(); render(); }, e => { console.warn('games', e); G.subList = null; }); }
     if (!G.subWins) G.subWins = onSnapshot(query(collection(db, 'gameWins'), limit(1000)), s => { G.wins = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, e => { console.warn('gameWins', e); G.subWins = null; });
   }
   function stop() {
-    closeGame(); [G.subList, G.subWins].forEach(u => u && u());
+    SND.music(null); closeGame(); [G.subList, G.subWins].forEach(u => u && u());
     Object.assign(G, { subList: null, subWins: null, list: [], wins: [], seenTurn: '' }); G.credited.clear();
   }
   // Mesas sin movimiento: se cierran solas para no dejar partidas "colgadas" gastando recursos.
   // En espera o jugando: 45 min sin jugadas. Terminadas: 2 horas (da tiempo a que los ganadores sumen sus puntos).
-  const STALE_LIVE = 45 * 60e3, STALE_DONE = 2 * 3600e3;
-  const isStale = g => Date.now() - (g.updatedAt || 0) > (g.status === 'done' ? STALE_DONE : STALE_LIVE);
+  const STALE_LOBBY = 60 * 60e3, STALE_LIVE = 12 * 3600e3, STALE_DONE = 2 * 3600e3; // una partida a medias se guarda 12 horas: puedes salir y volver
+  const isStale = g => Date.now() - (g.updatedAt || 0) > (g.status === 'done' ? STALE_DONE : g.status === 'lobby' ? STALE_LOBBY : STALE_LIVE);
   let cleaning = false;
   async function cleanupStale() {
     if (cleaning) return; const old = G.list.filter(isStale).slice(0, 5); if (!old.length) return;
@@ -303,7 +420,7 @@ export function initGames(X) {
   // Cada ganador anota su propia victoria (las reglas verifican que la mesa terminó y que está en winners).
   function creditWins() {
     for (const g of G.list) {
-      if (g.status !== 'done' || !(g.winners || []).includes(me())) continue;
+      if (g.status !== 'done' || isLoc(g.id) || !(g.winners || []).includes(me())) continue;
       const id = g.round ? `${g.id}_${g.round}_${me()}` : `${g.id}_${me()}`; if (G.credited.has(id) || G.wins.some(w => w.id === id)) continue; // cada revancha cuenta aparte
       G.credited.add(id);
       setDoc(doc(db, 'gameWins', id), { uid: me(), gid: g.id, type: g.type, at: Date.now() }).catch(e => { console.warn('credit', e); if (e?.code !== 'permission-denied') G.credited.delete(id); });
@@ -326,12 +443,60 @@ export function initGames(X) {
     [G.sub, G.subHand, ...Object.values(G.subBots)].forEach(u => u && u()); clearTimeout(G.botT); clearTimeout(G.clockT); clearTimeout(G.dogT); clearTimeout(G.nextT);
     Object.assign(G, { sub: null, subHand: null, subBots: {}, cur: null, hand: [], botHands: {}, turnKey: '', srv: null, srvHand: [], srvBots: {}, pend: 0, okSeq: 0 });
   }
+  // 🔊 Lo que suena en cada jugada (una sola vez por jugada)
+  const spoken = s => s === me() ? 'Tú' : String(seatName(s)).replace(/[^\p{L}\p{N} ]/gu, '').trim() || 'El robot';
+  function sounds(prev, g) {
+    if (!g || !prev || prev.loading || prev.gone || prev.id !== g.id || g.loading) return;
+    const k = `${g.id}:${g.round || 0}:${g.seq}`; if (G.sndKey === k) return; G.sndKey = k;
+    const L = g.last;
+    if (g.type === 'domino') {
+      if (g.handOver && !prev.handOver && g.result) {
+        const w = g.result.why || '', won = g.result.team >= 0 && g.result.team === teamOfSeat(g, me());
+        if (g.status === 'done') { SND.fx(won ? 'win' : 'lose'); SND.say(won ? '¡Ganaste la partida!' : 'Se acabó la partida. ¡Otra!'); return; }
+        if (/tranque/.test(w)) { SND.fx('lock'); SND.say(won ? '¡Juego trancado! Ganaste' : '¡Juego trancado!'); }
+        else if (w === 'capicua') { SND.fx('win'); SND.say('¡Capicúa!'); }
+        else { SND.fx(won ? 'win' : 'lose'); SND.say(won ? '¡Dominó! Ganaste la mano' : '¡Dominó!'); }
+        return;
+      }
+      if ((g.chain || []).length > (prev.chain || []).length) SND.fx('clack');
+      else if (L?.pass && (g.passes || 0) > (prev.passes || 0)) { SND.fx('pass'); SND.say(L.seat === me() ? 'Paso' : spoken(L.seat) + ' pasa'); }
+      if (L?.bonus && !prev.last?.bonus) SND.say(L.bonus.why === 'corrido' ? '¡Pase corrido!' : '¡Pase de salida!');
+    } else if (g.type === 'ttt' || g.type === 'c4') { if (g.board !== prev.board) SND.fx(g.type === 'c4' ? 'drop' : 'pop'); }
+    else if (g.type === 'ahorcado') { if ((g.errors || 0) > (prev.errors || 0)) SND.fx('bad'); else if ((g.guessed || '').length > (prev.guessed || '').length) SND.fx('good'); }
+    if (g.type !== 'domino' && g.status === 'done' && prev.status !== 'done') {
+      const won = (g.winners || []).includes(me()), draw = g.result?.why === 'empate';
+      SND.fx(won ? 'win' : draw ? 'pass' : 'lose');
+      SND.say(won ? '¡Ganaste!' : draw ? 'Empate' : g.type === 'ahorcado' ? (g.result?.why === 'ahorcado' ? '¡Ahorcados!' : 'Palabra resuelta') : 'Perdiste. ¡La revancha!');
+      return;
+    }
+    if (live(g) && g.players[g.turn] === me() && !(live(prev) && prev.players[prev.turn] === me())) SND.fx('turn');
+  }
+  // 🙅 Dominó: si no llevas ficha, pasas solo (te avisa y lo dice en voz alta)
+  function autoPass() {
+    const g = G.cur; clearTimeout(G.passT);
+    if (!live(g) || g.type !== 'domino' || g.players[g.turn] !== me() || !G.hand.length) return;
+    if ((g.counts?.[g.turn] ?? G.hand.length) !== G.hand.length) return; // tu mano todavía no llegó
+    if (playable(G.hand, g.chain || [], g.mustOpen).length) return;
+    const key = `${g.id}:${g.hand}:${g.turn}:${g.seq}`;
+    G.passT = setTimeout(() => {
+      const c = G.cur; if (!live(c) || c.players[c.turn] !== me() || `${c.id}:${c.hand}:${c.turn}:${c.seq}` !== key) return;
+      if (playable(G.hand, c.chain || [], c.mustOpen).length) return;
+      toast('🙅 No llevas ficha: pasas'); playDomino(me(), null);
+    }, 1500);
+  }
+  // Alguien no está (se le fue el internet o salió): en X y O y 4 en línea juega un 🤖 por esa persona; en los demás se salta su turno
+  function absentMove(seat) {
+    const g = G.cur; if (!live(g) || g.players[g.turn] !== seat) return;
+    if (g.type === 'ttt') return playTTT(seat, tttBot(g.board, g.turn === 0 ? 'X' : 'O'));
+    if (g.type === 'c4') return playC4(seat, c4Bot(g.board, g.turn === 0 ? 'R' : 'Y'));
+    return skipTurn(seat);
+  }
   function onGameChange(prev) {
-    const g = G.cur; armClock();
+    const g = G.cur; armClock(); sounds(prev, g); autoPass();
     fx(prev); hostDuties();
     if (!g || g.type !== 'domino') { maybeBot(); return; }
     const mine = g.players?.includes(me());
-    if (mine && !G.subHand) G.subHand = onSnapshot(doc(db, 'games', g.id, 'hands', me()), s => { G.srvHand = s.exists() ? tilesOk(s.data().tiles) : []; if (!G.pend) G.hand = G.srvHand; render(); }, () => { });
+    if (mine && !G.subHand) G.subHand = onSnapshot(doc(db, 'games', g.id, 'hands', me()), s => { G.srvHand = s.exists() ? tilesOk(s.data().tiles) : []; if (!G.pend) G.hand = G.srvHand; render(); autoPass(); }, () => { });
     if (g.host === me()) g.players.filter(isBot).forEach(b => { if (G.subBots[b]) return; G.subBots[b] = onSnapshot(doc(db, 'games', g.id, 'hands', b), s => { G.srvBots[b] = s.exists() ? tilesOk(s.data().tiles) : []; if (!G.pend) G.botHands[b] = G.srvBots[b]; maybeBot(); }, () => { }); });
     const key = `${g.id}:${g.hand}:${g.turn}:${g.handOver}`;
     if (g.status === 'playing' && !g.handOver && g.players[g.turn] === me() && G.seenTurn !== key) { G.seenTurn = key; if (navigator.vibrate) try { navigator.vibrate(60); } catch { } if (document.hidden) X.notify?.('🎲 ¡Te toca jugar!', g.title || 'Dominó', '#juegos'); }
@@ -367,7 +532,7 @@ export function initGames(X) {
     G.turnKey = key; G.turnStart = Date.now(); clearTimeout(G.clockT); clearTimeout(G.dogT);
     const seat = g.players[g.turn];
     if (seat === me()) G.clockT = setTimeout(() => { if (G.turnKey === key) autoMove(); }, turnMs());
-    else if (!isBot(seat) && (g.host === me() || g.players.includes(me()))) G.clockT = setTimeout(() => { if (G.turnKey === key) skipTurn(seat); }, turnMs() + (g.host === me() ? 6000 : 15000)); // si la persona no está, se salta su turno (primero quien creó la mesa; si es él quien falta, cualquiera)
+    else if (!isBot(seat) && (g.host === me() || g.players.includes(me()))) G.clockT = setTimeout(() => { if (G.turnKey === key) absentMove(seat); }, turnMs() + (g.host === me() ? 6000 : 15000)); // si la persona no está, se salta su turno (primero quien creó la mesa; si es él quien falta, cualquiera)
     if (g.host === me() && isBot(seat)) { const dog = () => { if (G.turnKey !== key) return; maybeBot(true); G.dogT = setTimeout(dog, 5000); }; G.dogT = setTimeout(dog, 5000); } // por si el 🤖 se quedó sin jugar
   }
   const clockBar = (T = turnMs()) => `<i class="tbar" style="animation-duration:${T / 1000}s;animation-delay:-${Math.min(T - 1, Math.max(0, Date.now() - (G.turnStart || Date.now()))) / 1000}s"></i>`;
@@ -387,14 +552,14 @@ export function initGames(X) {
   /* ----- crear / unirse ----- */
   async function create(type, mode) {
     if (G.creating) return; G.creating = true; setTimeout(() => { G.creating = false; }, 1500);
-    const id = doc(collection(db, 'games')).id, now = Date.now();
+    const loc = mode === 'bot' || navigator.onLine === false, id = loc ? 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) : fsDoc(collection(db, 'games')).id, now = Date.now();
     const base = { type, host: me(), players: [me()], status: 'lobby', createdAt: now, updatedAt: now, seq: 0, title: '' };
     if (type === 'domino') Object.assign(base, { mode, max: mode === 'parejas' ? 4 : 4, target: mode === 'parejas' ? 200 : 100, scores: mode === 'parejas' ? [0, 0] : [], title: mode === 'parejas' ? 'Dominó en parejas' : 'Dominó, cada quien solo' });
     if (type === 'ttt') Object.assign(base, { max: 2, board: '.........', title: 'X y O' });
     if (type === 'c4') Object.assign(base, { max: 2, board: C4EMPTY, title: '4 en línea' });
     if (type === 'ahorcado') Object.assign(base, { max: 6, cat: mode || 'mix', title: 'Ahorcado · ' + (WORD_CATS[mode]?.name || 'De todo') });
     if (mode === 'bot') base.title += ' contra 🤖'; // las reglas exigen crear la mesa solo con uno mismo; start() sienta al 🤖
-    try { await setDoc(doc(db, 'games', id), base); location.hash = 'juego-' + id; if (mode === 'bot') setTimeout(() => { if (G.cur?.id === id) start(); }, 900); } catch (e) { toast(X.authErr(e)); }
+    try { await setDoc(doc(db, 'games', id), base); location.hash = 'juego-' + id; if (loc) { if (navigator.onLine === false) toast('📴 Sin internet: juegas contra 🤖 en este teléfono'); setTimeout(() => { if (G.cur?.id === id) start(); }, 400); } } catch (e) { toast(X.authErr(e)); }
   }
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const QUIET = ['No es tu turno', 'La mano no está en juego']; // llegan tarde por un doble toque o un turno que ya pasó: no molestan
@@ -402,7 +567,10 @@ export function initGames(X) {
     const gid = G.cur?.id; if (!gid) return false;
     for (let w = 0; G.busy && w < 100; w++) await sleep(50); // espera a que termine la jugada anterior en vez de perder esta
     if (G.busy || G.cur?.id !== gid) return false; G.busy = true;
-    try { await runTransaction(db, async t => { const s = await t.get(doc(db, 'games', gid)); if (!s.exists()) throw new Error('La mesa ya no existe'); return fn(t, { id: s.id, ...sane(s.data()) }); }); return true; }
+    try {
+      if (isLoc(gid)) { const s = lsnap('games/' + gid); if (!s.exists()) throw new Error('La mesa ya no existe'); const ops = [], t = { get: async r => lsnap(r.path), update: (r, v) => ops.push(() => lmerge(r.path, v)), set: (r, v) => ops.push(() => lput(r.path, v)) }; await fn(t, { id: gid, ...sane(s.data()) }); ops.forEach(f => f()); return true; }
+      if (navigator.onLine === false) { if (Date.now() - (G.offT || 0) > 8000) { G.offT = Date.now(); toast('📡 Sin internet: esta partida es en línea. Al volver la conexión sigues jugando.'); } return false; }
+      await fsTx(db, async t => { const s = await t.get(doc(db, 'games', gid)); if (!s.exists()) throw new Error('La mesa ya no existe'); return fn(t, { id: s.id, ...sane(s.data()) }); }); return true; }
     catch (e) { const m = e?.code === 'permission-denied' ? 'No se pudo. Revisa que la hora de tu teléfono esté en automático.' : e?.code ? X.authErr(e) : (e.message || 'No se pudo'); if (!QUIET.includes(m)) toast(m); console.warn('juego', e); return false; }
     finally { G.busy = false; }
   }
@@ -416,7 +584,7 @@ export function initGames(X) {
       const r = calc(g0); if (!r) return Promise.resolve();
       opt = (g0.seq || 0) + 1; G.cur = { ...g0, ...r.patch, idle: 0, seq: opt };
       if (r.hand) { if (isBot(r.seat)) G.botHands = { ...G.botHands, [r.seat]: r.hand }; else if (r.seat === me()) G.hand = r.hand; }
-      fx(g0); armClock(); render(); maybeBot();
+      fx(g0); sounds(g0, G.cur); armClock(); render(); maybeBot(); autoPass();
     } catch (e) { if (!QUIET.includes(e.message)) toast(e.message || 'No se pudo'); return Promise.resolve(); }
     G.pend = (G.pend || 0) + 1;
     return tx((t, g) => { const r = calc(g, true); if (!r) return; real = (g.seq || 0) + 1; upd(t, g, { idle: 0, ...r.patch }); /* una jugada real reinicia el contador de turnos saltados */ if (r.hand) t.update(doc(db, 'games', g.id, 'hands', r.seat), { tiles: r.hand }); })
@@ -515,6 +683,7 @@ export function initGames(X) {
       let players = g.players.slice();
       if (g.mode === 'parejas') { while (players.length < 4) players.push(['bot1', 'bot2', 'bot3'].find(x => !players.includes(x))); }
       if (players.length < 2) { players.push('bot1'); }
+      if (isLoc(g.id)) while (players.length < (g.max || 4)) players.push(['bot1', 'bot2', 'bot3'].find(x => !players.includes(x)));
       const ng = { ...g, players, nextStarter: -1, hand: 0 };
       const { hands, patch } = dealHand(ng);
       const b = writeBatch(db);
@@ -748,7 +917,7 @@ export function initGames(X) {
       ${g.handOver ? `<div class="card center hover"><div style="font-size:36px">${R?.team < 0 ? '🤝' : '🎉'}</div><b>${winnerTxt}</b>
           ${g.status === 'done' ? `<p style="margin-top:8px">🏆 ${(g.winners || []).length ? 'Ganan ' + g.winners.map(s => esc(seatName(s))).join(' y ') : 'Ganaron los 🤖'}</p>` : ''}
           ${againHTML(g, g.status === 'done' ? '🔁 Otra partida' : '')}${g.status !== 'done' ? `<div class="qa" style="justify-content:center">${mySeat >= 0 ? `<button class="btn gold" data-gact="next" ${g.want && g.host !== me() ? 'disabled' : ''}>Siguiente mano ▶️</button>` : ''}</div><p class="muted small" style="margin-top:6px">Sale ${esc(seatName(g.players[R?.seat ?? 0]))} · sigue sola en unos segundos</p>` : ''}</div>` : ''}
-      ${mySeat >= 0 && g.status === 'playing' ? `<div class="myhand ${myTurn ? 'turn' : ''}"><div class="mh-h"><b>${myTurn ? '<span class="mh-go">👉</span> ¡Te toca!' : `<span class="mh-av">${esc(seatEmoji(g.players[g.turn]))}</span> Turno de ${esc(seatName(g.players[g.turn]).replace('🤖 ', ''))}`}</b>${myTurn && !can.length && !g.handOver ? '<button class="btn sm gold" data-gact="pass">Paso 🙅</button>' : ''}</div>${myTurn && !g.handOver ? `<div class="tline">${clockBar()}</div>` : ''}
+      ${mySeat >= 0 && g.status === 'playing' ? `<div class="myhand ${myTurn ? 'turn' : ''}"><div class="mh-h"><b>${myTurn ? '<span class="mh-go">👉</span> ¡Te toca!' : `<span class="mh-av">${esc(seatEmoji(g.players[g.turn]))}</span> Turno de ${esc(seatName(g.players[g.turn]).replace('🤖 ', ''))}`}</b>${myTurn && !can.length && !g.handOver && G.hand.length ? '<span class="autopass">🙅 No llevas · pasando…</span>' : ''}</div>${myTurn && !g.handOver ? `<div class="tline">${clockBar()}</div>` : ''}
         <div class="hand">${G.hand.map(t => tileHTML(t, `big ${myTurn && can.includes(t) ? 'ok' : 'no'}`, `data-tile="${esc(t)}"`)).join('')}</div></div>` : ''}`;
   }
   // Al terminar: cualquiera de la mesa pide otra partida (sale quien ganó); quien la creó puede además cambiar jugadores.
@@ -788,7 +957,7 @@ export function initGames(X) {
   function renderGame(g) {
     if (g.loading) return '<div class="card empty"><span class="spin-dots"></span></div>';
     if (g.gone) return '<div class="card empty"><span class="e">🫥</span>Esta mesa ya no existe.<div class="qa" style="justify-content:center"><a class="btn" href="#juegos">Volver</a></div></div>';
-    const head = `<div class="ghead"><a class="backbtn" href="#juegos"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Juegos</a><b>${GINFO[g.type]?.e || ''} ${esc(g.title || GINFO[g.type]?.name)}</b>${g.host === me() || X.can('moderar') ? '<button class="iconbtn gdel" data-gact="del" aria-label="Cerrar mesa"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg></button>' : '<span style="width:42px"></span>'}</div>`;
+    const head = `<div class="ghead"><a class="backbtn" href="#juegos"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Juegos</a><b>${GINFO[g.type]?.e || ''} ${esc(g.title || GINFO[g.type]?.name)}</b><button class="iconbtn gsnd ${SND.pref.m || SND.pref.f ? '' : 'off'}" data-gact="snd" aria-label="Sonido">${SND.pref.m || SND.pref.f ? '🔊' : '🔇'}</button>${g.host === me() || X.can('moderar') ? '<button class="iconbtn gdel" data-gact="del" aria-label="Cerrar mesa"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg></button>' : '<span style="width:42px"></span>'}</div>`;
     if (g.status === 'lobby') return head + lobbyHTML(g);
     if (g.status !== 'lobby' && !g.players.includes(me()) && g.max <= 2) return head + `<div class="card empty"><span class="e">🔒</span>Esta partida es solo de ${g.players.map(s => esc(seatName(s))).join(' y ')}<div class="qa" style="justify-content:center"><a class="btn" href="#juegos">Volver</a></div></div>`;
     return head + (g.type === 'domino' ? dominoHTML(g) : g.type === 'ttt' ? tttHTML(g) : g.type === 'c4' ? c4HTML(g) : hangHTML(g));
@@ -803,6 +972,7 @@ export function initGames(X) {
     if (m) open(m[1]); else if (G.cur) closeGame();
     $('#v-juegos')?.classList.toggle('ingame', !!G.cur);
     root.innerHTML = G.cur ? renderGame(G.cur) : renderLobbyList();
+    SND.music(G.cur && G.cur.status === 'playing' && G.cur.players?.includes(me()) ? (G.cur.type === 'domino' ? 'domino' : 'fiesta') : null);
   }
 
   function pickMode(type) {
@@ -842,6 +1012,14 @@ export function initGames(X) {
     if (a === 'lobby') return rematch();
     if (a === 'del') return del();
     if (a === 'pass') return playDomino(me(), null);
+    if (a === 'snd') {
+      const s2 = openModal(`<h3>🔊 Sonido del juego</h3><div class="stack" style="margin-top:12px">
+        <div class="switch"><div><b>🎶 Música de fondo</b><div class="muted small">Ritmo de merengue en el dominó; campanitas en los demás.</div></div><button class="tg ${SND.pref.m ? 'on' : ''}" data-snd="m" aria-label="Música"></button></div>
+        <div class="switch"><div><b>🗣️ Efectos y voz</b><div class="muted small">«Paso», «¡Capicúa!», «¡Juego trancado!», «¡Ganaste!»…</div></div><button class="tg ${SND.pref.f ? 'on' : ''}" data-snd="f" aria-label="Efectos"></button></div></div>
+        <div class="actions"><button class="btn gold" data-a="x">Listo</button></div>`);
+      s2.onclick = ev => { const t = ev.target.closest('[data-snd]'); if (t) { const k = t.dataset.snd, v = !SND.pref[k]; SND.set(k, v); t.classList.toggle('on', v); if (k === 'f' && v) SND.say('Sonido activado'); renderView(); return; } if (ev.target.closest('[data-a]')) closeModal(); };
+      return;
+    }
     if (a === 'share') {
       const url = location.href.split('#')[0] + '#juego-' + G.cur.id, txt = `🎮 ¡Únete a la mesa de ${G.cur.title} en el angelito! ${url}`;
       if (navigator.share) { navigator.share({ text: txt }).catch(() => { }); return; }
@@ -876,5 +1054,5 @@ export function initGames(X) {
     }
   });
 
-  return { render: renderView, stop, leaveView: () => { const g = G.cur; if (g && !(g.status === 'playing' && Array.isArray(g.players) && g.players.includes(me()))) closeGame(); }, isOpen: () => !!G.cur, active: () => G.list.filter(g => g.status === 'playing' && g.players?.includes(me()) && g.players[g.turn] === me() && !g.handOver).length };
+  return { render: renderView, stop, leaveView: () => { SND.music(null); const g = G.cur; if (g && !(g.status === 'playing' && Array.isArray(g.players) && g.players.includes(me()))) closeGame(); }, isOpen: () => !!G.cur, active: () => G.list.filter(g => g.status === 'playing' && g.players?.includes(me()) && g.players[g.turn] === me() && !g.handOver).length };
 }
