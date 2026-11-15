@@ -1663,59 +1663,76 @@ function attSummary() {
   return { going: ids.filter(id => a(id).status === 'si').length, notGoing: ids.filter(id => a(id).status === 'no').length,
     pending: ids.filter(id => !a(id).status).length, paid: ids.filter(id => a(id).confirmed).length, said: ids.filter(id => a(id).paid && !a(id).confirmed).length };
 }
-// 📊 Informe de asistencia y aportes (organizador)
-S.attTab = S.attTab || 'si';
+// 📊 Informes del organizador: asistencia y aportes van por separado (alguien puede ir y todavía no haber pagado)
+S.attTab = S.attTab || 'si'; S.payTab = S.payTab || 'debe';
+const attOf = id => S.att[id] || {};
+// Pestañas parejas con número grande (reutilizable): [clave, emoji, texto, número, color]
+const segTabs = (tabs, cur, attr) => `<div class="aseg" style="--n:${tabs.length}" data-noswipe>${tabs.map(([k, e, l, c, cls]) => `<button type="button" class="${cls || ''} ${cur === k ? 'on' : ''}" data-${attr}="${k}"><b>${c}</b><span>${e} ${l}</span></button>`).join('')}</div>`;
+// Si la pestaña elegida quedó vacía (y no la eligió la persona), abre una que tenga gente
+const pickTab = (tabs, cur, picked) => (tabs.some(t => t[0] === cur) && (picked || tabs.find(t => t[0] === cur)[3])) ? cur : (tabs.find(t => t[3]) || tabs[0])[0];
+const personRows = (list, attr, sub, empty) => list.length ? list.map(p => `<button type="button" class="ar-p" data-${attr}="${esc(p.id)}"><span class="ar-av">${esc(p.emoji)}</span><span class="grow"><b>${esc(p.name)}</b><small>${sub(attOf(p.id))}</small></span><span class="ar-ed">${ic('edit', 16)}</span></button>`).join('')
+  : `<div class="ar-empty"><span>${empty[0]}</span>${empty[1]}</div>`;
+const toolBar = acts => `<div class="ar-tools" style="--n:${acts.length}">${acts.map(([k, e, l]) => `<button type="button" data-aact="${k}"><span>${e}</span>${l}</button>`).join('')}</div>`;
+const byName = l => l.sort((a, b) => a.name.localeCompare(b.name, 'es'));
 function renderAttReport(sm, amt, num, pre) {
-  const n = S.participants.length, tot = n || 1, pct = v => Math.round(v / tot * 100), resp = sm.going + sm.notGoing;
+  const n = S.participants.length, tot = n || 1, pct = v => Math.round(v / tot * 100);
   const a1 = sm.going / tot * 360, a2 = a1 + sm.notGoing / tot * 360;
-  const money = v => esc(pre) + Math.round(v).toLocaleString('es-DO');
-  const goal = num ? num * sm.going : 0, got = num ? num * sm.paid : 0, mp = sm.going ? Math.round(sm.paid / sm.going * 100) : 0;
-  const A = p => S.att[p.id] || {};
-  const L = { si: p => A(p).status === 'si', no: p => A(p).status === 'no', pend: p => !A(p).status, debe: p => A(p).status === 'si' && !A(p).confirmed };
-  const tabs = [['si', '✅', 'Van', sm.going, 'ok'], ['no', '❌', 'No van', sm.notGoing, 'no'], ['pend', '⏳', 'Faltan', sm.pending, 'wait'], ...(amt ? [['debe', '💵', 'Deben', sm.going - sm.paid, 'gold']] : [])];
-  if (!tabs.some(t => t[0] === S.attTab) || (!tabs.find(t => t[0] === S.attTab)[3] && !S.attTabPicked)) S.attTab = (tabs.find(t => t[3]) || tabs[0])[0]; // abre en una lista con gente
-  const list = S.participants.filter(L[S.attTab]).sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  const status = sm.pending ? `Faltan <b>${sm.pending}</b> por responder` : '🎉 <b>Todos respondieron</b>';
-  const acts = [['exp-wa', '💬', 'WhatsApp'], ['exp-csv', '📊', 'Excel'], ...(amt ? [['att-remind', '💵', 'Cobrar']] : []), ...(sm.pending ? [['att-remind2', '🔔', 'Recordar']] : [])];
+  const tabs = [['si', '✅', 'Van', sm.going, 'ok'], ['no', '❌', 'No van', sm.notGoing, 'no'], ['pend', '⏳', 'Faltan', sm.pending, 'wait']];
+  S.attTab = pickTab(tabs, S.attTab, S.attTabPicked);
+  const F = { si: a => a.status === 'si', no: a => a.status === 'no', pend: a => !a.status };
+  const list = byName(S.participants.filter(p => F[S.attTab](attOf(p.id))));
   $('#att-sum').innerHTML = `<div class="ar">
     <div class="ar-top">
       <div class="ar-ring" style="--a1:${a1}deg;--a2:${a2}deg"><div class="ar-in"><b>${pct(sm.going)}%</b><span>van</span></div></div>
-      <div class="ar-sum"><div class="ar-big"><b>${sm.going}</b><span>de ${n} van al angelito</span></div><div class="ar-st ${sm.pending ? '' : 'done'}">${status}</div>
+      <div class="ar-sum"><div class="ar-big"><b>${sm.going}</b><span>de ${n} van al angelito</span></div><div class="ar-st ${sm.pending ? '' : 'done'}">${sm.pending ? `Faltan <b>${sm.pending}</b> por responder` : '🎉 <b>Todos respondieron</b>'}</div>
         <div class="ar-stack"><i class="ok" style="width:${pct(sm.going)}%"></i><i class="no" style="width:${pct(sm.notGoing)}%"></i></div></div>
     </div>
-    ${amt ? `<div class="ar-money"><div class="ar-mh"><span>💵 Aportes de ${esc(amt)}</span><b>${mp}%</b></div>
-      ${num ? `<div class="ar-mv"><b>${money(got)}</b><span>de ${money(goal)}</span></div>` : ''}
-      <div class="ar-mbar"><i style="width:${mp}%"></i></div>
-      <div class="ar-mstats"><span><b>${sm.paid}</b> pagaron</span><span><b>${sm.going - sm.paid}</b> faltan</span>${sm.said ? `<span class="said"><b>${sm.said}</b> dicen que ya</span>` : ''}</div></div>` : ''}
-    <div class="aseg" style="--n:${tabs.length}" data-noswipe>${tabs.map(([k, e, l, c, cls]) => `<button type="button" class="${cls} ${S.attTab === k ? 'on' : ''}" data-atab="${k}"><b>${c}</b><span>${e} ${l}</span></button>`).join('')}</div>
-    <div class="ar-list">${list.length ? list.map(p => { const a = A(p);
-      return `<button type="button" class="ar-p" data-aped="${esc(p.id)}"><span class="ar-av">${esc(p.emoji)}</span><span class="grow"><b>${esc(p.name)}</b><small>${a.status === 'si' ? (amt ? (a.confirmed ? '💵 Aporte recibido' : a.paid ? '🟡 Dice que ya pagó' : '⏳ Falta su aporte') : '✅ Va') : a.status === 'no' ? '❌ No va' : '⏳ No ha respondido'}${a.setBy ? ' · por el organizador' : ''}</small></span><span class="ar-ed">${ic('edit', 16)}</span></button>`; }).join('')
-      : `<div class="ar-empty"><span>${S.attTab === 'pend' ? '🎉' : S.attTab === 'debe' ? '💰' : '🙌'}</span>${S.attTab === 'pend' ? 'Todos respondieron' : S.attTab === 'debe' ? 'Todos pagaron' : 'Nadie en esta lista'}</div>`}</div>
-    <div class="ar-tools" style="--n:${acts.length}">${acts.map(([k, e, l]) => `<button type="button" data-aact="${k}"><span>${e}</span>${l}</button>`).join('')}</div>
+    ${segTabs(tabs, S.attTab, 'atab')}
+    <div class="ar-list">${personRows(list, 'aped', a => (a.status === 'si' ? '✅ Va' : a.status === 'no' ? '❌ No va' : '⏳ No ha respondido') + (a.setBy ? ' · por el organizador' : ''), S.attTab === 'pend' ? ['🎉', 'Todos respondieron'] : ['🙌', 'Nadie en esta lista'])}</div>
+    ${toolBar([['exp-wa', '💬', 'WhatsApp'], ['exp-csv', '📊', 'Excel'], ...(sm.pending ? [['att-remind2', '🔔', 'Recordar']] : [])])}
   </div>`;
   $('#att-list').innerHTML = '';
+  // 💵 Aportes (solo si hay monto): quién pagó, quién debe y quién dice que ya
+  $('#pay-card').style.display = amt ? '' : 'none'; if (!amt) return;
+  const owe = p => { const a = attOf(p.id); return a.status === 'si' && !a.confirmed && !a.paid; }, said = p => { const a = attOf(p.id); return !a.confirmed && a.paid; }, paid = p => attOf(p.id).confirmed;
+  const cnt = f => S.participants.filter(f).length, nP = cnt(paid), nO = cnt(owe), nS = cnt(said), base = nP + nO + nS;
+  const money = v => esc(pre) + Math.round(v).toLocaleString('es-DO'), mp = base ? Math.round(nP / base * 100) : 0;
+  const ptabs = [['debe', '⏳', 'Deben', nO, 'no'], ['dice', '🟡', 'Dicen que ya', nS, 'gold'], ['pago', '💵', 'Pagaron', nP, 'ok']];
+  S.payTab = pickTab(ptabs, S.payTab, S.payTabPicked);
+  const plist = byName(S.participants.filter({ debe: owe, dice: said, pago: paid }[S.payTab]));
+  $('#pay-sum').innerHTML = `<div class="ar">
+    <div class="ar-money"><div class="ar-mh"><span>${esc(amt)} por persona</span><b>${mp}%</b></div>
+      ${num ? `<div class="ar-mv"><b>${money(num * nP)}</b><span>recogido de ${money(num * base)}</span></div>` : `<div class="ar-mv"><b>${nP} de ${base}</b><span>ya pagaron</span></div>`}
+      <div class="ar-mbar"><i style="width:${mp}%"></i></div></div>
+    ${segTabs(ptabs, S.payTab, 'ptab')}
+    <div class="ar-list">${personRows(plist, 'pped', a => a.confirmed ? '💵 Aporte recibido' : a.paid ? '🟡 Dice que ya pagó · confírmalo' : a.status === 'si' ? '⏳ Va y no ha pagado' : '⏳ Sin pagar', S.payTab === 'debe' ? ['💰', 'Nadie debe'] : S.payTab === 'dice' ? ['👍', 'Nada por confirmar'] : ['🕐', 'Nadie ha pagado todavía'])}</div>
+    ${toolBar([['att-remind', '📣', 'Recordar pago'], ['exp-wa', '💬', 'WhatsApp']])}
+  </div>`;
 }
-$('#att-sum').addEventListener('click', e => {
+['#att-sum', '#pay-sum'].forEach(sel => $(sel).addEventListener('click', e => {
   const t = e.target.closest('[data-atab]'); if (t) { S.attTab = t.dataset.atab; S.attTabPicked = true; return renderAttendance(); }
+  const pt = e.target.closest('[data-ptab]'); if (pt) { S.payTab = pt.dataset.ptab; S.payTabPicked = true; return renderAttendance(); }
   const a = e.target.closest('[data-aact]'); if (a) return $('#' + a.dataset.aact)?.click();
-  const pe = e.target.closest('[data-aped]'); if (pe) return editAtt(pe.dataset.aped);
-});
-// ✏️ El organizador (o quien tenga permiso de aportes) cambia si alguien va y si ya pagó
-async function editAtt(id) {
-  const p = P(id), a = S.att[id] || {}; if (!p || !can('aportes')) return;
-  const amt = S.event.contribAmount;
-  const k = await sheet({ head: personHead(p, amt ? 'Asistencia y aporte' : 'Asistencia'), items: [
-    a.status !== 'si' && { k: 'si', icon: 'check', label: 'Marcar que va' },
-    a.status !== 'no' && { k: 'no', icon: 'xcircle', label: 'Marcar que no va' },
-    a.status && { k: 'pend', icon: 'undo', label: 'Dejar sin responder' },
-    amt && (a.status === 'si' || a.confirmed) && (a.confirmed ? { k: 'unpay', icon: 'undo', label: 'Quitar el pago', hint: 'Vuelve a quedar pendiente' } : { k: 'pay', icon: 'coins', label: 'Marcar que pagó', hint: a.paid ? 'Dice que ya lo dio' : '' }),
+  const pe = e.target.closest('[data-aped]'); if (pe) return editAtt(pe.dataset.aped, 'att');
+  const pp = e.target.closest('[data-pped]'); if (pp) return editAtt(pp.dataset.pped, 'pay');
+}));
+// ✏️ Quien tiene permiso de aportes cambia la asistencia o el pago de alguien (cada cosa por su lado)
+async function editAtt(id, what) {
+  const p = P(id), a = attOf(id); if (!p || !can('aportes')) return;
+  const amt = S.event.contribAmount, att = what !== 'pay', pay = what !== 'att' && amt;
+  const k = await sheet({ head: personHead(p, att && pay ? 'Asistencia y aporte' : att ? 'Asistencia' : 'Aporte'), items: [
+    att && a.status !== 'si' && { k: 'si', icon: 'check', label: 'Va' },
+    att && a.status !== 'no' && { k: 'no', icon: 'xcircle', label: 'No va' },
+    att && a.status && { k: 'pend', icon: 'undo', label: 'Dejar sin responder' },
+    pay && !a.confirmed && { k: 'pay', icon: 'coins', label: 'Pagó su aporte', hint: a.paid ? 'Dice que ya lo dio' : '' },
+    pay && a.confirmed && { k: 'unpay', icon: 'undo', label: 'Quitar el pago', hint: 'Vuelve a quedar pendiente' },
   ] });
   if (!k) return;
   const o = { uid: id, setBy: S.uid || 'admin' };
   if (k === 'si' || k === 'no') o.status = k; if (k === 'pend') o.status = deleteField();
-  if (k === 'pay') o.confirmed = true; if (k === 'unpay') o.confirmed = false; if (k === 'no') o.confirmed = false;
-  if (k === 'pay' && a.status !== 'si') o.status = 'si';
-  try { await setDoc(doc(adb, 'attendance', id), o, { merge: true }); toast({ si: '✅ Marcado: va', no: '❌ Marcado: no va', pend: '⏳ Quedó sin responder', pay: '💵 Marcado como pagó', unpay: 'Pago quitado' }[k]); }
+  if (k === 'pay') o.confirmed = true; if (k === 'unpay') o.confirmed = false;
+  if (k === 'pay' || k === 'unpay') delete o.setBy; // el pago no cambia quién marcó la asistencia
+  try { await setDoc(doc(adb, 'attendance', id), o, { merge: true }); toast({ si: '✅ Marcado: va', no: '❌ Marcado: no va', pend: '⏳ Quedó sin responder', pay: '💵 Aporte recibido', unpay: 'Pago quitado' }[k]); }
   catch (err) { toast(authErr(err)); }
 }
 // Lista de quiénes van / no pueden / no han respondido
@@ -1773,12 +1790,13 @@ document.addEventListener('click', e => {
   const m = e.target.closest('[data-pmore]'); if (!m) return;
   const id = m.dataset.pmore, p = P(id), a = S.att[id] || {}; if (!p) return;
   sheet({ head: personHead(p, 'Participante'), items: [
-    can('aportes') && { k: 'attEdit', icon: 'calcheck', label: 'Asistencia y aporte', hint: a.status === 'si' ? 'Va' + (a.confirmed ? ' · pagó' : '') : a.status === 'no' ? 'No va' : 'Sin responder' },
+    can('aportes') && { k: 'attEdit', icon: 'calcheck', label: 'Asistencia', hint: a.status === 'si' ? 'Va' : a.status === 'no' ? 'No va' : 'Sin responder' },
+    can('aportes') && S.event.contribAmount && { k: 'payEdit', icon: 'coins', label: 'Aporte', hint: a.confirmed ? 'Pagó' : a.paid ? 'Dice que ya pagó' : 'No ha pagado' },
     S.isOwner && { k: 'presetPin', icon: 'key', label: 'Darle un PIN temporal', hint: 'Si olvidó su PIN; conserva todo lo suyo' },
     { k: 'pedit', icon: 'edit', label: 'Editar nombre o ícono' },
     { k: 'rm', icon: 'userx', label: 'Quitar del angelito', hint: 'Se borra todo lo suyo', danger: true },
   ] }).then(k => {
-    if (!k) return; if (k === 'attEdit') return editAtt(id);
+    if (!k) return; if (k === 'attEdit') return editAtt(id, 'att'); if (k === 'payEdit') return editAtt(id, 'pay');
     const t = document.createElement('button'); t.hidden = true; t.dataset[k] = id; if (k === 'conf') t.dataset.v = '0';
     $('#p-list').appendChild(t); setTimeout(() => { t.click(); t.remove(); }, 60);
   });
