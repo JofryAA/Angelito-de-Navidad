@@ -986,3 +986,40 @@ body.touring #helper{display:none!important}
 .mp-msg{font-size:.88rem;line-height:1.4}
 .msg .tm .ok.seen{color:#7fd8ff!important;font-weight:800}
 .sw-tabs .ctabs{margin-top:8px}
+/* 🎬 demostraciones animadas dentro de la guía */
+.tdm{position:relative;margin:12px 0 2px;padding:12px;border-radius:16px;background:radial-gradient(circle at 50% 0,#1f5a41,#123426);border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;min-height:86px;overflow:hidden}
+.tdm-dom .dd-chain{display:flex;align-items:center;gap:3px;transform:scale(.8)}
+.tdm-dom .dd-new{display:inline-flex;animation:ddIn 4.5s ease-in-out infinite}
+@keyframes ddIn{0%,15%{opacity:0;transform:translateY(60px)}30%,85%{opacity:1;transform:none}100%{opacity:0}}
+.tdm-dom .dd-bub{position:absolute;right:10px;top:8px;padding:4px 10px;border-radius:999px;background:var(--gold);color:#2b1d00;font-size:.75rem;font-weight:800;animation:ddBub 4.5s ease-out infinite}
+@keyframes ddBub{0%,45%{opacity:0;transform:scale(.4)}52%,88%{opacity:1;transform:none}100%{opacity:0}}
+.tdm-ttt{display:grid;grid-template-columns:repeat(3,30px);gap:4px}
+.tdm-ttt i{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.07);display:grid;place-items:center;font-style:normal}
+.tdm-ttt b{font-size:20px;animation:tPop 5s var(--d) infinite both}.tdm-ttt b.X{color:#ff8a7e}.tdm-ttt b.O{color:#7fd8ff}
+@keyframes tPop{0%{opacity:0;transform:scale(.2)}6%,80%{opacity:1;transform:none}90%,100%{opacity:0}}
+.tdm-ttt .tt-line{position:absolute;width:4px;height:112px;border-radius:4px;background:var(--gold);box-shadow:0 0 10px var(--gold);transform:rotate(-45deg) scaleY(0);animation:tLine 5s infinite}
+@keyframes tLine{0%,78%{transform:rotate(-45deg) scaleY(0)}84%,92%{transform:rotate(-45deg) scaleY(1)}100%{transform:rotate(-45deg) scaleY(0)}}
+.tdm-c4{display:grid;grid-template-columns:repeat(6,22px);gap:3px;padding:8px 10px;background:linear-gradient(#1d4fa8,#163b80)}
+.tdm-c4 i{width:22px;height:22px;border-radius:50%;background:#0d2347;overflow:hidden;position:relative}
+.tdm-c4 b{position:absolute;inset:0;border-radius:50%;animation:cDrop 5s var(--d) infinite both}
+.tdm-c4 b.r{background:#e2483f}.tdm-c4 b.y{background:#f2c94c}
+@keyframes cDrop{0%{transform:translateY(calc(var(--h) * -26px));opacity:0}4%{opacity:1}12%,82%{transform:none;opacity:1}92%,100%{opacity:0}}
+.tdm-hang{flex-direction:column;gap:6px}.tdm-hang small{color:var(--gold);font-weight:700}
+.tdm-hang div{display:flex;gap:4px}.tdm-hang i{width:20px;height:26px;border-bottom:2px solid rgba(255,255,255,.5);display:grid;place-items:center;font-style:normal}
+.tdm-hang b{font-weight:800;animation:hShow 5s var(--d) infinite both}
+@keyframes hShow{0%{opacity:0;transform:translateY(-8px)}6%,85%{opacity:1;transform:none}95%,100%{opacity:0}}
+.tdm-chat{justify-content:flex-start;padding-left:46px}
+.tc-bub{position:relative;padding:8px 12px;border-radius:16px 16px 16px 6px;background:#24473a;font-size:.88rem;animation:tcSw 4s ease-in-out infinite}
+.tc-rx{position:absolute;right:8px;bottom:-12px;padding:1px 7px;border-radius:999px;background:#1c3a2e;border:1.5px solid #0f241c;font-size:.72rem;animation:tcRx 4s infinite}
+.tc-arrow{position:absolute;left:16px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:#1b2a22;font-weight:800;animation:tcAr 4s ease-in-out infinite}
+@keyframes tcSw{0%,10%{transform:none}30%,40%{transform:translateX(48px)}55%,100%{transform:none}}
+@keyframes tcAr{0%,15%{opacity:0;transform:scale(.4)}30%,40%{opacity:1;transform:none}52%,100%{opacity:0}}
+@keyframes tcRx{0%,60%{opacity:0;transform:scale(.3)}70%,95%{opacity:1;transform:none}100%{opacity:0}}
+.tdm-mesa{gap:8px}
+.tdm-mesa span{width:58px;padding:8px 0;border-radius:14px;background:rgba(255,255,255,.07);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:22px}
+.tdm-mesa small{font-size:.65rem;color:var(--muted)}
+.tdm-mesa .inv{border:1.5px dashed var(--gold);color:var(--gold);animation:mInv 2s ease-in-out infinite}
+.tdm-mesa .bot{animation:mBot 4s infinite both}.tdm-mesa .bot+.bot{animation-delay:.5s}
+@keyframes mInv{50%{box-shadow:0 0 14px rgba(236,188,92,.5)}}
+@keyframes mBot{0%,30%{opacity:.2;transform:scale(.8)}40%,90%{opacity:1;transform:none}100%{opacity:.2}}
+@media(prefers-reduced-motion:reduce){.tdm *{animation:none!important;opacity:1!important;transform:none!important}}

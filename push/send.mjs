@@ -56,7 +56,7 @@ const people = Object.fromEntries((await db.collection('participants').get()).do
 const short = uid => { const p = people[uid]; return p ? `${p.first} ${(p.last || '')[0] || ''}.`.trim() : 'Alguien'; };
 const all = Object.keys(people);
 
-// out[uid][cat] = { title, body, url } — un aviso por persona y categoría en cada vuelta
+// out[uid][cat] = { title, body, url }: un aviso por persona y categoría en cada vuelta
 const out = {};
 const put = (uid, cat, msg) => { if (!people[uid]) return; (out[uid] ||= {})[cat] = msg; };
 

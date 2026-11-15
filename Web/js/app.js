@@ -4,7 +4,7 @@ const { firebaseConfig, ADMIN_EMAIL } = CFG; const VAPID_KEY = CFG.VAPID_KEY || 
 const APP_VERSION = '2026.11.13-114418';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, deleteUser, updatePassword, reauthenticateWithCredential, EmailAuthProvider, setPersistence, browserSessionPersistence, inMemoryPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { initGames } from './juegos.js';
+import { initGames, tileHTML } from './juegos.js';
 import { decoratePanel, navHTML, pic, fillPics } from './panel.js';
 import { runTransaction, deleteField, terminate, clearIndexedDbPersistence, getFirestore, getDocsFromServer, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc as fsSetDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, writeBatch as fsWriteBatch, increment, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
@@ -90,7 +90,7 @@ const S = {
 try { const b = JSON.parse(localStorage.getItem('angelito:boot:v1') || 'null'); if (b) { S.event = b.event || {}; S.participants = (b.participants || []).map(fixPerson); S.activities = b.activities || []; S.drawMeta = b.drawMeta || null; S.notices = b.notices || []; S.qCount = b.qCount || 0; } } catch { }
 try { const lu = localStorage.getItem('angelito:lastUid'); if (lu && S.participants.some(p => p.id === lu)) { S.uid = lu; S.me = S.participants.find(p => p.id === lu); S.bootGuess = true; } } catch { }
 const P = id => S.participants.find(p => p.id === id);
-const pName = id => P(id)?.name || '—';
+const pName = id => P(id)?.name || 'Alguien';
 const pEmoji = id => P(id)?.emoji || '🎁';
 const shortName = p => p ? `${String(p.first || '')} ${String(p.last || '').charAt(0)}.` : '';
 const regOpen = () => S.event.registrationOpen !== false;
@@ -524,7 +524,7 @@ function openAuth(tab = 'login', then) {
         const pin = $('#l-pin', body).value, p = P(sel), err = $('#l-err', body), btn = $('#l-go', body);
         if (!p) return; if (!/^\d{4}$/.test(pin)) { err.textContent = 'El PIN tiene 4 números.'; return; }
         busy(btn, true); err.textContent = '';
-        try { await signInWithEmailAndPassword(auth, p.email, pinPass(pin)); closeModal(); toast(`¡Hola, ${p.first}! 👋`); then && then(); }
+        try { try { localStorage.setItem('angelito:tourLogin', '1'); } catch { } await signInWithEmailAndPassword(auth, p.email, pinPass(pin)); closeModal(); toast(`¡Hola, ${p.first}! 👋`); then && then(); }
         catch (e) { err.textContent = authErr(e); busy(btn, false); }
       };
       $('#l-go', body).addEventListener('click', go);
@@ -760,6 +760,7 @@ async function registerPerson(first, last, pin, byAdmin) {
   if (!dup.empty) return 'dup';
   const slug = nameKey.replace(/ñ/g, 'n').replace(/[^a-z0-9 ]/g, '').replace(/ /g, '.') || 'persona';
   const email = `${slug}.${Math.random().toString(36).slice(2, 7)}@angelito.app`;
+  if (!byAdmin) try { localStorage.setItem('angelito:tourLogin', '1'); } catch { }
   const cred = await createUserWithEmailAndPassword(byAdmin ? regAuth : auth, email, pinPass(pin));
   const used = new Set(S.participants.map(p => p.emoji));
   const emoji = EMOJIS.find(x => !used.has(x)) || EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
@@ -1140,29 +1141,44 @@ function renderHome() {
 }
 
 /* ---------- tus pendientes ---------- */
-/* ---------- 📘 guía paso a paso: oscurece la pantalla y señala cada cosa de verdad, con capítulos ---------- */
+/* ---------- 📘 guía: cada vez que alguien inicia sesión recorre la app; la pantalla se oscurece y se ilumina lo que se explica ---------- */
+const demoTiles = l => l.map(t => tileHTML(t)).join('');
+const TOUR_DEMOS = {
+  domino: () => `<div class="tdm tdm-dom"><div class="dd-chain">${demoTiles(['63', '33', '31'])}<span class="dd-new">${tileHTML('16')}</span></div><span class="dd-bub">🙅 Robertico pasa</span></div>`,
+  ttt: () => `<div class="tdm tdm-ttt">${['X', 'O', 'X', '', 'X', 'O', 'O', '', 'X'].map((v, k) => `<i style="--d:${[0, .6, 1.2, 0, 1.8, 2.4, 3, 0, 3.6][k]}s">${v ? `<b class="${v}">${v === 'X' ? '✕' : '○'}</b>` : ''}</i>`).join('')}<span class="tt-line"></span></div>`,
+  c4: () => `<div class="tdm tdm-c4">${Array.from({ length: 24 }, (_, k) => { const col = k % 6, row = Math.floor(k / 6), d = { 21: 0, 20: .5, 15: 1, 14: 1.5, 9: 2, 8: 2.5, 3: 3 }[k]; return `<i>${d != null ? `<b class="${[21, 15, 9, 3].includes(k) ? 'r' : 'y'}" style="--d:${d}s;--h:${row + 1}"></b>` : ''}</i>`; }).join('')}</div>`,
+  hang: () => `<div class="tdm tdm-hang"><small>🎄 Navidad</small><div>${[...'ESTRELLA'].map((c, k) => `<i><b style="--d:${[0, 1.2, .4, 2, 0, 1.6, 1.6, .8][k]}s">${c}</b></i>`).join('')}</div></div>`,
+  chat: () => `<div class="tdm tdm-chat"><span class="tc-arrow">↩</span><div class="tc-bub">¡Yo llevo el bizcocho! 🎂<span class="tc-rx">😂 3</span></div></div>`,
+  mesa: () => `<div class="tdm tdm-mesa"><span>🙂<small>Tú</small></span><span class="inv">＋<small>Invitar</small></span><span class="bot">🤖<small>Robot</small></span><span class="bot">🤖<small>Robot</small></span></div>`,
+};
 const TOUR = () => [
-  { c: 'Empezar', v: 'inicio', e: '🎁', t: `¡Hola, ${S.me?.first || ''}!`, d: 'Te enseño la app señalando cada cosa en tu pantalla. Son 2 minutos. Toca <b>Siguiente</b>, o toca lo que está iluminado.' },
-  { c: 'Empezar', v: 'inicio', s: '#tabs', e: '🧭', t: 'Las pestañas', d: 'Toca una para cambiar de sección, o <b>desliza la pantalla a los lados</b>.' },
-  { c: 'Empezar', v: 'inicio', s: '#help-btn', e: '❓', t: 'Ayuda en cada pantalla', d: 'Si no sabes cómo hacer algo, toca el <b>?</b>: te explica paso a paso lo de la pantalla donde estás.' },
-  { c: 'Empezar', v: 'inicio', s: '#userbox', e: '👤', t: 'Tu menú', d: 'Aquí están tu <b>perfil de gustos</b>, los avisos, la ayuda y cerrar sesión.' },
-  { c: 'Inicio', v: 'inicio', s: '#h-next:not(:empty), #h-todo:not(:empty)', e: '✅', t: 'Lo que te toca', d: 'Tus pendientes: confirmar si vas, llenar tu perfil, escribir deseos… Tócalos y te llevan directo.' },
-  { c: 'Inicio', v: 'inicio', s: '#h-evcard:not(:empty), #h-info:not(:empty)', e: '📍', t: 'El evento', d: 'Fecha, hora y lugar con el <b>mapa</b>. Toca el mapa para abrir la ruta.' },
-  { c: 'Ruleta', m: 'ruleta', v: 'ruleta', s: '#spinBtn, #wheel', e: '🎡', t: 'La ruleta', d: 'Cuando se haga el sorteo te llega un aviso. Giras con tu PIN y ves a quién le regalas. <b>Solo tú lo ves.</b>' },
-  { c: 'Deseos', m: 'deseos', v: 'deseos', s: '#w-strip', e: '👀', t: 'Las listas del grupo', d: 'Toca un nombre para ver su lista de deseos y su perfil (tallas, colores, gustos).' },
-  { c: 'Deseos', m: 'deseos', v: 'deseos', s: '[data-wadd], #w-add', e: '➕', t: 'Tu lista', d: 'Agrega lo que te gustaría recibir con <b>foto, enlace y precio</b>. Marca ⭐ tu favorito.' },
-  { c: 'Actividades', m: 'agenda', v: 'actividades', s: '#acts-root', e: '📅', t: 'Actividades', d: 'Votaciones, trivias y el <b>💌 buzón anónimo</b>. Toca una para participar.' },
-  { c: 'Chat', m: 'chat', v: 'buzon', s: '#c-list', e: '💬', t: 'Los mensajes', d: '<b>Desliza a la derecha</b> para responder · <b>mantén presionado</b> para seleccionar · <b>toca</b> para reaccionar.' },
-  { c: 'Chat', m: 'chat', v: 'buzon', s: '#c-form', e: '✍️', t: 'Escribir', d: 'Con <b>@</b> mencionas a alguien, 🎲 te da una ocurrencia y 📷 envía una foto. Sin internet se envía al volver.' },
-  { c: 'Ideas', m: 'buzon', v: 'sugerencias', s: '#s-formbox', e: '💡', t: 'Ideas', d: 'Propón juegos, comida o música para el angelito y vota las de los demás.' },
-  { c: 'Juegos', m: 'juegos', v: 'juegos', s: '.gcreate2', e: '🎮', t: 'Juegos', d: 'Dominó, ahorcado, 4 en línea y X y O con el grupo o contra 🤖, con música y voz. <b>Sin internet también</b>.' },
-  { c: 'Listo', v: 'inicio', e: '🎉', t: '¡Ya conoces la app!', d: 'Te recomiendo empezar por aquí:', end: 1 },
+  { c: 'Empezar', v: 'inicio', e: '🎁', t: `¡Bienvenido, ${S.me?.first || ''}!`, d: 'Cada vez que entras te damos un paseo rápido por la app para que no se te escape nada. Toca <b>Siguiente</b>, o toca lo que se ilumina.' },
+  { c: 'Empezar', v: 'inicio', s: '#tabs', e: '🧭', t: 'Las secciones', d: 'Abajo están todas las secciones. Toca una para entrar, o desliza la pantalla hacia un lado y pasas a la de al lado.' },
+  { c: 'Empezar', v: 'inicio', s: '#help-btn', e: '❓', t: 'El botón de ayuda', d: 'Si te pierdes, toca el signo de pregunta. Te explica paso a paso lo que se puede hacer en la pantalla donde estás.' },
+  { c: 'Empezar', v: 'inicio', s: '#userbox', e: '👤', t: 'Tu menú', d: 'Toca tu nombre para llenar tu perfil de gustos, escoger qué avisos te llegan, instalar la app o cerrar sesión.' },
+  { c: 'Inicio', v: 'inicio', s: '#h-next:not(:empty), #h-todo:not(:empty)', e: '✅', t: 'Tus pendientes', d: 'Aquí te decimos lo que te falta: confirmar si vas, llenar tu perfil, escribir tus deseos. Tocas uno y te lleva directo.' },
+  { c: 'Inicio', v: 'inicio', s: '#h-att:not(:empty)', e: '🎉', t: '¿Vas y das el aporte?', d: 'Confirma si vas. Si hay aporte para la comida, aquí ves cuánto es y cómo pagarlo, y tocas <b>Ya lo di</b> cuando lo entregues.' },
+  { c: 'Inicio', v: 'inicio', s: '#h-evcard:not(:empty), #h-info:not(:empty)', e: '📍', t: 'Dónde y cuándo', d: 'La fecha, la hora y el lugar del angelito. Toca el mapa y se te abre la ruta en el teléfono.' },
+  { c: 'Ruleta', m: 'ruleta', v: 'ruleta', s: '#spinBtn, #wheel', e: '🎡', t: 'La ruleta', d: 'Cuando el organizador haga el sorteo te llega un aviso. Pones tu PIN, giras y te sale a quién le regalas. Nadie más lo ve, ni el organizador.' },
+  { c: 'Ruleta', m: 'ruleta', v: 'ruleta', e: '🛍️', t: 'Después de girar', d: 'En esta misma pantalla vas marcando cómo va tu regalo, dices quién crees que es tu angelito y, después de la fiesta, le das las gracias por lo que te regaló.' },
+  { c: 'Deseos', m: 'deseos', v: 'deseos', s: '#w-strip', e: '👀', t: 'Las listas de todos', d: 'Toca el nombre de alguien y ves lo que le gustaría recibir, su talla y sus colores. Si es la persona que te tocó, marca <b>Lo compro yo</b> en el regalo que escojas.' },
+  { c: 'Deseos', m: 'deseos', v: 'deseos', s: '[data-wadd], #w-add', e: '➕', t: 'Tu lista', d: 'Agrega lo que te gustaría recibir. Con una foto, el enlace de la tienda y el precio, tu angelito no falla. La estrella marca tu favorito.' },
+  { c: 'Actividades', m: 'agenda', v: 'actividades', s: '#acts-root', e: '📅', t: 'Actividades', d: 'Lo que vamos a hacer en la fiesta: votaciones, trivias y el buzón anónimo, donde le escribes a alguien sin que sepa que fuiste tú.' },
+  { c: 'Chat', m: 'chat', v: 'buzon', s: '#c-list', e: '💬', t: 'Los mensajes', d: 'Desliza un mensaje hacia la derecha para responderlo. Mantenlo presionado para seleccionar varios. Tócalo para reaccionar o ver quién lo vio.', demo: 'chat' },
+  { c: 'Chat', m: 'chat', v: 'buzon', s: '#c-form', e: '✍️', t: 'Escribir', d: 'Pon @ y el nombre de alguien y le llega un aviso. El dado te da una ocurrencia y la cámara manda una foto. Sin internet se envía solo cuando vuelva la señal.' },
+  { c: 'Ideas', m: 'buzon', v: 'sugerencias', s: '#s-formbox', e: '💡', t: 'Ideas', d: 'Propón juegos, comida o música para la fiesta, y vota por las ideas de los demás.' },
+  { c: 'Juegos', m: 'juegos', v: 'juegos', s: '.gcreate2', e: '🎮', t: 'La sala de juegos', d: 'Cuatro juegos para jugar con el grupo o contra la máquina. Cada partida que ganas con el grupo suma puntos en la tabla de campeones.' },
+  { c: 'Juegos', m: 'juegos', v: 'juegos', s: '[data-gpick=domino]', e: '🎲', t: 'Dominó', d: 'En parejas o cada quien solo, con las reglas de aquí: capicúa, pase de salida, pase corrido y tranque. Si no llevas ficha, la app pasa por ti y lo dice en voz alta.', demo: 'domino' },
+  { c: 'Juegos', m: 'juegos', v: 'juegos', s: '[data-gpick=ttt]', e: '❌', t: 'X y O', d: 'Uno contra uno. Antes de empezar escoges si eres X u O. Gana el primero que haga tres en línea.', demo: 'ttt' },
+  { c: 'Juegos', m: 'juegos', v: 'juegos', s: '[data-gpick=c4]', e: '🔴', t: '4 en línea', d: 'Tocas una columna y la ficha cae hasta abajo. Gana quien junte cuatro seguidas: de lado, de pie o en diagonal.', demo: 'c4' },
+  { c: 'Juegos', m: 'juegos', v: 'juegos', s: '[data-gpick=ahorcado]', e: '🔤', t: 'Ahorcado', d: 'Escoges una categoría, como Biblia, cultura o Navidad. Cada letra que aciertas suma puntos, y si ya sabes la palabra la escribes completa y ganas más.', demo: 'hang' },
+  { c: 'Juegos', m: 'juegos', v: 'juegos', e: '🪑', t: 'Cómo se arma una mesa', d: 'Creas la mesa y tocas un asiento libre para invitar a alguien: le llega un aviso. Los asientos vacíos los llena un robot. Cada turno tiene su tiempo y, si se te acaba, la app juega por ti.', demo: 'mesa' },
+  { c: 'Juegos', m: 'juegos', v: 'juegos', e: '🔊', t: 'Música y sin internet', d: 'Cada juego tiene su música y una voz que canta las jugadas. Se apaga con el botón de la bocina. Sin internet también puedes jugar contra la máquina, y la partida se queda guardada en tu teléfono.' },
+  { c: 'Listo', v: 'inicio', e: '🎉', t: '¡Ya conoces la app!', d: 'Ahora sí. Si quieres, empieza por aquí:', end: 1 },
 ];
-function openTour(force) {
+function openTour() {
   if (!S.me) return;
-  const key = 'angelito:tour3:' + S.uid;
-  if (!force) { try { if (localStorage.getItem(key)) return; } catch { } }
-  try { localStorage.setItem(key, '1'); } catch { }
+  try { localStorage.setItem('angelito:tour4:' + S.uid, '1'); localStorage.removeItem('angelito:tourLogin'); } catch { }
   $('#tourx')?.remove(); closeModal();
   const T = TOUR().filter(s => !s.m || mod(s.m)), chaps = [...new Set(T.map(s => s.c))], back = location.hash || '#inicio';
   let i = 0, target = null, tok = 0;
@@ -1186,16 +1202,16 @@ function openTour(force) {
   function paint() {
     const s = T[i], my = ++tok, last = i === T.length - 1;
     body.innerHTML = `<div class="tx-chaps">${chaps.map(c => `<button type="button" class="${c === s.c ? 'on' : chaps.indexOf(c) < chaps.indexOf(s.c) ? 'done' : ''}" data-tc="${esc(c)}">${esc(c)}</button>`).join('')}</div>
-      <div class="tx-top"><span class="tx-e">${s.e}</span><div class="grow"><small>Paso ${i + 1} de ${T.length}</small><b>${esc(s.t)}</b></div><button class="tx-x" data-t="skip" aria-label="Salir de la guía">${ic('x', 18)}</button></div>
-      <p>${s.d}</p>
-      ${last ? `<div class="tx-end">${mod('perfil') ? `<button class="tx-go" data-t="prof"><span>👕</span><b>Llenar mi perfil</b><small>Para que tu angelito acierte</small></button>` : ''}${mod('deseos') ? `<button class="tx-go" data-t="wish"><span>🎁</span><b>Escribir mis deseos</b><small>2 o 3 ideas bastan</small></button>` : ''}<button class="tx-go" data-t="notif"><span>🔔</span><b>Activar los avisos</b><small>Para no perderte nada</small></button></div>` : ''}
+      <div class="tx-top"><span class="tx-e">${s.e}</span><div class="grow"><small>Paso ${i + 1} de ${T.length}</small><b>${esc(s.t)}</b></div></div>
+      ${s.demo ? TOUR_DEMOS[s.demo]() : ''}<p>${s.d}</p>
+      ${last ? `<div class="tx-end">${mod('perfil') ? `<button class="tx-go" data-t="prof"><span>👕</span><b>Llenar mi perfil</b><small>Para que tu angelito acierte</small></button>` : ''}${mod('deseos') ? `<button class="tx-go" data-t="wish"><span>🎁</span><b>Escribir mis deseos</b><small>Con dos o tres ideas basta</small></button>` : ''}<button class="tx-go" data-t="notif"><span>🔔</span><b>Activar los avisos</b><small>Para enterarte de todo</small></button></div>` : ''}
       <div class="tx-bar"><i style="width:${(i + 1) / T.length * 100}%"></i></div>
-      <div class="tx-act">${i ? '<button class="btn ghost" data-t="prev">‹ Atrás</button>' : '<button class="btn ghost" data-t="skip">Ahora no</button>'}<button class="btn gold" data-t="${last ? 'done' : 'next'}">${last ? 'Terminar' : 'Siguiente ›'}</button></div>`;
+      <div class="tx-act">${i ? '<button class="btn ghost" data-t="prev">‹ Atrás</button>' : ''}<button class="btn gold" data-t="${last ? 'done' : 'next'}">${last ? '¡Vamos!' : 'Siguiente ›'}</button></div>`;
     card.classList.remove('in'); void card.offsetWidth; card.classList.add('in');
     $('.tx-chaps .on', body)?.scrollIntoView({ inline: 'center', block: 'nearest' });
     target = null; place();
     if (location.hash.slice(1) !== s.v) location.hash = s.v;
-    setTimeout(() => { // espera a que la pantalla esté lista y busca lo que hay que señalar
+    setTimeout(() => {
       if (my !== tok) return; target = find(s.s) || null;
       if (target) { const r = target.getBoundingClientRect(); if (r.top < 70 || r.bottom > innerHeight - 90) target.scrollIntoView({ block: 'center' }); }
       setTimeout(() => { if (my === tok) place(); }, 60);
@@ -1206,28 +1222,29 @@ function openTour(force) {
   const end = go => {
     removeEventListener('resize', relayout); removeEventListener('scroll', relayout, true); tok++;
     document.body.classList.remove('touring'); ov.classList.add('out'); setTimeout(() => ov.remove(), 220); location.hash = go || back;
-    openModal.later = false; // lo que quiso abrirse durante la guía ya no aplica: se vuelve a ofrecer más tarde
+    openModal.later = false;
   };
   const step = d => { i = Math.max(0, Math.min(T.length - 1, i + d)); paint(); };
   ov.addEventListener('click', e => {
-    const c = e.target.closest('[data-tc]'); if (c) { i = T.findIndex(s => s.c === c.dataset.tc); return paint(); }
+    const c = e.target.closest('[data-tc]'); if (c) { const k = T.findIndex(s => s.c === c.dataset.tc); if (k <= i) { i = k; paint(); } return; } // se puede volver a un capítulo, no saltarse los que faltan
     const t = e.target.closest('[data-t]')?.dataset.t;
-    if (!t) { if (e.target === hole || e.target.closest('.tx-hole')) step(1); return; } // tocar lo iluminado también avanza
+    if (!t) { if (e.target.closest('.tx-hole')) step(1); return; }
     if (t === 'next') return step(1);
     if (t === 'prev') return step(-1);
     if (t === 'prof') { end('#inicio'); return setTimeout(openProfile, 300); }
     if (t === 'wish') return end('#deseos');
     if (t === 'notif') { end('#inicio'); return setTimeout(() => { try { enableNotifications(); } catch { } }, 300); }
-    end(t === 'done' ? '#inicio' : back);
+    end('#inicio');
   });
   let x0 = null; card.addEventListener('pointerdown', e => { x0 = e.clientX; }); card.addEventListener('pointerup', e => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 60) step(dx < 0 ? 1 : -1); });
   paint();
 }
 let tourT = null;
 function maybeTour() {
-  if (!S.me || S.forcePin || tourT) return;
-  try { if (localStorage.getItem('angelito:tour3:' + S.uid)) return; } catch { }
-  tourT = setTimeout(function go() { tourT = null; if (!S.me) return; if ($('#modal').classList.contains('on') || S.spinning || S.forcePin || $('#tourx')) { tourT = setTimeout(go, 3000); return; } openTour(); }, 1200);
+  if (!S.me || S.forcePin || tourT || window.__noTour) return; // __noTour: solo para pruebas automáticas
+  // obligatoria cada vez que alguien inicia sesión (y una vez para quien ya estaba dentro cuando salió esta guía)
+  try { if (!localStorage.getItem('angelito:tourLogin') && localStorage.getItem('angelito:tour4:' + S.uid)) return; } catch { }
+  tourT = setTimeout(function go() { tourT = null; if (!S.me) return; if ($('#modal').classList.contains('on') || S.spinning || S.forcePin || $('#tourx')) { tourT = setTimeout(go, 3000); return; } openTour(); }, 900);
 }
 /* ---------- lo que te toca ahora (cambia según el momento) ---------- */
 function renderNext() {
@@ -1759,7 +1776,7 @@ function renderAttReport(sm, amt, num, pre) {
   const pe = e.target.closest('[data-aped]'); if (pe) return editAtt(pe.dataset.aped, 'att');
   const pp = e.target.closest('[data-pped]'); if (pp) return editAtt(pp.dataset.pped, 'pay');
 }));
-// 💵 Configurar el aporte (monto, para qué, cómo pagar y fecha límite) — todo en un solo lugar
+// 💵 Configurar el aporte (monto, para qué, cómo pagar y fecha límite), todo en un solo lugar
 const payDue = () => S.event.contribDue ? new Date(S.event.contribDue + 'T23:59') : null;
 const payLate = () => { const d = payDue(); return !!d && d < new Date(); };
 const payDaysLeft = () => { const d = payDue(); if (!d) return ''; const n = Math.ceil((d - Date.now()) / 864e5); return n <= 0 ? 'vence hoy' : n === 1 ? 'falta 1 día' : `faltan ${n} días`; };
@@ -2197,7 +2214,7 @@ function renderHints() {
     const g = S.myAngelGuess?.guess;
     h += `<div class="h2row"><h2>🕵️ ¿Quién crees que es tu angelito?</h2></div>
       <div class="card stack"><p class="muted small">Elige a quién crees que te tocó como angelito. Nadie lo ve hasta la gran revelación en la fiesta, y puedes cambiarlo hasta entonces.</p>
-      <select class="in" id="ag-sel"><option value="">— Elige —</option>${S.participants.filter(p => p.id !== S.uid && S.drawMeta.ids.includes(p.id)).map(p => `<option value="${esc(p.id)}" ${g === p.id ? 'selected' : ''}>${esc(p.emoji)} ${esc(p.name)}</option>`).join('')}</select>
+      <select class="in" id="ag-sel"><option value="">Elige a alguien</option>${S.participants.filter(p => p.id !== S.uid && S.drawMeta.ids.includes(p.id)).map(p => `<option value="${esc(p.id)}" ${g === p.id ? 'selected' : ''}>${esc(p.emoji)} ${esc(p.name)}</option>`).join('')}</select>
       ${g ? `<div class="small">✅ Tu sospecha: <b>${esc(pName(g))}</b></div>` : ''}</div>`;
   }
   if (document.activeElement?.id === 'ag-sel') return; // no cerrar el selector mientras se elige
@@ -2520,7 +2537,7 @@ function renderAdmin() {
   $('#g-count').textContent = S.isOwner ? `${gN} de ${S.participants.length} ya escribieron su adivinanza.` : '';
   if (document.activeElement?.id !== 'g-prize') $('#g-prize').value = S.event.guessPrize || '';
   const gw = $('#g-winner');
-  if (document.activeElement !== gw) { gw.innerHTML = '<option value="">— Sin elegir —</option>' + S.participants.map(p => `<option value="${esc(p.id)}">${esc(p.emoji)} ${esc(p.name)}</option>`).join(''); gw.value = S.event.guessWinner || ''; }
+  if (document.activeElement !== gw) { gw.innerHTML = '<option value="">Sin elegir</option>' + S.participants.map(p => `<option value="${esc(p.id)}">${esc(p.emoji)} ${esc(p.name)}</option>`).join(''); gw.value = S.event.guessWinner || ''; }
   const rl = Array.isArray(S.event.rules) ? S.event.rules : [];
   $('#r-list').innerHTML = rl.length ? rl.map((r, i) => `<div class="rule" style="align-items:center"><div class="ri">${esc(r.icon || '⭐')}</div><div class="rt" style="flex:1;padding-top:0">${esc(r.text)}</div>
     <div style="display:flex;gap:2px"><button class="x" data-rup="${i}" ${i === 0 ? 'disabled style="opacity:.3"' : ''} aria-label="Subir">↑</button><button class="x" data-rdown="${i}" ${i === rl.length - 1 ? 'disabled style="opacity:.3"' : ''} aria-label="Bajar">↓</button><button class="x" data-rdel="${i}" aria-label="Borrar">✕</button></div></div>`).join('')
@@ -2781,8 +2798,8 @@ function blockedSet() { const s = new Set(); for (const r of S.drawRules || []) 
 // 1) Primero se busca UNA sola cadena (A→B→C→…→A): al azar y, si cuesta, paso a paso eligiendo siempre a quien
 //    tiene menos opciones (así no se tranca).
 // 2) Si no existe una cadena única, se usa un emparejamiento perfecto (método exacto de caminos de aumento):
-//    sigue siendo un sorteo válido —todos dan y reciben una vez, nadie se toca a sí mismo y se respetan TODAS
-//    las restricciones—, aunque pueda formar varios círculos.
+//    sigue siendo un sorteo válido (todos dan y reciben una vez, nadie se toca a sí mismo y se respetan TODAS
+//    las restricciones), aunque pueda formar varios círculos.
 // 3) Si ni eso existe, es matemáticamente imposible, y drawCheck dice exactamente por qué y a quién afecta.
 function drawRing(ids) { return drawPlan(ids).next; }
 function drawPlan(ids) {
@@ -3157,7 +3174,7 @@ function quizHTML(a) {
     h += `<div class="stack">${a.results.slice(0, 15).map((r, i) => `<div class="bar ${i === 0 && r.count ? 'win' : ''}"><i style="width:${(Number(r.count) || 0) / max * 100}%"></i><span>${['🥇', '🥈', '🥉'][i] || i + 1 + '.'} ${esc(r.emoji || '')} ${esc(r.label)}</span><span>${Number(r.count) || 0}/${N}</span></div>`).join('') || '<div class="card empty">Nadie respondió 😅</div>'}</div>`;
     if (S.me) h += `<div class="h2row"><h2>Las respuestas</h2>${my ? `<span class="tag gold">Acertaste ${my.filter((v, i) => v === key[i]).length}/${N}</span>` : ''}</div>
       <div class="stack">${qs.map((q, i) => { const ok = my && my[i] === key[i]; return `<div class="qrev ${my ? (ok ? 'ok' : 'no') : ''}"><div class="qr-n">${i + 1}</div><div class="grow"><b>${esc(q.q)}</b>
-        <div class="small">✅ ${esc(q.o[key[i]] ?? '—')}${my && !ok ? `<br><span class="muted">Tú: ${esc(q.o[my[i]] ?? 'sin responder')}</span>` : ''}</div></div></div>`; }).join('')}</div>`;
+        <div class="small">✅ ${esc(q.o[key[i]] ?? 'Sin respuesta')}${my && !ok ? `<br><span class="muted">Tú: ${esc(q.o[my[i]] ?? 'sin responder')}</span>` : ''}</div></div></div>`; }).join('')}</div>`;
     return h;
   }
   if (!S.me) return h + needLogin('Entra con tu PIN para jugar la trivia.');
@@ -4209,7 +4226,7 @@ async function saveMemories() {
   toast('Guardando recuerdos… 📖');
   const get = async n => { try { return (await getDocs(collection(adb, n))).docs.map(d => ({ id: d.id, ...d.data() })); } catch { return []; } };
   const [chat, sugs, sv, wishes, photos] = await Promise.all(['chat', 'suggestions', 'sugVotes', 'wishes', 'photos'].map(get));
-  const nm = id => P(id)?.name || '—';
+  const nm = id => P(id)?.name || 'Alguien';
   const pairs = S.reveal ? Object.entries(S.assignments).filter(([g]) => P(g)).map(([g, a]) => ({ g: nm(g), r: nm(a.recipient) })) : [];
   const votes = S.activities.filter(a => a.kind === 'vote').map(a => {
     const vs = S.adminVotes.filter(v => v.act === a.id); const cnt = {}; vs.forEach(v => cnt[v.choice] = (cnt[v.choice] || 0) + 1);
@@ -4244,7 +4261,7 @@ document.addEventListener('click', e => {
     <div class="going" style="justify-content:center">${[['👥', st.participants, 'participantes'], ['🎁', st.wishes, 'deseos'], ['💬', st.chat, 'mensajes'], ['💡', st.suggestions, 'sugerencias'], ['💌', st.questions, 'anónimos'], ['📸', st.photos, 'fotos']].filter(x => x[1]).map(([e, n, l]) => `<span>${e} <b>${Number(n) || 0}</b> ${l}</span>`).join('')}</div>
     ${(m.pairs || []).length ? `<b style="display:block;margin-top:16px">🎁 Los angelitos</b><div class="stack" style="margin-top:8px;gap:6px">${m.pairs.map(x => `<div class="small">${esc(x.g)} → ${esc(x.r)}</div>`).join('')}</div>` : ''}
     ${(m.votes || []).length || m.guessWinner || m.triviaWinner ? `<b style="display:block;margin-top:16px">🏆 Ganadores</b><div class="stack" style="margin-top:8px;gap:6px">${(m.votes || []).map(v => `<div class="small">${esc(v.title)}: <b>${esc(v.winner)}</b></div>`).join('')}${m.guessWinner ? `<div class="small">🔮 Adivinanza: <b>${esc(m.guessWinner)}</b></div>` : ''}${m.triviaWinner ? `<div class="small">🎲 Trivia: <b>${esc(m.triviaWinner.name)}</b> (${Number(m.triviaWinner.n) || 0} aciertos)</div>` : ''}</div>` : ''}
-    ${(m.topChat || []).length ? `<b style="display:block;margin-top:16px">😂 Lo más reaccionado del chat</b><div class="stack" style="margin-top:8px">${m.topChat.map(x => `<div class="guess"><div class="gv">"${esc(x.text)}"</div><div class="gl">— ${esc(x.who)} · ${Number(x.n) || 0} reacciones</div></div>`).join('')}</div>` : ''}
+    ${(m.topChat || []).length ? `<b style="display:block;margin-top:16px">😂 Lo más reaccionado del chat</b><div class="stack" style="margin-top:8px">${m.topChat.map(x => `<div class="guess"><div class="gv">"${esc(x.text)}"</div><div class="gl">de ${esc(x.who)} · ${Number(x.n) || 0} reacciones</div></div>`).join('')}</div>` : ''}
     ${(m.topSugs || []).length ? `<b style="display:block;margin-top:16px">💡 Las sugerencias más votadas</b><div class="stack" style="margin-top:8px">${m.topSugs.map(x => `<div class="guess"><div class="gv">${esc(x.text)}</div><div class="gl">👍 ${Number(x.n) || 0}</div></div>`).join('')}</div>` : ''}
     <div class="actions"><button class="btn gold" data-a="x">Cerrar</button></div>`).onclick = ev => { if (ev.target.closest('[data-a]')) closeModal(); };
 });
