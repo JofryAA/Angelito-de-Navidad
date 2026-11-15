@@ -11,6 +11,7 @@ import { runTransaction, deleteField, terminate, clearIndexedDbPersistence, getF
 /* ---------- helpers ---------- */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const buzz = n => { if (navigator.vibrate) try { navigator.vibrate(n); } catch { } }; // vibración corta (si el teléfono la tiene)
 const rowsOf = s => s.docs.map(d => ({ id: d.id, ...d.data() })); // documentos de una consulta como lista
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ms = t => !t ? 0 : typeof t.toMillis === 'function' ? t.toMillis() : typeof t === 'number' ? t : t.seconds != null ? t.seconds * 1000 + Math.floor((t.nanoseconds || 0) / 1e6) : t.__t != null ? t.__t : t._ms != null ? t._ms : 0;
@@ -1918,7 +1919,7 @@ let diceBag = [];
 $('#c-dice').addEventListener('click', () => {
   const i = $('#c-text'), l = prompts(); if (!diceBag.length) diceBag = l.map((_, k) => k).sort(() => Math.random() - .5);
   const t = l[diceBag.pop()] || l[0], d = $('#c-dice'); d.classList.remove('roll'); void d.offsetWidth; d.classList.add('roll');
-  if (navigator.vibrate) try { navigator.vibrate(25); } catch { }
+  buzz(25);
   i.value = t; i.focus(); i.setSelectionRange(t.length, t.length);
   try { localStorage.setItem('angelito:diceUsed', String((+localStorage.getItem('angelito:diceUsed') || 0) + 1)); } catch { } diceHint();
 });
@@ -2207,8 +2208,8 @@ function milestoneReminders() {
 function summaryRows() {
   return S.participants.map(p => { const a = S.att[p.id] || {}; return { name: p.name, va: a.status === 'si' ? 'Sí' : a.status === 'no' ? 'No' : 'Sin responder', aporte: a.confirmed ? 'Recibido' : a.paid ? 'Dice que pagó' : (a.status === 'si' ? 'Pendiente' : '-') }; });
 }
-async function copyText(t) {
-  try { await navigator.clipboard.writeText(t); toast('📋 Copiado'); }
+async function copyText(t, msg = '📋 Copiado') {
+  try { await navigator.clipboard.writeText(t); toast(msg); }
   catch { openModal(`<h3>📋 Copia el texto</h3><textarea class="in" style="min-height:220px" readonly>${esc(t)}</textarea><div class="actions"><button class="btn gold" data-a="x">Listo</button></div>`).onclick = e => { if (e.target.closest('[data-a]')) closeModal(); }; }
 }
 $('#exp-wa').addEventListener('click', () => {
@@ -3761,7 +3762,6 @@ function reactsFor(id) { const r = {}, m = S.chat.find(x => x.id === id); Object
 const msgOf = id => S.chat.find(x => x.id === id);
 const msgText = m => (m.hasImg && m.text === '📷 Foto') ? '📷 Foto' : m.text;
 const canDelMsg = m => m.uid === S.uid || can('moderar');
-const buzz = n => { if (navigator.vibrate) try { navigator.vibrate(n); } catch { } };
 async function reactTo(m, e) {
   if (!S.me || !m) return; const myR = (m.r || {})[S.uid]; buzz(12);
   try { await setDoc(doc(db, 'chat', m.id), { r: { [S.uid]: myR === e ? deleteField() : e } }, { merge: true }); } catch (err) { toast(authErr(err)); }
@@ -3769,7 +3769,7 @@ async function reactTo(m, e) {
 function replyTo(m) { if (!S.me || !m) return; S.replyTo = { id: m.id, uid: m.uid, text: m.text.slice(0, 100) }; renderReplyBar(); $('#c-text').focus(); }
 async function copyMsgs(list) {
   const t = list.length === 1 ? list[0].text : list.map(m => `[${hm(new Date(ms(m.at) || m.ts || 0))}] ${shortName(P(m.uid)) || 'Alguien'}: ${msgText(m)}`).join('\n');
-  try { await navigator.clipboard.writeText(t); toast(list.length > 1 ? `📋 ${list.length} mensajes copiados` : '📋 Texto copiado'); } catch { toast('No se pudo copiar'); }
+  return copyText(t, list.length > 1 ? `📋 ${list.length} mensajes copiados` : '📋 Texto copiado');
 }
 async function delMsgs(list) {
   if (!list.length || !list.every(canDelMsg)) return;
@@ -3988,7 +3988,7 @@ async function shareInvite() {
     <div class="qa" style="justify-content:center;margin-top:12px"><a class="btn sm btn-ic" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener" style="text-decoration:none">${ic('whatsapp', 18)} WhatsApp</a><button class="btn sm btn-ic" data-a="copy">${ic('link', 18)} Copiar enlace</button></div>
     <div class="actions"><a class="btn gold btn-ic" href="${url}" download="invitacion-angelito.png" style="text-decoration:none">${ic('download', 18)} Descargar</a><button class="btn" data-a="x">Cerrar</button></div>`).onclick = async e => {
     const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
-    if (a === 'copy') { try { await navigator.clipboard.writeText(text); toast('Enlace copiado'); } catch { toast(location.origin + location.pathname); } return; }
+    if (a === 'copy') return copyText(text, '📋 Enlace copiado');
     closeModal(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 }
@@ -4270,7 +4270,7 @@ function goTab(dir) { // dir: +1 siguiente, -1 anterior
     if (lock !== 'h') return reset(view);
     const fast = Math.abs(dx) / Math.max(1, Date.now() - t) > .45;
     if (!ok || (Math.abs(dx) < 70 && !(fast && Math.abs(dx) > 30))) return reset(view, true);
-    if (navigator.vibrate) try { navigator.vibrate(8); } catch { }
+    buzz(8);
     view.style.transition = 'transform .14s ease-in, opacity .14s ease-in'; if (view.id !== 'v-buzon') view.style.transform = `translateX(${dx < 0 ? '-38%' : '38%'})`; view.style.opacity = '0';
     setTimeout(() => { reset(view); goTab(dx < 0 ? 1 : -1); }, 130);
   };
