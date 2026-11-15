@@ -483,6 +483,12 @@ service cloud.firestore {
     }
 
     // ---------- chat ----------
+    // 🟢 quién está en línea (la app avisa «sigo aquí» cada minuto mientras está abierta)
+    match /presence/{uid} {
+      allow read: if member();
+      allow write: if isParticipant() && me() == uid && request.resource.data.keys().hasOnly(['ts', 'on', 'at'])
+        && request.resource.data.ts is int && request.resource.data.on is bool && tsOk(request.resource.data);
+    }
     // 👁️ hasta qué mensaje leyó cada quien (para «visto por» y para no avisar de lo ya leído)
     match /chatSeen/{uid} {
       allow read: if member();

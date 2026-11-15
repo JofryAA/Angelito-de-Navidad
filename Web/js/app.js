@@ -311,6 +311,7 @@ function startUserSubs(user) {
     unsubUser.push(onSnapshot(query(collection(db, 'notices'), orderBy('ts', 'desc'), limit(30)), s => { S.notices = rows(s); render(); }, ufail('notices')));
     unsubUser.push(onSnapshot(doc(db, 'party', 'live'), s => { S.live = s.exists() ? s.data() : null; render(); }, () => { }));
     unsubUser.push(onSnapshot(doc(db, 'stats', 'questions'), s => { S.qCount = s.exists() ? (s.data().count || 0) : 0; render(); }, ufail('stats')));
+    unsubUser.push(onSnapshot(collection(db, 'presence'), s => { S.presence = Object.fromEntries(s.docs.map(d => [d.id, { ts: +d.data().ts || 0, on: !!d.data().on }])); chatSig = ''; render(); }, () => { })); beat(true);
     unsubUser.push(onSnapshot(collection(db, 'chatSeen'), s => { S.chatSeenAll = Object.fromEntries(s.docs.map(d => [d.id, +d.data().ts || 0])); chatSig = ''; render(); }, () => { }));
     unsubUser.push(onSnapshot(doc(db, 'thanks', user.uid), s => { S.myThanks = s.exists() ? s.data() : null; render(); }, ufail('thanks')));
     unsubUser.push(onSnapshot(doc(db, 'wishPick', user.uid), s => { S.wishPick = s.exists() ? s.data() : null; render(); }, ufail('wishPick')));
@@ -795,6 +796,7 @@ function userMenu() {
     <div class="mlist">
       ${mod('perfil') ? row('prof', 'shirt', 'Mi perfil de gustos', 'Tallas, colores y lo que te gusta', `<span class="cnt ${pd < PROF.length ? 'no' : 'ok'}">${pd}/${PROF.length}</span>`) : ''}
       ${S.isAdmin ? row('admin', 'shield', 'Panel de control', S.isOwner ? 'Organizador principal' : 'Tienes permisos de administrador') : ''}
+      <button class="mrow" data-online><span class="me-e">🟢</span><span class="grow"><b>Quién está en línea</b><span class="muted small">${onlineIds().length} conectados ahora</span></span><span class="chev">›</span></button>
       ${row('notif', 'bell', 'Notificaciones', 'Elige qué avisos recibir')}
       ${row('install', 'phone', isInstalled() ? 'Reinstalar o reparar la app' : 'Descargar la app', isInstalled() ? 'Si te da algún error, aquí se arregla' : 'Ábrela desde tu pantalla de inicio')}
       ${row('help', 'help', 'Ayuda', 'Guía, preguntas frecuentes y soluciones')}
@@ -864,7 +866,7 @@ const HELP = () => [
   ['cuenta', '🔐', 'Mi ícono, mi PIN y cerrar sesión', ['Toca tu nombre arriba para abrir tu menú.', 'Toca tu ícono para cambiarlo; abajo está <b>Cerrar sesión</b>.', 'Para cambiar el PIN, pídele al organizador un PIN temporal: al entrar con él creas uno nuevo.']],
   ['cuenta', '🛡️', 'Mis datos y mi privacidad', ['Tu PIN no se guarda en ningún lado: solo sirve para entrar.', 'Tu resultado de la ruleta, tus agradecimientos y lo que apartas solo los ves tú.', 'Si cierras sesión en un teléfono prestado, no queda nada tuyo guardado ahí.']],
   // 🛠️ problemas
-  ['problemas', '📡', 'Sin internet', ['La app sigue funcionando: verás <b>Sin conexión</b> arriba.', 'Lo que hagas (mensajes, deseos, reacciones) se guarda en tu teléfono y se sube solo cuando vuelve el internet.', 'Las partidas en línea esperan a que vuelvas; contra 🤖 puedes jugar igual.']],
+  ['problemas', '📡', 'Sin internet', ['La app sigue funcionando. El punto en tu nombre (arriba) se pone <b>rojo</b> mientras no tienes internet y <b>verde</b> cuando vuelve.', 'Lo que hagas (mensajes, deseos, reacciones) se guarda en tu teléfono y se sube solo cuando vuelve el internet.', 'Las partidas en línea esperan a que vuelvas; contra 🤖 puedes jugar igual.']],
   ['problemas', '👻', 'No me aparecen personas o datos', ['Revisa que tengas internet.', 'Abre esta ayuda y toca <b>Recargar datos</b>: baja todo de nuevo sin borrar nada ni cerrar tu sesión.']],
   ['problemas', '⏰', 'Me dice «revisa la hora de tu teléfono»', ['Ajustes del teléfono → Fecha y hora → activa <b>hora automática</b>.', 'Vuelve a intentarlo.']],
   ['problemas', '🔐', 'Olvidé mi PIN', ['Pídele al organizador un <b>PIN temporal</b>.', 'Entra con ese PIN: la app te pide crear uno nuevo. No pierdes nada.']],
@@ -1091,7 +1093,7 @@ function renderUser() {
   const box = $('#userbox');
   $('#gear').style.display = S.isAdmin ? '' : 'none';
   if (!S.authReady && !S.me) { box.innerHTML = '<span class="pill"><span class="spin-dots" style="width:12px;height:12px;border-width:2px"></span></span>'; return; }
-  box.innerHTML = S.me ? `<button class="userchip" id="ubtn"><span class="av">${esc(S.me.emoji)}</span><span class="nm">${esc(shortName(S.me))}</span></button>` : `<button class="userchip login" data-auth="login">Entrar</button>`;
+  box.innerHTML = S.me ? `<button class="userchip" id="ubtn"><span class="av">${esc(S.me.emoji)}<i class="netdot ${navigator.onLine === false ? 'off' : 'on'}"></i></span><span class="nm">${esc(shortName(S.me))}</span></button>` : `<button class="userchip login" data-auth="login">Entrar</button>`;
   $('#ubtn')?.addEventListener('click', userMenu);
   $('#gear').style.display = S.isAdmin ? '' : 'none';
 }
@@ -1947,7 +1949,7 @@ function renderChat() {
   if (!S.me) $('#c-ngate').innerHTML = `<div class="ngate"><span>💬</span><div><b>Para escribir, entra con tu nombre</b><small>${S.isAdmin ? 'Como organizador solo puedes leer el chat.' : 'Usa tu PIN de 4 números.'}</small></div>${S.isAdmin ? '' : '<button class="btn sm gold" type="button" data-auth="login">Entrar</button>'}</div>`;
   else if (needN) $('#c-ngate').innerHTML = `<div class="ngate"><span>🔔</span><div><b>Activa los avisos para escribir</b><small>${Notification.permission === 'denied' ? 'Los tienes bloqueados: te explico cómo permitirlos.' : 'Así te enteras cuando te respondan o te mencionen.'}</small></div><button class="btn sm gold" type="button" data-nact>Activar</button></div>`;
   if (!can) return;
-  $('#c-count').textContent = navigator.onLine === false ? '📡 Sin conexión: se enviará al volver' : S.chat.length ? nMsg(S.chat.length) : '';
+  { const n = onlineIds().length; $('#c-count').innerHTML = navigator.onLine === false ? '<button type="button" class="onl off" data-online><i class="netdot off"></i>Sin conexión</button>' : `<button type="button" class="onl" data-online><i class="netdot on"></i>${n} en línea</button>`; }
   loadChatImgs();
   const sig = S.chat.map(m => m.id + (m.edited ? 'e' + m.text.length + m.text.slice(-4) : '') + (m.pending ? '~' : '') + (m.hasImg && S.chatImgs[m.id] ? 'i' : '')).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join() + '|' + JSON.stringify(S.chatSeenAll || {});
   if (sig === chatSig) return; chatSig = sig;
@@ -1961,7 +1963,7 @@ function renderChat() {
     const cont = !sep && prev && prev.uid === m.uid && Math.abs((ms(m.at) || m.ts || 0) - (ms(prev.at) || prev.ts || 0)) < 5 * 60e3; prev = m;
     const tagMe = (m.mentions || []).includes(S.uid) || ((m.mentions || []).includes('all') && m.uid !== S.uid);
     const rx = reactsFor(m.id), rk = Object.keys(rx).sort((a, b) => rx[b].length - rx[a].length), rn = rk.reduce((a, e) => a + rx[e].length, 0);
-    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''} ${rn ? 'hasrx' : ''} ${S.chatSel?.has(m.id) ? 'sel' : ''}" data-row="${esc(m.id)}"><i class="swr">${ic('reply', 18)}</i><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm" style="color:${nmColor(m.uid)}">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}${m.hasImg ? (S.chatImgs[m.id] ? `<button type="button" class="cimg" data-cimg="${esc(m.id)}" aria-label="Ver foto"><img src="${S.chatImgs[m.id]}" alt=""></button>` : '<div class="cimg ld"></div>') : ''}${m.hasImg && m.text === '📷 Foto' ? '' : `<div class="mt">${mentionHTML(m)}</div>`}<div class="tm">${m.edited ? '<span class="edt">editado · </span>' : ''}${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : (() => { const n = seenBy(m).length, all = S.participants.length - 1; return n && n >= all ? ' <span class="ok seen" title="Lo vieron todos">✓✓</span>' : n ? ` <span class="ok" title="Lo vieron ${n}">✓✓</span>` : ' <span class="ok" title="Enviado">✓</span>'; })()) : ''}</div>${rn ? `<button type="button" class="rxpill ${rk.some(e => rx[e].includes(S.uid)) ? 'me' : ''}" data-rx="${esc(m.id)}" aria-label="Ver reacciones">${rk.slice(0, 3).join('')}${rn > 1 ? `<b>${rn}</b>` : ''}</button>` : ''}</div></div>`;
+    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''} ${rn ? 'hasrx' : ''} ${S.chatSel?.has(m.id) ? 'sel' : ''}" data-row="${esc(m.id)}"><i class="swr">${ic('reply', 18)}</i><div class="av">${esc(pEmoji(m.uid))}${!me && isOnline(m.uid) ? '<i class="netdot on"></i>' : ''}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm" style="color:${nmColor(m.uid)}">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}${m.hasImg ? (S.chatImgs[m.id] ? `<button type="button" class="cimg" data-cimg="${esc(m.id)}" aria-label="Ver foto"><img src="${S.chatImgs[m.id]}" alt=""></button>` : '<div class="cimg ld"></div>') : ''}${m.hasImg && m.text === '📷 Foto' ? '' : `<div class="mt">${mentionHTML(m)}</div>`}<div class="tm">${m.edited ? '<span class="edt">editado · </span>' : ''}${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : (() => { const n = seenBy(m).length, all = S.participants.length - 1; return n && n >= all ? ' <span class="ok seen" title="Lo vieron todos">✓✓</span>' : n ? ` <span class="ok" title="Lo vieron ${n}">✓✓</span>` : ' <span class="ok" title="Enviado">✓</span>'; })()) : ''}</div>${rn ? `<button type="button" class="rxpill ${rk.some(e => rx[e].includes(S.uid)) ? 'me' : ''}" data-rx="${esc(m.id)}" aria-label="Ver reacciones">${rk.slice(0, 3).join('')}${rn > 1 ? `<b>${rn}</b>` : ''}</button>` : ''}</div></div>`;
   }).join('') : `<div class="empty" style="margin:auto"><span class="e">💬</span>Nadie ha escrito todavía.<br>¡Rompe el hielo! Toca 🎲 para una idea.</div>`;
   if (near || S.chatStick) { S.chatStick = false; l.scrollTop = l.scrollHeight; }
   syncSelBar();
@@ -4438,8 +4440,32 @@ function snow() {
 addEventListener('resize', () => { if (!S.spinning) drawWheel(); });
 
 $('#datafail-btn').addEventListener('click', () => repairData());
-const netState = () => { $('#offline').hidden = navigator.onLine !== false; };
-addEventListener('online', () => { netState(); toast('📶 Volvió el internet · tus cambios se están subiendo'); }); addEventListener('offline', netState); netState();
+/* ---------- 🟢 en línea: punto verde (conectado) o rojo (sin internet) en tu nombre, y quién más está conectado ---------- */
+const netState = () => { document.body.classList.toggle('net-off', navigator.onLine === false); $$('.netdot').forEach(d => d.className = 'netdot ' + (navigator.onLine === false ? 'off' : 'on')); try { renderChat(); } catch { } beat(); };
+addEventListener('online', netState); addEventListener('offline', netState);
+const ONLINE_MS = 150e3; // se cuenta «en línea» si la app dio señal en los últimos 2 minutos y medio
+const isOnline = uid => uid === S.uid ? navigator.onLine !== false && !document.hidden : !!(S.presence?.[uid]?.on && Date.now() - (S.presence[uid].ts || 0) < ONLINE_MS);
+const onlineIds = () => S.participants.filter(p => isOnline(p.id)).map(p => p.id);
+let beatT = 0, beatLast = 0;
+function beat(force) { // «sigo aquí» cada minuto mientras la app está abierta y a la vista
+  clearTimeout(beatT); if (!S.me || navigator.onLine === false) return;
+  const on = !document.hidden;
+  if (force || !on || Date.now() - beatLast > 55e3) { beatLast = Date.now(); fsSetDoc(doc(db, 'presence', S.uid), { ts: Date.now(), on, at: serverTimestamp() }).catch(() => { }); }
+  if (on) beatT = setTimeout(beat, 60e3);
+}
+document.addEventListener('visibilitychange', () => beat(true));
+setInterval(() => { if (S.me && $('#v-buzon')?.classList.contains('on')) renderChat(); }, 60e3); // el «en línea» se apaga solo si alguien se va sin avisar
+const agoTxt = t => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'hace un momento' : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : m < 2880 ? 'ayer' : `hace ${Math.round(m / 1440)} días`; };
+function showOnline() {
+  const on = S.participants.filter(p => isOnline(p.id)).sort((a, b) => (b.id === S.uid) - (a.id === S.uid) || a.name.localeCompare(b.name, 'es'));
+  const off = S.participants.filter(p => !isOnline(p.id)).sort((a, b) => (S.presence?.[b.id]?.ts || 0) - (S.presence?.[a.id]?.ts || 0));
+  const row = (p, live) => `<div class="rxw-row"><span class="rxw-av on-av">${esc(p.emoji)}<i class="netdot ${live ? 'on' : 'off'}"></i></span><span class="grow"><b>${p.id === S.uid ? 'Tú' : esc(p.name)}</b><small>${live ? 'En línea' : S.presence?.[p.id]?.ts ? 'Se conectó ' + agoTxt(S.presence[p.id].ts) : 'Todavía no ha entrado'}</small></span></div>`;
+  openModal(`<h3>🟢 En línea</h3><p class="muted small" style="margin-top:2px">${on.length} ${on.length === 1 ? 'persona conectada' : 'personas conectadas'} ahora</p>
+    <div class="rxw-list" style="margin-top:10px">${on.map(p => row(p, true)).join('')}${off.length ? `<div class="hc-ttl" style="font-size:.85rem;margin:12px 4px 4px">Fuera de línea</div>${off.map(p => row(p, false)).join('')}` : ''}</div>
+    <div class="actions"><button class="btn gold" data-a="x">Listo</button></div>`).onclick = e => { if (e.target.closest('[data-a]')) closeModal(); };
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-online]')) { e.preventDefault(); e.stopPropagation(); showOnline(); } }, true);
+netState();
 snow(); buildBulbs(); route(); renderAll(); tick(); maybeAskInstall();
 try { if (sessionStorage.getItem('angelito:afterLogout') === 'reg') { sessionStorage.removeItem('angelito:afterLogout'); setTimeout(() => openAuth('reg'), 1200); } } catch { }
 
