@@ -443,3 +443,4 @@ body.ideas-on #buz-seg{display:none!important}
 .rv-timer i{display:block;height:100%;background:linear-gradient(90deg,#ffd77a,#d9466b);animation:rvt 5s linear forwards}
 @keyframes rvt{from{width:100%}to{width:0}}
 .pg-it{text-align:left}.pg-it>span:last-child{flex:1}
+.um-hd{margin:0 0 4px!important;padding:14px!important;border-radius:20px!important}.um-hd h3{overflow-wrap:break-word}.um-hd .av{cursor:pointer;transition:transform .15s}.um-hd .av:active{transform:scale(.92)}

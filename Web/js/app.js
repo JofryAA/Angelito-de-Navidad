@@ -767,7 +767,7 @@ function askPin(title, body) {
 function userMenu() {
   const row = (a, e, t, d, x = '') => `<button class="mrow" data-a="${a}"><span class="me-e">${SVGI[e] ? ic(e, 22) : e}</span><span class="grow"><b>${t}</b>${d ? `<span class="muted small">${d}</span>` : ''}</span>${x}<span class="chev">›</span></button>`;
   const pd = profDone();
-  const s = openModal(`<div class="who-card"><button class="av" data-a="icon" title="Cambiar mi ícono" style="position:relative">${esc(S.me.emoji)}<span style="position:absolute;right:-4px;bottom:-4px;font-size:12px;background:var(--gold);border-radius:50%;width:20px;height:20px;display:grid;place-items:center">✏️</span></button><div><h3 style="margin:0">${esc(S.me.name)}</h3><div class="muted small">Participante del angelito</div></div></div>
+  const s = openModal(`<div class="card who-card um-hd"><button class="av" data-a="icon" title="Cambiar mi ícono" aria-label="Cambiar mi ícono">${esc(S.me.emoji)}</button><div><h3 style="margin:0">${esc(S.me.name)}</h3><div class="muted small">Participante del angelito</div></div></div>
     <div class="mlist">
       ${mod('perfil') ? row('prof', 'shirt', 'Mi perfil de gustos', 'Tallas, colores y lo que te gusta', `<span class="cnt ${pd < PROF.length ? 'no' : 'ok'}">${pd}/${PROF.length}</span>`) : ''}
       ${S.isAdmin ? row('admin', 'shield', 'Panel de control', S.isOwner ? 'Organizador principal' : 'Tienes permisos de administrador') : ''}
