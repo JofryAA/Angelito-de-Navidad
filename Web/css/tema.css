@@ -924,13 +924,33 @@ body.navd[data-swipe=r] .view.on{animation:swR .26s cubic-bezier(.2,.9,.3,1)!imp
 body:not(.anim-in) :is(.qcard,.rf,.pg-it,.seat,.wprof,.ar-p,.ar-ring,.ar-bar i,.ar-mbar i,.rxpill,.msg:last-child,.todo .step,.witem,.sug2,.wcard,.wsc){animation:none!important}
 
 /* chips reutilizables (ayuda, reacciones, asistencia) */
-.chips{display:flex;gap:6px;overflow-x:auto;margin:10px -4px 6px;padding:2px 4px 6px;scrollbar-width:none}
-.chips::-webkit-scrollbar{display:none}
-.chips button{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);color:inherit;font-size:.88rem;white-space:nowrap}
-.chips button i{font-style:normal;font-weight:800;font-size:.75rem;min-width:20px;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.12);text-align:center}
-.chips button.on{background:var(--gold);color:#1b2a22;font-weight:700;border-color:transparent}.chips button.on i{background:rgba(0,0,0,.15)}
+.ctabs{display:flex;gap:6px;overflow-x:auto;margin:10px -4px 6px;padding:2px 4px 6px;scrollbar-width:none}
+.ctabs::-webkit-scrollbar{display:none}
+.ctabs button{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);color:inherit;font-size:.88rem;white-space:nowrap}
+.ctabs button i{font-style:normal;font-weight:800;font-size:.75rem;min-width:20px;padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.12);text-align:center}
+.ctabs button.on{background:var(--gold);color:#1b2a22;font-weight:700;border-color:transparent}.ctabs button.on i{background:rgba(0,0,0,.15)}
 
 /* El chat tiene la barra de escribir fija: su pantalla aparece sin moverse (solo se ilumina), así la barra ya está en su sitio desde el primer instante */
 body.navd #v-buzon.on,body.navd[data-swipe] #v-buzon.on{animation:vFade .2s ease-out!important}
 @keyframes vFade{from{opacity:.4}}
 #v-buzon.on,#v-buzon.on>*{transform:none!important}
+/* 📊 informe v2: resumen arriba, pestañas parejas, lista y barra de acciones */
+.ar-in b{font-size:1.45rem}
+.ar-sum{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.ar-big b{font-size:2.1rem;line-height:1;display:block}.ar-big span{font-size:.85rem;color:var(--muted)}
+.ar-st{font-size:.85rem;padding:6px 10px;border-radius:12px;background:rgba(255,255,255,.06);align-self:flex-start}
+.ar-st.done{background:rgba(60,207,131,.15);color:#8ff0bd}
+.ar-stack{display:flex;height:8px;border-radius:9px;overflow:hidden;background:rgba(255,255,255,.1)}
+.ar-stack i{display:block;height:100%}.ar-stack .ok{background:linear-gradient(90deg,#2fae6c,#5be39b)}.ar-stack .no{background:#ff7a6e}
+.aseg{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:4px;padding:4px;border-radius:18px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.06)}
+.aseg button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:14px;color:var(--muted);background:none;min-width:0;transition:background .15s}
+.aseg button b{font-size:1.25rem;color:#fff;line-height:1.1}.aseg button span{font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.aseg button.on{background:rgba(255,255,255,.1);color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.14)}
+.aseg button.ok.on{background:rgba(60,207,131,.18);box-shadow:inset 0 0 0 1.5px rgba(60,207,131,.5)}
+.aseg button.no.on{background:rgba(255,122,110,.16);box-shadow:inset 0 0 0 1.5px rgba(255,122,110,.5)}
+.aseg button.gold.on{background:rgba(236,188,92,.18);box-shadow:inset 0 0 0 1.5px rgba(236,188,92,.55)}
+.ar-empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px;color:var(--muted);font-size:.9rem}.ar-empty span{font-size:28px}
+.ar-tools{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:6px;padding-top:12px;border-top:1px solid rgba(255,255,255,.07)}
+.ar-tools button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);color:inherit;font-size:.78rem;font-weight:600}
+.ar-tools button span{font-size:20px}.ar-tools button:active{transform:scale(.96);background:rgba(255,255,255,.1)}
+.ar-acts{display:none}

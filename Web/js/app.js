@@ -455,7 +455,7 @@ function viewImage(src) { openModal(`<img src="${src || ''}" alt="" style="width
 // Cabecera de una hoja con la persona (menú ⋯, asistencia…)
 const personHead = (p, sub) => `<div class="wm-h who-card" style="display:flex;gap:12px;align-items:center"><span class="av">${esc(p.emoji)}</span><div><div class="muted small">${esc(sub)}</div><b>${esc(p.name)}</b></div></div>`;
 // Pestañas en forma de chips (ayuda, reacciones, asistencia): [clave, texto, número?]
-const chipTabs = (list, cur, attr) => `<div class="chips" data-noswipe>${list.map(([k, l, n]) => `<button type="button" class="${k === cur ? 'on' : ''}" data-${attr}="${esc(k)}">${l}${n != null ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
+const chipTabs = (list, cur, attr) => `<div class="ctabs" data-noswipe>${list.map(([k, l, n]) => `<button type="button" class="${k === cur ? 'on' : ''}" data-${attr}="${esc(k)}">${l}${n != null ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
 function closeModal() { $('#modal').classList.remove('on'); $('#sheet').onclick = null; }
 // En computadora, la tecla Esc cierra la ventanita abierta (como tocar fuera o el botón atrás en el teléfono).
 addEventListener('keydown', e => {
@@ -1666,40 +1666,37 @@ function attSummary() {
 // 📊 Informe de asistencia y aportes (organizador)
 S.attTab = S.attTab || 'si';
 function renderAttReport(sm, amt, num, pre) {
-  const tot = S.participants.length || 1, pct = n => Math.round(n / tot * 100), resp = sm.going + sm.notGoing;
+  const n = S.participants.length, tot = n || 1, pct = v => Math.round(v / tot * 100), resp = sm.going + sm.notGoing;
   const a1 = sm.going / tot * 360, a2 = a1 + sm.notGoing / tot * 360;
   const money = v => esc(pre) + Math.round(v).toLocaleString('es-DO');
   const goal = num ? num * sm.going : 0, got = num ? num * sm.paid : 0, mp = sm.going ? Math.round(sm.paid / sm.going * 100) : 0;
-  const L = { si: p => (S.att[p.id] || {}).status === 'si', no: p => (S.att[p.id] || {}).status === 'no', pend: p => !(S.att[p.id] || {}).status, debe: p => (S.att[p.id] || {}).status === 'si' && !(S.att[p.id] || {}).confirmed };
-  const tabs = [['si', '✅', 'Van', sm.going], ['no', '❌', 'No van', sm.notGoing], ['pend', '⏳', 'Sin responder', sm.pending], ...(amt ? [['debe', '💵', 'Falta aporte', sm.going - sm.paid]] : [])];
-  if (!tabs.some(t => t[0] === S.attTab)) S.attTab = 'si';
+  const A = p => S.att[p.id] || {};
+  const L = { si: p => A(p).status === 'si', no: p => A(p).status === 'no', pend: p => !A(p).status, debe: p => A(p).status === 'si' && !A(p).confirmed };
+  const tabs = [['si', '✅', 'Van', sm.going, 'ok'], ['no', '❌', 'No van', sm.notGoing, 'no'], ['pend', '⏳', 'Faltan', sm.pending, 'wait'], ...(amt ? [['debe', '💵', 'Deben', sm.going - sm.paid, 'gold']] : [])];
+  if (!tabs.some(t => t[0] === S.attTab) || (!tabs.find(t => t[0] === S.attTab)[3] && !S.attTabPicked)) S.attTab = (tabs.find(t => t[3]) || tabs[0])[0]; // abre en una lista con gente
   const list = S.participants.filter(L[S.attTab]).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  const status = sm.pending ? `Faltan <b>${sm.pending}</b> por responder` : '🎉 <b>Todos respondieron</b>';
+  const acts = [['exp-wa', '💬', 'WhatsApp'], ['exp-csv', '📊', 'Excel'], ...(amt ? [['att-remind', '💵', 'Cobrar']] : []), ...(sm.pending ? [['att-remind2', '🔔', 'Recordar']] : [])];
   $('#att-sum').innerHTML = `<div class="ar">
     <div class="ar-top">
-      <div class="ar-ring" style="--a1:${a1}deg;--a2:${a2}deg"><div class="ar-in"><b>${resp}</b><span>de ${S.participants.length}<br>respondieron</span></div></div>
-      <div class="ar-leg">
-        ${[['ok', '✅ Van', sm.going], ['no', '❌ No van', sm.notGoing], ['wait', '⏳ Sin responder', sm.pending]].map(([c, l, n]) => `<div class="ar-l ${c}"><div class="ar-lt"><span>${l}</span><b>${n}</b></div><div class="ar-bar"><i style="width:${pct(n)}%"></i></div></div>`).join('')}
-      </div>
+      <div class="ar-ring" style="--a1:${a1}deg;--a2:${a2}deg"><div class="ar-in"><b>${pct(sm.going)}%</b><span>van</span></div></div>
+      <div class="ar-sum"><div class="ar-big"><b>${sm.going}</b><span>de ${n} van al angelito</span></div><div class="ar-st ${sm.pending ? '' : 'done'}">${status}</div>
+        <div class="ar-stack"><i class="ok" style="width:${pct(sm.going)}%"></i><i class="no" style="width:${pct(sm.notGoing)}%"></i></div></div>
     </div>
-    ${amt ? `<div class="ar-money">
-      <div class="ar-mh"><span>💵 Aportes · ${esc(amt)} por persona</span><b>${mp}%</b></div>
-      ${num ? `<div class="ar-mv"><b>${money(got)}</b><span>de ${money(goal)} recogido</span></div>` : ''}
+    ${amt ? `<div class="ar-money"><div class="ar-mh"><span>💵 Aportes de ${esc(amt)}</span><b>${mp}%</b></div>
+      ${num ? `<div class="ar-mv"><b>${money(got)}</b><span>de ${money(goal)}</span></div>` : ''}
       <div class="ar-mbar"><i style="width:${mp}%"></i></div>
-      <div class="ar-mstats"><span><b>${sm.paid}</b> pagaron</span><span><b>${sm.going - sm.paid}</b> faltan</span>${sm.said ? `<span class="said"><b>${sm.said}</b> dicen que ya pagaron</span>` : ''}</div>
-    </div>` : ''}
-    ${chipTabs(tabs.map(([k, e, l, n]) => [k, `${e} ${l}`, n]), S.attTab, 'atab')}
-    <div class="ar-list">${list.length ? list.map((p, k) => { const a = S.att[p.id] || {};
-      return `<button type="button" class="ar-p" data-aped="${esc(p.id)}" style="--d:${k * 25}ms"><span class="ar-av">${esc(p.emoji)}</span><span class="grow"><b>${esc(p.name)}</b><small>${a.status === 'si' ? (amt ? (a.confirmed ? '💵 Aporte recibido' : a.paid ? '🟡 Dice que ya pagó' : '⏳ Falta su aporte') : 'Va') : a.status === 'no' ? 'No va' : 'No ha respondido'}${a.setBy ? ' · marcado por el organizador' : ''}</small></span><span class="ar-ed">${ic('edit', 16)}</span></button>`; }).join('') : '<p class="ar-empty">Nadie en esta lista 🎉</p>'}</div>
-    <div class="ar-acts">
-      <button type="button" class="ar-act" data-aact="exp-wa"><span>💬</span><b>Copiar para WhatsApp</b></button>
-      <button type="button" class="ar-act" data-aact="exp-csv"><span>📊</span><b>Copiar para Excel</b></button>
-      ${amt ? '<button type="button" class="ar-act gold" data-aact="att-remind"><span>📣</span><b>Recordar el aporte</b></button>' : ''}
-      <button type="button" class="ar-act" data-aact="att-remind2"><span>🔔</span><b>Recordar confirmar</b></button>
-    </div></div>`;
+      <div class="ar-mstats"><span><b>${sm.paid}</b> pagaron</span><span><b>${sm.going - sm.paid}</b> faltan</span>${sm.said ? `<span class="said"><b>${sm.said}</b> dicen que ya</span>` : ''}</div></div>` : ''}
+    <div class="aseg" style="--n:${tabs.length}" data-noswipe>${tabs.map(([k, e, l, c, cls]) => `<button type="button" class="${cls} ${S.attTab === k ? 'on' : ''}" data-atab="${k}"><b>${c}</b><span>${e} ${l}</span></button>`).join('')}</div>
+    <div class="ar-list">${list.length ? list.map(p => { const a = A(p);
+      return `<button type="button" class="ar-p" data-aped="${esc(p.id)}"><span class="ar-av">${esc(p.emoji)}</span><span class="grow"><b>${esc(p.name)}</b><small>${a.status === 'si' ? (amt ? (a.confirmed ? '💵 Aporte recibido' : a.paid ? '🟡 Dice que ya pagó' : '⏳ Falta su aporte') : '✅ Va') : a.status === 'no' ? '❌ No va' : '⏳ No ha respondido'}${a.setBy ? ' · por el organizador' : ''}</small></span><span class="ar-ed">${ic('edit', 16)}</span></button>`; }).join('')
+      : `<div class="ar-empty"><span>${S.attTab === 'pend' ? '🎉' : S.attTab === 'debe' ? '💰' : '🙌'}</span>${S.attTab === 'pend' ? 'Todos respondieron' : S.attTab === 'debe' ? 'Todos pagaron' : 'Nadie en esta lista'}</div>`}</div>
+    <div class="ar-tools" style="--n:${acts.length}">${acts.map(([k, e, l]) => `<button type="button" data-aact="${k}"><span>${e}</span>${l}</button>`).join('')}</div>
+  </div>`;
   $('#att-list').innerHTML = '';
 }
 $('#att-sum').addEventListener('click', e => {
-  const t = e.target.closest('[data-atab]'); if (t) { S.attTab = t.dataset.atab; return renderAttendance(); }
+  const t = e.target.closest('[data-atab]'); if (t) { S.attTab = t.dataset.atab; S.attTabPicked = true; return renderAttendance(); }
   const a = e.target.closest('[data-aact]'); if (a) return $('#' + a.dataset.aact)?.click();
   const pe = e.target.closest('[data-aped]'); if (pe) return editAtt(pe.dataset.aped);
 });
@@ -4247,7 +4244,7 @@ function goTab(dir) { // dir: +1 siguiente, -1 anterior
   nx.click(); return true;
 }
 (() => {
-  const NOSWIPE = 'input,textarea,select,button.tg,#c-list,.pscroll,.hand,.mesa,.ttt,.c4,.hkb,.wheel,canvas,iframe,.evmap,.rxw-tabs,.wi-chips,.podium,.chips,.ar-tabs,.hc-cats,[data-noswipe]';
+  const NOSWIPE = 'input,textarea,select,button.tg,#c-list,.pscroll,.hand,.mesa,.ttt,.c4,.hkb,.wheel,canvas,iframe,.evmap,.wi-chips,.podium,.ctabs,.aseg,.ar-tabs,.hc-cats,[data-noswipe]';
   const scrollsX = el => { for (let n = el; n && n !== document.body; n = n.parentElement) { if (n.scrollWidth > n.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(n).overflowX)) return true; } return false; };
   let st = null;
   const reset = (v, anim) => { if (!v) return; v.style.transition = anim ? 'transform .22s cubic-bezier(.2,.9,.3,1), opacity .22s' : ''; v.style.transform = ''; v.style.opacity = ''; if (anim) setTimeout(() => { v.style.transition = ''; }, 240); };
