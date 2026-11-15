@@ -671,3 +671,7 @@ body.anim-in .wcard{animation:upin .4s var(--d,0ms) backwards}
 .wempty{text-align:center;padding:28px 16px;border-radius:22px;background:var(--surf);border:1px dashed rgba(255,255,255,.15)}
 .we-ic{font-size:52px;animation:bob 3s ease-in-out infinite}
 .wempty b{display:block;margin-top:6px;font-size:1.05rem}
+.glog.bonus{background:linear-gradient(145deg,#ffd77a,#e2a93b)!important;color:#3a2600!important;border-color:transparent!important;animation:popin .35s backwards;font-weight:800}
+.lb-rules{margin:0 0 10px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+.lb-rules summary{cursor:pointer;font-weight:800;font-size:.85rem;color:var(--gold)}
+.lb-rules ul{margin:8px 0 0;padding-left:18px;display:grid;gap:5px;font-size:.82rem;color:#d9e6dd}

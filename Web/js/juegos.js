@@ -49,6 +49,20 @@ export function applyMove(g, seat, hand, tile, side) {
     if (can.length) throw new Error('Tienes ficha para jugar');
     patch.passes = (g.passes || 0) + 1;
     patch.last = { seat, pass: true, root: g.last?.root || 0 };
+    // Reglas dominicanas (en parejas): el pase da puntos a la pareja de quien jugó la última ficha
+    //  · pase de salida: el que sigue no puede contestar la primera ficha de la mano → +25
+    //  · pase corrido: los otros tres pasan y la mano vuelve a quien jugó → +25 (y vuelve a jugar)
+    const lk = g.locker;
+    if (g.mode === 'parejas' && lk != null && chain.length) {
+      const salida = chain.length === 1 && patch.passes === 1, corrido = patch.passes === n - 1;
+      if (salida || corrido) {
+        const pts = (salida ? 25 : 0) + (corrido ? 25 : 0), team = teamOf(g, lk);
+        patch.last.bonus = { team, pts, why: salida && corrido ? 'salida-corrido' : salida ? 'salida' : 'corrido', seat: g.players[lk] };
+        const scores = (g.scores || []).slice(); scores[team] = (scores[team] || 0) + pts;
+        if (scores[team] >= (g.target || 200)) return { patch: { ...patch, ...endHand(g, team, lk, pts, 'pase') }, hand: newHand };
+        patch.scores = scores;
+      }
+    }
   } else {
     if (!hand.includes(tile)) throw new Error('No tienes esa ficha');
     if (!can.includes(tile)) throw new Error('Esa ficha no cabe');
@@ -691,7 +705,15 @@ export function initGames(X) {
     return `<div class="lobby2">
         <div class="lb-hd"><span class="lb-ic">${GI}</span><div class="grow"><b>Sala de espera</b><span class="lb-st">${g.players.length} de ${g.max} jugadores${!host && inIt ? '<i class="dots"><i></i><i></i><i></i></i>' : ''}</span></div></div>
         ${seatsHTML(g)}
-        ${g.type === 'domino' && g.mode === 'parejas' ? '<p class="lb-note">🤝 Pareja A: asientos 1 y 3 · Pareja B: asientos 2 y 4</p>' : ''}
+        ${g.type === 'domino' && g.mode === 'parejas' ? `<p class="lb-note">🤝 Pareja A: asientos 1 y 3 · Pareja B: asientos 2 y 4</p>
+          <details class="lb-rules"><summary>📖 Reglas dominicanas</summary><ul>
+            <li>Primera mano: sale quien tenga el <b>doble 6</b>. Después sale quien ganó la mano anterior.</li>
+            <li>Gana la mano quien se queda sin fichas: su pareja se anota <b>todos los puntos</b> que quedan en las manos.</li>
+            <li><b>Capicúa</b> (la última ficha cabe por los dos lados): <b>+25</b>.</li>
+            <li><b>Pase de salida</b> (el siguiente no puede contestar la primera ficha): <b>+25</b> para quien salió.</li>
+            <li><b>Pase corrido</b> (los otros tres pasan): <b>+25</b> y vuelve a jugar.</li>
+            <li><b>Tranque</b>: gana la pareja con menos puntos en la mano; si empatan, gana quien trancó.</li>
+            <li>Gana la partida la primera pareja que llegue a <b>${g.target || 200}</b>.</li></ul></details>` : ''}
         ${inIt ? sideHTML(g) : ''}
         <p class="lb-msg">${msg}</p>
         <div class="lb-act">
@@ -712,11 +734,12 @@ export function initGames(X) {
     const sc = g.mode === 'parejas' ? `<div class="sb2"><div class="sb-t ta ${teamOfSeat(g, me()) === 0 ? 'mine' : ''}" style="--p:${pc(0)}%"><span class="sb-l">Pareja A <i>${tm(0)}</i></span><b>${g.scores?.[0] || 0}</b><span class="sb-bar"><i></i></span></div><div class="sb-goal"><span>🏆</span><b>${g.target}</b><small>meta</small></div><div class="sb-t tb ${teamOfSeat(g, me()) === 1 ? 'mine' : ''}" style="--p:${pc(1)}%"><span class="sb-l">Pareja B <i>${tm(1)}</i></span><b>${g.scores?.[1] || 0}</b><span class="sb-bar"><i></i></span></div></div>`
       : `<div class="score2 solo">${g.players.map((s, i) => `<div class="${s === me() ? 'mine' : ''}"><span>${esc(s === me() ? 'Tú' : seatName(s))}</span><b>${g.scores?.[i] || 0}</b></div>`).join('')}<span class="muted small">a ${g.target}</span></div>`;
     const last = g.last ? (g.last.timeout ? `⏰ A ${esc(seatName(g.last.seat))} se le acabó el tiempo` : g.last.pass ? `${esc(seatName(g.last.seat))} pasó` : `${esc(g.last.seat === me() ? 'Jugaste' : seatName(g.last.seat) + ' jugó')}`) : g.mustOpen && !chain.length ? `Sale ${esc(seatName(g.players[g.turn]))} con el doble ${g.mustOpen[0]}` : '';
-    const R = g.result, why = { domino: '¡Dominó!', capicua: '¡Capicúa! (+25)', tranque: '¡Tranque! Gana quien tiene menos puntos en fichas', 'tranque-empate': '¡Tranque con empate! Gana quien trancó', empate: 'Tranque empatado' };
+    const B = g.last?.bonus, bonusTxt = B ? ` · 🎉 ¡${{ salida: 'Pase de salida', corrido: 'Pase corrido', 'salida-corrido': 'Pase de salida y corrido' }[B.why] || 'Pase'}! +${B.pts} Pareja ${B.team ? 'B' : 'A'}` : '';
+    const R = g.result, why = { pase: '¡Pase! Llegó a la meta', domino: '¡Dominó!', capicua: '¡Capicúa! (+25)', tranque: '¡Tranque! Gana quien tiene menos puntos en fichas', 'tranque-empate': '¡Tranque con empate! Gana quien trancó', empate: 'Tranque empatado' };
     const winnerTxt = R ? (R.team < 0 ? why.empate : `${g.mode === 'parejas' ? 'Pareja ' + (R.team ? 'B' : 'A') : esc(seatName(g.players[R.team]))} gana ${R.pts} puntos · ${why[R.why]}`) : '';
     return `${sc}${seatsHTML(g)}
       <div class="mesa" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth(), g.last?.root || 0))}</div>
-      <p class="glog">${last}</p>
+      <p class="glog ${B ? 'bonus' : ''}">${last}${bonusTxt}</p>
       ${g.handOver ? `<div class="card center hover"><div style="font-size:36px">${R?.team < 0 ? '🤝' : '🎉'}</div><b>${winnerTxt}</b>
           ${g.status === 'done' ? `<p style="margin-top:8px">🏆 ${(g.winners || []).length ? 'Ganan ' + g.winners.map(s => esc(seatName(s))).join(' y ') : 'Ganaron los 🤖'}</p>` : ''}
           ${againHTML(g, g.status === 'done' ? '🔁 Otra partida' : '')}${g.status !== 'done' ? `<div class="qa" style="justify-content:center">${mySeat >= 0 ? `<button class="btn gold" data-gact="next" ${g.want && g.host !== me() ? 'disabled' : ''}>Siguiente mano ▶️</button>` : ''}</div><p class="muted small" style="margin-top:6px">Sale ${esc(seatName(g.players[R?.seat ?? 0]))} · sigue sola en unos segundos</p>` : ''}</div>` : ''}
