@@ -747,3 +747,21 @@ body.anim-in .wsc{animation:popin .4s var(--d,0ms) backwards}
 .wsc-add small{color:var(--muted);font-size:.72rem}
 .wsc-add:active{transform:scale(.97)}
 .wadd:not([open]){display:none}.wadd{margin-top:14px}
+
+/* ---- X y O ---- */
+@keyframes tdraw{from{stroke-dashoffset:60}to{stroke-dashoffset:0}}
+.ttt{padding:12px;border-radius:24px;background:linear-gradient(150deg,#e2557a,#9b2448);box-shadow:0 14px 30px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.2);gap:10px!important}
+.ttt .tc{aspect-ratio:1;border-radius:18px!important;border:0!important;background:rgba(0,0,0,.25)!important;box-shadow:inset 0 2px 6px rgba(0,0,0,.35);display:grid;place-items:center;cursor:pointer;transition:transform .12s,background .2s;min-width:0;padding:0}
+.ttt .tc:not([disabled]):hover{background:rgba(255,255,255,.12)!important}
+.ttt .tc:not([disabled]):active{transform:scale(.94)}
+.ttt svg{width:62%;height:62%;fill:none;stroke-width:6;stroke-linecap:round;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35))}
+.ttt .tx{stroke:#fff}.ttt .to{stroke:#ffd77a}
+.ttt [data-nw] svg path,.ttt [data-nw] svg circle{stroke-dasharray:60;animation:tdraw .35s ease-out backwards}
+.ttt .tc.win{background:rgba(255,255,255,.28)!important;animation:winpulse 1s ease-in-out infinite}
+/* ---- 4 en línea ---- */
+.c4{background:linear-gradient(160deg,#3779de,#1b4296)!important;border-radius:22px!important;padding:10px!important;box-shadow:0 14px 30px rgba(0,0,0,.4),inset 0 2px 0 rgba(255,255,255,.2),inset 0 -6px 0 rgba(0,0,0,.25)!important}
+.c4c:not([disabled]):hover{background:rgba(255,255,255,.1)}
+.c4h.r{box-shadow:inset 0 -3px 4px rgba(0,0,0,.3),0 2px 4px rgba(0,0,0,.35)}.c4h.y{box-shadow:inset 0 -3px 4px rgba(0,0,0,.25),0 2px 4px rgba(0,0,0,.35)}
+/* ---- Ahorcado ---- */
+.hlives{display:flex;justify-content:center;gap:4px;font-size:20px;margin:8px 0 2px}
+.hlives .off{opacity:.45;transform:scale(.85)}

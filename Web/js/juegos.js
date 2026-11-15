@@ -592,14 +592,14 @@ export function initGames(X) {
         const c = botChoice(hand, g.chain || [], g.mustOpen); playDomino(seat, c ? c.tile : null, c?.side);
       } else if (g.type === 'ttt') playTTT(seat, tttBot(g.board, g.turn === 0 ? 'X' : 'O'));
       else if (g.type === 'c4') playC4(seat, c4Bot(g.board, g.turn === 0 ? 'R' : 'Y'));
-    }, g0.type === 'domino' ? 650 + Math.random() * 350 : 500);
+    }, g0.type === 'domino' ? 420 + Math.random() * 260 : 360);
   }
   function playTTT(seat, cell) {
     return play(g => {
       const i = g.players.indexOf(seat); if (g.status !== 'playing' || i !== g.turn) throw new Error('No es tu turno');
       if (g.board[cell] !== '.') throw new Error('Esa casilla está ocupada');
       const m = i === 0 ? 'X' : 'O', board = g.board.slice(0, cell) + m + g.board.slice(cell + 1), w = tttWinner(board);
-      const p = { board, turn: 1 - i };
+      const p = { board, turn: 1 - i, lastCell: cell };
       if (w) Object.assign(p, { status: 'done', result: w === 'draw' ? { why: 'empate' } : { seat, why: 'gano' }, winners: w === 'draw' || isBot(seat) ? [] : [seat] });
       return { patch: p };
     });
@@ -757,7 +757,7 @@ export function initGames(X) {
     const mySeat = g.players.indexOf(me()), myTurn = g.status === 'playing' && g.turn === mySeat;
     const R = g.result;
     const win = new Set(g.status === 'done' ? tttWinCells(g.board || '.........') : []);
-    return `${seatsHTML(g)}<div class="ttt ${win.size ? 'won' : ''}">${[...(g.board || '.........')].map((c, k) => `<button class="tc ${c !== '.' ? 'f' : ''} ${win.has(k) ? 'win' : ''}" data-ttt="${k}" ${!myTurn || c !== '.' ? 'disabled' : ''}>${c === 'X' ? '❌' : c === 'O' ? '⭕' : ''}</button>`).join('')}</div>
+    return `${seatsHTML(g)}<div class="ttt ${win.size ? 'won' : ''}">${[...(g.board || '.........')].map((c, k) => `<button class="tc ${c !== '.' ? 'f' : ''} ${win.has(k) ? 'win' : ''}" data-ttt="${k}" ${!myTurn || c !== '.' ? 'disabled' : ''} ${k === g.lastCell ? 'data-nw' : ''}>${c === 'X' ? '<svg class="tx" viewBox="0 0 40 40"><path d="M10 10l20 20M30 10L10 30"/></svg>' : c === 'O' ? '<svg class="to" viewBox="0 0 40 40"><circle cx="20" cy="20" r="11"/></svg>' : ''}</button>`).join('')}</div>
       <p class="glog">${g.status === 'done' ? (R?.why === 'empate' ? '🤝 ¡Empate!' : `🏆 Ganó ${esc(R?.seat === me() ? 'tú' : seatName(R?.seat))}`) : myTurn ? '👉 ¡Te toca!' : `Turno de ${esc(seatName(g.players[g.turn]))}`}</p>
       ${againHTML(g, '🔁 Otra partida')}`;
   }
@@ -774,7 +774,7 @@ export function initGames(X) {
     const shown = [...g.word].map(ch => /\s/.test(ch) ? '<span class="hw sp"></span>' : `<span class="hw">${g.status === 'done' || gs.includes(letterKey(ch)) ? esc(ch) : ''}</span>`).join('');
     const parts = ['🎅', '🧣', '🧤', '🎄', '⛄', '💀'].slice(0, g.errors || 0).join(' ');
     const cat = WORD_CATS[g.wcat];
-    return `${seatsHTML(g)}<div class="card center">${cat ? `<div class="hcat">${cat.e} ${esc(cat.name)}</div>` : ''}${wordHint(g.word) ? `<div class="hhint" aria-label="Pista"><small>Pista</small>${wordHint(g.word)}</div>` : ''}<div class="muted small">Errores ${g.errors || 0} de ${g.maxErrors}</div><div style="font-size:26px;min-height:36px;letter-spacing:4px">${parts}</div><div class="hword">${shown}</div></div>
+    return `${seatsHTML(g)}<div class="card center">${cat ? `<div class="hcat">${cat.e} ${esc(cat.name)}</div>` : ''}${wordHint(g.word) ? `<div class="hhint" aria-label="Pista"><small>Pista</small>${wordHint(g.word)}</div>` : ''}<div class="hlives" aria-label="Vidas">${Array.from({ length: g.maxErrors || 6 }, (_, k) => `<span class="${k < (g.maxErrors || 6) - (g.errors || 0) ? 'on' : 'off'}">${k < (g.maxErrors || 6) - (g.errors || 0) ? '❤️' : '🖤'}</span>`).join('')}</div><div class="muted small">${(g.maxErrors || 6) - (g.errors || 0)} de ${g.maxErrors || 6} vidas</div><div class="hword">${shown}</div></div>
       ${g.status === 'done' ? `<p class="glog">${g.result?.why === 'ahorcado' ? '💀 ¡Ahorcados!' : '🎉 ¡Resuelta!'} ${(g.winners || []).length ? '🏆 ' + g.winners.map(s => esc(seatName(s))).join(' y ') : ''}</p>${againHTML(g, '🔁 Otra palabra')}`
       : `<p class="glog">${myTurn ? '👉 ¡Te toca! Elige una letra' : `Turno de ${esc(seatName(g.players[g.turn]))}`}</p>
         <div class="hkb">${'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ'.split('').map(L => `<button data-hl="${L}" ${!myTurn || gs.includes(L) ? 'disabled' : ''} class="${gs.includes(L) ? (hangCount(g.word, L) ? 'hit' : 'miss') : ''}">${L}</button>`).join('')}</div>
