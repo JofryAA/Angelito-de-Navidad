@@ -1115,13 +1115,14 @@ function renderTodo() {
   if (mod('asistencia') && c.contribAmount && a.status === 'si') items.push([!!(a.paid || a.confirmed), `Da tu aporte de ${c.contribAmount}`, 'att']);
   if (mod('deseos')) items.push([S.wishes.some(w => w.uid === S.uid), 'Escribe tu lista de deseos', '#deseos']);
 
+  if (mod('estado') && S.assignment?.revealed && S.drawMeta?.ids?.includes(S.uid)) items.push([['comprado', 'envuelto'].includes(S.giftStatus[S.uid]), 'Compra el regalo de tu angelito', 'gs']);
   if (mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid)) items.unshift([!!S.assignment?.revealed, 'Gira la ruleta y descubre a quién le regalas', '#ruleta']);
   if (canNotify() && !(isIOS() && !isStandalone())) items.push([Notification.permission === 'granted', 'Activa los avisos para enterarte de todo', 'notif']);
   if (!isInstalled()) items.push([false, 'Pon el angelito en tu pantalla de inicio', 'install']);
   if (!items.length) { box.innerHTML = anon; return; }
   const done = items.filter(x => x[0]).length;
   if (done === items.length) { box.innerHTML = anon; return; } // todo completo: la tarjeta desaparece y no ocupa espacio
-  const TI = { att: ['calcheck', 'c1'], '#deseos': ['gift', 'c2'], '#ruleta': ['wheel', 'c3'], notif: ['bell', 'c4'], install: ['install', 'c5'] };
+  const TI = { gs: ['gift', 'c4'], att: ['calcheck', 'c1'], '#deseos': ['gift', 'c2'], '#ruleta': ['wheel', 'c3'], notif: ['bell', 'c4'], install: ['install', 'c5'] };
   const ord = [...items.filter(x => !x[0]), ...items.filter(x => x[0])], pct = Math.round(done / items.length * 100);
   box.innerHTML = `<div class="card todo"><div class="todo-h"><b>Tus pendientes</b><span class="todo-n">${done}/${items.length}</span></div>
     <div class="tbar"><i style="width:${pct}%"></i></div>
@@ -1131,6 +1132,7 @@ document.addEventListener('click', e => {
   if (e.target.closest('#rules-more')) { S.rulesOpen = !S.rulesOpen; renderHome(); return; }
   const t = e.target.closest('[data-todo]'); if (!t) return;
   const go = t.dataset.todo;
+  if (go === 'gs') { location.hash = 'ruleta'; setTimeout(() => $('#r-extra .stat4')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 400); return; }
   if (go === 'att') $('#h-att')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); else if (go === 'perfil') openProfile(); else if (go === 'notif') enableNotifications(); else if (go === 'install') installApp(); else location.hash = go.slice(1);
 });
 function tick() {
@@ -2148,6 +2150,16 @@ $('#party-unlock').addEventListener('click', async () => {
   if (!(await confirmBox('¿Reabrir pistas y sospechas?', 'Todos podrán volver a mandar pistas y cambiar a quién creen que es su angelito.', 'Reabrir'))) return;
   if (await saveEvent({ angelLocked: false })) toast('🔓 Pistas y sospechas abiertas otra vez');
 });
+document.addEventListener('click', e => {
+  if (!e.target.closest('#gs-who')) return;
+  const ids = S.drawMeta?.ids.filter(id => P(id)) || [], ok = id => ['comprado', 'envuelto'].includes(S.giftStatus[id]);
+  const row = id => `<div class="al-p"><span>${esc(pEmoji(id))}</span>${esc(pName(id))}${S.giftStatus[id] ? ` <small>· ${esc(GS[S.giftStatus[id]]?.[1] || '')}</small>` : ''}</div>`;
+  const s2 = openModal(`<h3>🛍️ ¿Quién ya tiene el regalo?</h3><p class="muted small">Solo ves si cada quien compró, no a quién le regala. Los que faltan reciben recordatorios solos 7 y 2 días antes.</p>
+    <div class="al"><div class="al-g no"><div class="al-h"><b>⏳ Faltan</b><span>${ids.filter(id => !ok(id)).length}</span></div><div class="al-l">${ids.filter(id => !ok(id)).map(row).join('') || '<p class="muted small">¡Nadie! 🎉</p>'}</div></div>
+    <div class="al-g ok"><div class="al-h"><b>✅ Ya lo tienen</b><span>${ids.filter(ok).length}</span></div><div class="al-l">${ids.filter(ok).map(row).join('') || '<p class="muted small">Nadie todavía</p>'}</div></div></div>
+    <div class="actions"><button class="btn gold" data-a="x">Listo</button></div>`);
+  s2.onclick = ev => { if (ev.target.closest('[data-a]')) closeModal(); };
+});
 function renderAdmDash() {
   { const u = $('#party-unlock'); if (u) u.hidden = !(S.isOwner && S.event.angelLocked); }
   const box = $('#adm-dash'); if (!box || S.admGrp !== 'resumen') return;
@@ -2172,6 +2184,7 @@ function renderAdmDash() {
       ${c.contribAmount && mod('asistencia') && can('aportes') ? tile('💵 Aportes', `${sm.paid}/${sm.going}`, sm.said ? `${sm.said} dicen que ya` : 'recibidos', 'personas') : tile('📅 Actividades', S.activities.length, 'programadas', 'actividades')}
       ${tile('🎁 Con lista', `${withW}/${ps.length}`, 'ya escribieron deseos', 'personas')}
       ${tile('🎡 Sorteo', drawn ? '✅' : '⏳', drawn ? 'Listo' : S.drawMeta ? 'Hay que repetirlo' : 'Pendiente', 'personas')}
+      ${S.isOwner && drawn && mod('estado') ? (() => { const ids = S.drawMeta.ids.filter(id => P(id)), b = ids.filter(id => ['comprado', 'envuelto'].includes(S.giftStatus[id])).length; return `<button class="dt" id="gs-who"><div class="dk">🛍️ Regalos</div><div class="dv">${b}/${ids.length}</div><div class="ds">ya lo compraron</div></button>`; })() : ''}
       ${tile('💌 Anónimos', S.qCount || 0, 'preguntas', 'mensajes')}
     </div>
     ${steps.length ? `<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>Pasos para tener todo listo</b><span class="muted small">${done} de ${steps.length}</span></div>
@@ -3262,6 +3275,14 @@ async function openParty() {
           ${s.step === 0 ? `<div class="ps">🕵️ ¿Quién lo escribió? Voten desde su teléfono · ${vs.length} ${vs.length === 1 ? 'voto' : 'votos'}</div>`
           : `${top.length ? `<div class="pbars" style="margin:2vh auto 0">${top.map(([u, n]) => `<div class="pbar"><i style="width:${n / top[0][1] * 100}%"></i><span>${esc(pEmoji(u))} ${esc(pName(u))}</span><b>${n}</b></div>`).join('')}</div>` : '<div class="ps">Nadie votó</div>'}
             ${s.author ? `<div class="pt" style="font-size:min(7vw,60px)">✍️ <span class="gold">${au && P(au) ? esc(pName(au)) : 'Anónimo'}</span></div>` : `<div style="margin-top:2vh"><button class="btn sm" data-pauthor>👁️ Revelar quién lo escribió (solo si quieres)</button></div>`}`}`; } }));
+  }
+  // trivia: ranking de aciertos
+  for (const a of S.activities.filter(a => a.kind === 'quiz')) {
+    let key = []; try { key = (await getDoc(doc(adb, 'quizKeys', a.id))).data()?.c || []; } catch { }
+    const N = (a.qs || []).length, res = S.adminQuiz.filter(x => x.act === a.id && P(x.uid)).map(x => ({ emoji: pEmoji(x.uid), label: pName(x.uid), n: (x.a || []).filter((v, i) => v === key[i]).length })).sort((x, y) => y.n - x.n);
+    if (!res.length) continue;
+    slides.push({ reveal: false, onReveal: () => confetti(140), html: s => `<div class="pe">❓</div><div class="pt">${esc(a.title)}</div>
+      ${s.reveal ? `<div class="pt">🏆 ${esc(res[0].emoji)} <span class="gold">${esc(res[0].label)}</span></div><div class="ps">${res[0].n} de ${N} aciertos</div><div class="pbars">${res.slice(0, 5).map(r => `<div class="pbar"><i style="width:${r.n / Math.max(1, N) * 100}%"></i><span>${esc(r.emoji)} ${esc(r.label)}</span><b>${r.n}</b></div>`).join('')}</div>` : `<div class="ps">${res.length} ${res.length === 1 ? 'persona jugó' : 'personas jugaron'} · toca para ver quién ganó</div>`}` });
   }
   // votaciones
   S.activities.filter(a => a.kind === 'vote').forEach(a => {

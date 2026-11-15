@@ -32,7 +32,23 @@ const ev = (await db.doc('config/event').get()).data() || {};
 const open = !!ev.revealNow || (ev.revealAt && ms(ev.revealAt) <= now);
 const openKey = open ? String(ev.revealNow ? 'now' : ms(ev.revealAt)) : '';
 const seenH = new Set(st.hints || []);
-const nothing = !PRUEBA && invQ.empty && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
+// ⏰ Recordatorios automáticos (hora de RD, UTC-4): una sola vez cada uno, entre 9 a. m. y 8 p. m.
+const loc = new Date(now - 4 * 3600e3), today = loc.toISOString().slice(0, 10), hourL = loc.getUTCHours();
+const evDay = String(ev.eventDate || '').slice(0, 10), dl = String(ev.rsvpDeadline || '').slice(0, 10);
+const daysTo = d => d ? Math.round((Date.parse(d) - Date.parse(today)) / 864e5) : null;
+const remSent = new Set(st.rem || []), dueRem = [];
+if (hourL >= 9 && hourL < 20 && evDay) {
+  const dt = daysTo(evDay);
+  if (dt === 10) dueRem.push('wish10');
+  if (dt === 7) dueRem.push('buy7');
+  if (dt === 2) dueRem.push('buy2');
+  if (dt === 1) dueRem.push('eve1');
+  if (dt === 0 && hourL >= 8) dueRem.push('day0');
+  if (dl && daysTo(dl) === 1) dueRem.push('rsvp1');
+}
+const remKey = k => `${k}:${evDay}`;
+const remDue = dueRem.filter(k => !remSent.has(remKey(k)));
+const nothing = !PRUEBA && !remDue.length && invQ.empty && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
   && !(open && st.revealSent !== openKey) && hintsQ.docs.every(d => seenH.has(d.id));
 if (nothing) { await stateRef.set({ last: now }, { merge: true }); console.log('Nada nuevo.'); process.exit(0); }
 
@@ -77,6 +93,28 @@ for (const d of hintsQ.docs) {
 // 🎮 invitaciones a una mesa de juego
 for (const d of invQ.docs) { const v = d.data(); put(v.to, 'juegos', { title: `🎮 ${short(v.from)} te invitó a jugar`, body: `${v.title || 'Una partida'} · toca para unirte`, url: `#juego-${v.game}` }); }
 
+// ⏰ recordatorios
+if (remDue.length) {
+  const evAt = ev.eventDate ? new Date(ev.eventDate + (ev.eventDate.length <= 10 ? 'T12:00' : '')) : null;
+  const hora = evAt && !isNaN(evAt) && ev.eventDate.length > 10 ? evAt.toLocaleTimeString('es-DO', { hour: 'numeric', minute: '2-digit' }) : '';
+  const lugar = ev.place ? ` en ${ev.place}` : '';
+  const drawIds = draw?.ids || all;
+  const needCol = c => remDue.some(k => c.includes(k));
+  const gs = needCol(['buy7', 'buy2']) ? Object.fromEntries((await db.collection('giftStatus').get()).docs.map(d => [d.id, d.data().status])) : {};
+  const att = needCol(['rsvp1']) ? Object.fromEntries((await db.collection('attendance').get()).docs.map(d => [d.id, d.data().status])) : {};
+  const hasW = needCol(['wish10']) ? new Set((await db.collection('wishes').get()).docs.map(d => d.data().uid)) : new Set();
+  const bought = uid => ['comprado', 'envuelto'].includes(gs[uid]);
+  for (const k of remDue) {
+    if (k === 'wish10') for (const uid of all) if (!hasW.has(uid)) put(uid, 'avisos', { title: '🎁 Escribe tu lista de deseos', body: 'Faltan 10 días: ayuda a tu angelito a acertar con tu regalo.', url: '#deseos' });
+    if (k === 'buy7') for (const uid of drawIds) if (!bought(uid)) put(uid, 'avisos', { title: '🛍️ Falta una semana', body: '¿Ya compraste el regalo de tu angelito? Marca cómo vas en la Ruleta.', url: '#ruleta' });
+    if (k === 'buy2') for (const uid of drawIds) if (!bought(uid)) put(uid, 'avisos', { title: '⏰ ¡Faltan 2 días!', body: '¿Ya tienes el regalo de tu angelito? No lo dejes para última hora 😉', url: '#ruleta' });
+    if (k === 'eve1') for (const uid of all) put(uid, 'avisos', { title: '🎄 ¡Mañana es el angelito!', body: `${hora ? 'A las ' + hora : 'Mañana'}${lugar}. ¡No olvides el regalo envuelto! 🎁`, url: '#inicio' });
+    if (k === 'day0') for (const uid of all) put(uid, 'avisos', { title: '🎁 ¡Hoy es el angelito!', body: `${hora ? 'Te esperamos a las ' + hora : 'Te esperamos'}${lugar}.`, url: '#inicio' });
+    if (k === 'rsvp1') for (const uid of all) if (!att[uid]) put(uid, 'avisos', { title: '📝 Mañana se cierra la confirmación', body: '¿Vas al angelito? Confírmalo en la app.', url: '#inicio' });
+  }
+  console.log('Recordatorios:', remDue.join(', '));
+}
+
 // prueba manual: un aviso a todos los teléfonos registrados
 if (PRUEBA) for (const uid of all) put(uid, 'avisos', { title: '🔔 Prueba de notificaciones', body: 'Si ves esto, los avisos con la app cerrada funcionan 🎁', url: '#inicio' });
 
@@ -99,5 +137,5 @@ if (Object.keys(out).length) {
   }
   await Promise.all(jobs);
 }
-await stateRef.set({ last: now, revealSent: open ? openKey : (st.revealSent || ''), hints: [...seenH, ...newH].slice(-200), at: FieldValue.serverTimestamp(), sent, dropped }, { merge: true });
+await stateRef.set({ rem: [...remSent, ...remDue.map(remKey)].slice(-60), last: now, revealSent: open ? openKey : (st.revealSent || ''), hints: [...seenH, ...newH].slice(-200), at: FieldValue.serverTimestamp(), sent, dropped }, { merge: true });
 console.log(`Listo: ${sent} avisos enviados, ${dropped} teléfonos dados de baja.`);
