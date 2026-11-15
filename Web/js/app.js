@@ -2609,14 +2609,14 @@ $('#x-list').addEventListener('click', async e => {
 });
 // 🧹 Limpiar sorteo: todo vuelve al inicio (sin sorteo, ruleta cerrada, inscripciones abiertas)
 async function clearDraw() {
-  if (!(await confirmBox('¿Limpiar el sorteo?', 'Las parejas, los agradecimientos y la revelación se guardan en «📜 Angelitos pasados». Se borra el sorteo, la ruleta se cierra y se reabren las inscripciones. Los deseos, perfiles y todo lo demás se quedan igual.', 'Limpiar'))) return;
+  if (!(await confirmBox('¿Limpiar el sorteo?', (S.reveal ? 'Como ya se reveló, las parejas y los agradecimientos se guardan en «📜 Angelitos pasados». ' : 'Aún no se ha revelado: las parejas se descartan sin que nadie las vea. ') + 'Se borra el sorteo, la ruleta se cierra y se reabren las inscripciones. Los deseos, perfiles y todo lo demás se quedan igual.', 'Limpiar'))) return;
   try {
     const [as, th, rv] = await Promise.all([getDocs(collection(adb, 'assignments')), getDocs(collection(adb, 'thanks')), getDoc(doc(adb, 'reveal', 'main'))]);
     const nm = id => { const x = P(id); return x ? { n: x.name, e: x.emoji || '' } : { n: '(ya no está)', e: '' }; };
     const pairs = as.docs.filter(d => d.data().recipient).map(d => ({ g: d.id, r: d.data().recipient, gn: nm(d.id).n, ge: nm(d.id).e, rn: nm(d.data().recipient).n, re: nm(d.data().recipient).e, spun: !!d.data().revealed }));
     const thanks = th.docs.map(d => ({ uid: d.id, name: nm(d.id).n, e: nm(d.id).e, note: d.data().note || '', received: !!d.data().received }));
     const ops = [];
-    if (pairs.length) ops.push(['set', doc(collection(adb, 'history')), { at: serverTimestamp(), drawAt: S.drawMeta?.at || null, pairs, thanks, revealed: rv.exists() }]);
+    if (pairs.length && rv.exists()) ops.push(['set', doc(collection(adb, 'history')), { at: serverTimestamp(), drawAt: S.drawMeta?.at || null, pairs, thanks, revealed: rv.exists() }]);
     await commitOps(ops); // 1) primero se guarda el recuerdo
     const b0 = writeBatch(adb); b0.delete(doc(adb, 'config', 'draw')); await b0.commit(); // 2) la ruleta se cierra para todos al instante
     const ops2 = [];
@@ -2624,7 +2624,7 @@ async function clearDraw() {
     if (rv.exists()) ops2.push(['del', rv.ref]);
     ops2.push(['set', doc(adb, 'config', 'event'), { registrationOpen: true }, true]);
     await commitOps(ops2);
-    toast(pairs.length ? '🧹 Sorteo limpio · guardado en Angelitos pasados' : '🧹 Sorteo limpio. Ya puedes generar uno nuevo.');
+    toast(pairs.length && rv.exists() ? '🧹 Sorteo limpio · guardado en Angelitos pasados' : '🧹 Sorteo limpio. Ya puedes generar uno nuevo.');
   } catch (err) { toast(authErr(err) + ' · Vuelve a intentarlo'); }
 }
 // 📜 Angelitos pasados (solo aparece si hay historial)
