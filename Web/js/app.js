@@ -1296,19 +1296,22 @@ function renderWishes() {
   const many = S.participants.length > 8;
   root.innerHTML = `${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}
   <div class="pscroll" id="w-strip">${wishStrip()}</div>
-  <div class="h2row wh"><h2>${esc(pEmoji(S.wishPid))} ${mine ? 'Mi lista de deseos' : 'Lista de ' + esc(pName(S.wishPid))}</h2>${mine ? `<div style="display:flex;gap:6px"><button class="btn sm" id="prof-icon">${esc(S.me.emoji)} Ícono</button>${mod('perfil') ? `<button class="btn sm btn-ic ${profDone() < PROF.length ? 'gold pulse-soft' : ''}" id="prof-edit">${ic('shirt', 16)} Mi perfil${profDone() < PROF.length ? ' <span class="rdot"></span>' : ''}</button>` : ''}</div>` : ''}</div>
+  ${wishHero(S.wishPid, mine, isRec, items)}
   ${mod('perfil') ? profileHtml(S.wishPid) : ''}
-  <div class="stack">${items.length ? items.map((w, k) => `
-    <div class="item witem ${w.top ? 'wtop' : ''}" style="--d:${k * 50}ms"><span class="wi-ic c${k % 5 + 1}">${ic(w.top ? 'star' : 'gift', 20)}</span><div class="grow">
-      ${w.top ? '<div class="small" style="color:var(--gold);font-weight:700">⭐ El que más quiere</div>' : ''}
-      <div class="t">${esc(w.text)}</div>
-      ${w.hasImg ? (S.wishImgs[w.id] ? `<button class="wimg" data-wimg="${esc(w.id)}" style="background:url('${S.wishImgs[w.id]}') center/cover" aria-label="Ver foto"></button>` : Date.now() - (wishImgTried.get(w.id) || Date.now()) > 8000 ? '' : '<div class="wimg ld"></div>') : ''}
-      ${w.price ? `<span class="badge">≈ ${esc(w.price)}</span>` : ''}
-
-      ${isRec ? `<div><button class="btn sm ${S.wishPick?.wishId === w.id ? 'gold' : ''}" data-wpick="${esc(w.id)}" style="margin-top:8px">${S.wishPick?.wishId === w.id ? '🛒 Apartado por ti (solo tú lo ves)' : '🛒 Este lo compro yo'}</button></div>` : ''}
-      ${/^https?:\/\//i.test(w.link || '') ? `<div><a class="link" href="${esc(w.link)}" target="_blank" rel="noopener">🔗 Ver referencia</a></div>` : ''}
-    </div>${w.uid === S.uid ? `<button class="wmore" data-wmore="${esc(w.id)}" aria-label="Opciones del deseo"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>` : ''}</div>`).join('')
-    : `<div class="card empty"><span class="e">🌟</span>${mine ? 'Tu lista está vacía. ¡Agrega lo que te gustaría!' : esc(pName(S.wishPid)) + ' todavía no ha pedido nada.'}</div>`}</div>
+  ${items.length ? `<div class="wl-h"><b>${mine ? 'Lo que me gustaría' : 'Lo que le gustaría'}</b><span>${items.length} ${items.length === 1 ? 'deseo' : 'deseos'}</span></div>` : ''}
+  <div class="wgrid">${items.length ? items.map((w, k) => { const img = w.hasImg && S.wishImgs[w.id], dom = /^https?:\/\//i.test(w.link || '') ? (w.link.match(/^https?:\/\/(?:www\.)?([^/?#]+)/i)?.[1] || 'Ver enlace') : '';
+    return `<article class="wcard ${w.top ? 'wtop' : ''} ${img ? 'has-img' : ''}" style="--d:${k * 60}ms">
+      ${w.hasImg ? (img ? `<button class="wc-img" data-wimg="${esc(w.id)}" style="background-image:url('${img}')" aria-label="Ver foto"></button>` : Date.now() - (wishImgTried.get(w.id) || Date.now()) > 8000 ? '' : '<div class="wc-img ld"></div>') : ''}
+      ${w.top ? '<span class="wc-rib">⭐ El que más quiere</span>' : ''}
+      <div class="wc-body">
+        ${img ? '' : `<span class="wi-ic c${k % 5 + 1}">${ic(w.top ? 'star' : 'gift', 22)}</span>`}
+        <div class="grow"><div class="wc-t">${esc(w.text)}</div>
+          <div class="wc-meta">${w.price ? `<span class="wc-price">≈ ${esc(w.price)}</span>` : ''}${dom ? `<a class="wc-link" href="${esc(w.link)}" target="_blank" rel="noopener">${ic('link', 13)}<span>${esc(dom)}</span></a>` : ''}</div>
+          ${isRec ? `<button class="wc-buy ${S.wishPick?.wishId === w.id ? 'on' : ''}" data-wpick="${esc(w.id)}">${S.wishPick?.wishId === w.id ? '🛒 Lo apartaste tú · solo tú lo ves' : '🛒 Este lo compro yo'}</button>` : ''}
+        </div>
+        ${w.uid === S.uid ? `<button class="wmore" data-wmore="${esc(w.id)}" aria-label="Opciones del deseo"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>` : ''}
+      </div></article>`; }).join('')
+    : `<div class="wempty"><div class="we-ic">🎁</div><b>${mine ? 'Tu lista está vacía' : esc(pName(S.wishPid)) + ' todavía no ha pedido nada'}</b><p class="muted small">${mine ? 'Agrega lo que te gustaría recibir: con foto y enlace tu angelito acierta seguro.' : isRec ? 'Mira su perfil de gustos para inspirarte 👆' : 'Vuelve más tarde 😉'}</p></div>`}</div>
   ${mine ? `<details class="wadd" id="w-add" ${S.wAddOpen || !items.length || keep.t ? 'open' : ''}><summary><span class="wa-ic">${ic('plus', 20)}</span><span><b>Agregar un deseo</b><small>Con foto, enlace y precio si quieres</small></span><span class="wa-ch">${ic('back', 18)}</span></summary><form class="card stack" id="w-form">
     <input class="in" id="w-text" maxlength="160" placeholder="Ej. Un libro de cocina, talla M, color azul…" required>
     <div class="row"><input class="in" id="w-link" maxlength="300" placeholder="Enlace (opcional)"><input class="in" id="w-price" maxlength="30" placeholder="Precio aprox. (opcional)"></div>
@@ -1826,10 +1829,29 @@ function renderProfCard() {
     <span class="pbar2"><i style="width:${Math.round(n / PROF.length * 100)}%"></i></span><span class="small" style="color:var(--gold);font-weight:700">${n} de ${PROF.length} listos</span></span><span class="chev">›</span></button>`;
 }
 document.addEventListener('click', e => { if (e.target.closest('#prof-cta')) openProfile(); });
+function wishHero(uid, mine, isRec, items) {
+  const p = P(uid), col = nmColor(uid), pd = profDone(uid);
+  return `<section class="whero" style="--hc:${col}">
+    <div class="wh-av"><span>${esc(pEmoji(uid))}</span></div>
+    <div class="grow wh-tx">${isRec ? '<span class="wh-tag">🎯 ¡Es tu persona!</span>' : mine ? '<span class="wh-tag me">Tu lista</span>' : ''}
+      <b>${esc(mine ? 'Mi lista de deseos' : p?.name || '')}</b>
+      <div class="wh-stats"><span>🎁 <b>${items.length}</b> ${items.length === 1 ? 'deseo' : 'deseos'}</span>${mod('perfil') ? `<span>👕 <b>${pd}/${PROF.length}</b> perfil</span>` : ''}</div></div>
+    ${mine ? `<div class="wh-act"><button class="whb" id="prof-icon" aria-label="Cambiar ícono">${esc(S.me.emoji)}<small>Ícono</small></button>${mod('perfil') ? `<button class="whb ${pd < PROF.length ? 'pend' : ''}" id="prof-edit">${ic('shirt', 20)}<small>Perfil</small></button>` : ''}</div>` : ''}
+  </section>`;
+}
 function profileHtml(uid, compact) {
   const pr = S.profiles[uid]; if (!pr || !PROF.some(([k]) => pr[k])) return compact ? '' : (uid === S.uid ? '' : `<p class="muted small" style="margin:-4px 0 12px">Todavía no ha llenado su perfil de gustos.</p>`);
-  return `<div class="card" style="margin-bottom:14px;padding:14px"><div class="stack" style="gap:6px">${PROF.filter(([k]) => pr[k]).map(([k, e, l]) =>
+  if (compact) return `<div class="card" style="margin-bottom:14px;padding:14px"><div class="stack" style="gap:6px">${PROF.filter(([k]) => pr[k]).map(([k, e, l]) =>
     `<div class="small"><span class="muted">${e} ${esc(l)}:</span> <b>${esc(pr[k])}</b></div>`).join('')}</div></div>`;
+  const v = k => String(pr[k] || '').trim(), list = k => v(k).split(/[;,\n]| y /).map(x => x.trim()).filter(Boolean).slice(0, 12);
+  const sizes = [['shirt', '👕', 'Camisa'], ['pants', '👖', 'Pantalón'], ['shoe', '👟', 'Zapatos']].filter(([k]) => v(k));
+  return `<section class="wprof">
+    ${sizes.length ? `<div class="wp-sizes">${sizes.map(([k, e, l]) => `<div class="wp-size"><span>${e}</span><b>${esc(v(k))}</b><small>${l}</small></div>`).join('')}</div>` : ''}
+    ${v('colors') ? `<div class="wp-row"><small>🎨 Colores favoritos</small><div class="wp-chips">${list('colors').map(c => `<span class="wp-chip color">${esc(c)}</span>`).join('')}</div></div>` : ''}
+    ${v('likes') ? `<div class="wp-row"><small>💛 Le gusta</small><div class="wp-chips">${list('likes').map(c => `<span class="wp-chip like">${esc(c)}</span>`).join('')}</div></div>` : ''}
+    ${v('allergy') && !/^(n\/?a|no|ninguna?|nada)$/i.test(v('allergy')) ? `<div class="wp-warn"><span>⚠️</span><div><small>Alergias o cosas que no puede usar</small><b>${esc(v('allergy'))}</b></div></div>` : ''}
+    ${v('nogift') ? `<div class="wp-warn no"><span>🙅</span><div><small>Por favor no le regales</small><b>${esc(v('nogift'))}</b></div></div>` : ''}
+  </section>`;
 }
 function openProfile() {
   const pr = S.profiles[S.uid] || {};
