@@ -42,6 +42,15 @@ self.addEventListener('fetch', e => {
 
 // Una sola notificación, con aspecto de app profesional: el título dice quién o qué (sin adornos),
 // el cuerpo el mensaje, y si llegan más se agrupan ("3 novedades") con una línea por cada una.
+// 🎮 Invitación a una mesa: notificación propia (no se junta con las demás) con botones Unirme / Ahora no
+function inviteNotify(reg, title, body, url, game) {
+  return reg.showNotification(title || '🎮 Te invitaron a jugar', {
+    body: body || 'Toca para unirte a la mesa', icon: 'icons/icon-192.png', badge: 'icons/badge-96.png',
+    tag: 'invite-' + (game || 'x'), renotify: true, requireInteraction: true, timestamp: Date.now(), lang: 'es', dir: 'ltr',
+    vibrate: [120, 60, 120, 60, 200], data: { url: url || './', invite: true },
+    actions: [{ action: 'join', title: '🎮 Unirme' }, { action: 'later', title: 'Ahora no' }]
+  });
+}
 async function stackNotify(reg, title, body, url) {
   const split = t => { const m = String(t || '').match(/^([^\p{L}\p{N}@¡¿"“]+)\s*(.*)$/u); return m ? [m[1].trim(), m[2]] : ['', String(t || '')]; };
   const [emo, clean] = split(title);
@@ -71,13 +80,17 @@ try {
       // si la app está abierta y a la vista, ella misma avisa: no repetir
       const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       if (open.some(c => c.visibilityState === 'visible')) return;
+      if (d.kind === 'invite') return inviteNotify(self.registration, d.title, d.body, d.url, d.game);
       return stackNotify(self.registration, d.title || 'Angelito 🎁', d.body || '', d.url || './');
     });
   }
 } catch (e) { /* sin push */ }
 
+// la app (abierta en otra pestaña o en segundo plano) pide mostrar una invitación
+self.addEventListener('message', e => { const d = e.data || {}; if (d.type === 'invite') e.waitUntil(inviteNotify(self.registration, d.title, d.body, d.url, d.game)); });
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  if (e.action === 'later') return; // invitación rechazada: solo se cierra
   const target = (e.notification.data && e.notification.data.url) || './';
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
     for (const c of cs) { if ('focus' in c) { c.navigate && c.navigate(target).catch(() => {}); return c.focus(); } }

@@ -489,6 +489,11 @@ export function initGames(X) {
         if (seen.has(d.id)) return; seen.add(d.id); const ch = { doc: d }, v = d.data();
         if (Date.now() - (v.ts || 0) > 15 * 60e3) { deleteDoc(ch.doc.ref).catch(() => { }); return; } // vieja: se limpia
         if (location.hash === '#juego-' + v.game) { deleteDoc(ch.doc.ref).catch(() => { }); return; }
+        // también como notificación del navegador (por si la app está en segundo plano o en otra pestaña)
+        try {
+          if ('Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker?.controller)
+            navigator.serviceWorker.controller.postMessage({ type: 'invite', title: `🎮 ${X.shortName(X.P(v.from)) || 'Alguien'} te invitó a jugar`, body: `${v.title} · ¿te unes?`, url: location.href.split('#')[0] + '#juego-' + v.game, game: v.game });
+        } catch { }
         const s2 = openModal(`<div class="center"><div style="font-size:46px">🎮</div><h3>${esc(X.shortName(X.P(v.from)) || 'Alguien')} te invitó a jugar</h3><p class="muted">${esc(v.title)}</p></div>
           <div class="actions"><button class="btn" data-a="no">Ahora no</button><button class="btn gold" data-a="go">¡Vamos!</button></div>`);
         s2.onclick = e => { const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return; closeModal(); deleteDoc(ch.doc.ref).catch(() => { }); if (a === 'go') location.hash = 'juego-' + v.game; };

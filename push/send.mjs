@@ -91,7 +91,7 @@ for (const d of hintsQ.docs) {
 }
 
 // 🎮 invitaciones a una mesa de juego
-for (const d of invQ.docs) { const v = d.data(); put(v.to, 'juegos', { title: `🎮 ${short(v.from)} te invitó a jugar`, body: `${v.title || 'Una partida'} · toca para unirte`, url: `#juego-${v.game}` }); }
+for (const d of invQ.docs) { const v = d.data(); put(v.to, 'juegos', { title: `🎮 ${short(v.from)} te invitó a jugar`, body: `${v.title || 'Una partida'} · ¿te unes?`, url: `#juego-${v.game}`, kind: 'invite', game: v.game }); }
 
 // ⏰ recordatorios
 if (remDue.length) {
@@ -130,7 +130,7 @@ if (Object.keys(out).length) {
     // si hay varias cosas a la vez, va la más importante
     const cat = ['mencion', 'juegos', 'angelito', 'avisos', 'actividades', 'chat'].find(c => mine[c] && (PRUEBA || !off.includes(c))); if (!cat) continue;
     const m = mine[cat];
-    jobs.push(fcm.send({ token, data: { title: m.title, body: m.body, url: BASE + m.url, cat },
+    jobs.push(fcm.send({ token, data: { title: m.title, body: m.body, url: BASE + m.url, cat, ...(m.kind ? { kind: m.kind, game: m.game || '' } : {}) },
       webpush: { headers: { Urgency: cat === 'chat' ? 'normal' : 'high', TTL: '86400' } } })
       .then(() => { sent++; })
       .catch(e => { const c = e?.errorInfo?.code || e.code || ''; if (/registration-token-not-registered|invalid-registration-token|invalid-argument/.test(c)) { dropped++; return t.ref.delete(); } console.warn('fcm', c); }));
