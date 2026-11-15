@@ -77,10 +77,10 @@ if (chat.length) {
 }
 // 📣 avisos del organizador
 for (const n of noticesQ.docs.map(d => d.data()))
-  if (!n.target || n.target === 'all') for (const uid of all) put(uid, 'avisos', { title: `📣 ${n.title || 'Aviso'}`, body: (n.body || '').slice(0, 140), url: '#inicio' });
+  if (!n.target || n.target === 'all') for (const uid of all) put(uid, 'avisos', { title: `📣 ${n.title || 'Aviso'}`, body: (n.body || '').slice(0, 140), url: '#inicio', skipDev: n.dev || '' });
 // 📅 actividades nuevas
 for (const d of actsQ.docs) {
-  const a = d.data(); for (const uid of all) put(uid, 'actividades', { title: `📅 Nueva actividad: ${a.title}`, body: a.date || '', url: `#actividad-${d.id}` });
+  const a = d.data(); for (const uid of all) put(uid, 'actividades', { title: `📅 Nueva actividad: ${a.title}`, body: a.date || '', url: `#actividad-${d.id}`, skipDev: a.dev || '' });
 }
 // 🎡 sorteo listo
 if (draw && ms(draw.at) > since) for (const uid of draw.ids || []) put(uid, 'avisos', { title: '🎡 ¡La ruleta ya está habilitada!', body: 'Entra y descubre a quién te toca regalar.', url: '#ruleta' });
@@ -121,7 +121,14 @@ if (PRUEBA) for (const uid of all) put(uid, 'avisos', { title: '🔔 Prueba de n
 
 // enviar
 let sent = 0, dropped = 0;
-const tokens = (await db.collection('fcmTokens').get()).docs;
+// Un teléfono pertenece solo a la última persona que entró en él: si antes entró otra cuenta (una de prueba, por ejemplo),
+// ese registro viejo se borra para que nadie reciba en su teléfono los avisos de otra persona (ni los de sus propios mensajes).
+const allTok = (await db.collection('fcmTokens').get()).docs, byTok = new Map();
+for (const d of allTok) { const t = d.data().token; if (!t) continue; const prev = byTok.get(t); if (!prev || ms(d.data().at) > ms(prev.data().at)) byTok.set(t, d); }
+const stale = allTok.filter(d => d.data().token && byTok.get(d.data().token) !== d);
+await Promise.all(stale.map(d => d.ref.delete().catch(() => { })));
+if (stale.length) console.log(`Registros repetidos de un mismo teléfono borrados: ${stale.length}`);
+const tokens = [...byTok.values()];
 const conAvisos = new Set(tokens.map(t => t.data().uid));
 console.log(`Teléfonos con avisos activados: ${tokens.length} (${conAvisos.size} personas de ${all.length}).`);
 if (Object.keys(out).length) {
@@ -129,7 +136,8 @@ if (Object.keys(out).length) {
   for (const t of tokens) {
     const { uid, token, off = [] } = t.data(); const mine = out[uid]; if (!mine || !token || done.has(token)) continue; done.add(token); // un aviso por teléfono
     // si hay varias cosas a la vez, va la más importante
-    const cat = ['mencion', 'juegos', 'angelito', 'avisos', 'actividades', 'chat'].find(c => mine[c] && (PRUEBA || !off.includes(c))); if (!cat) continue;
+    const dev = t.data().dev || ''; // lo que se mandó desde este mismo teléfono no le llega a él
+    const cat = ['mencion', 'juegos', 'angelito', 'avisos', 'actividades', 'chat'].find(c => mine[c] && (PRUEBA || !off.includes(c)) && !(dev && mine[c].skipDev === dev)); if (!cat) continue;
     const m = mine[cat];
     jobs.push(fcm.send({ token, data: { title: m.title, body: m.body, url: BASE + m.url, cat, ...(m.kind ? { kind: m.kind, game: m.game || '' } : {}) },
       webpush: { headers: { Urgency: cat === 'chat' ? 'normal' : 'high', TTL: '86400' } } })

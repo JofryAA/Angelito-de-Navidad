@@ -2454,10 +2454,10 @@ function sortAdm() { // ordena las tarjetas por sección
 }
 sortAdm(); $('[data-grp="ajustes"][data-ord="3"]')?.classList.add('danger');
 try { S.admGrp = sessionStorage.getItem('angelito:admGrp') || 'resumen'; } catch { S.admGrp = 'resumen'; }
+// Secciones que esta persona puede ver (según sus permisos y lo que está activo)
+function admAvail() { const secs = $$('#adm-panel > .admin-sec'); return ADM_GROUPS.filter(([g]) => secs.some(el => el.dataset.grp === g && (el.id === 'adm-dash' || el.style.display !== 'none'))); }
 function applyAdmGroups() {
-  const secs = $$('#adm-panel > .admin-sec');
-  const allowed = el => el.id === 'adm-dash' || el.style.display !== 'none';
-  const avail = ADM_GROUPS.filter(([g]) => secs.some(el => el.dataset.grp === g && allowed(el)));
+  const secs = $$('#adm-panel > .admin-sec'), avail = admAvail();
   if (!avail.some(([g]) => g === S.admGrp)) S.admGrp = 'resumen';
   $('#adm-nav').innerHTML = navHTML(avail, S.admGrp); decoratePanel($('#adm-panel'));
   { let it = $('#adm-intro'); if (!it) { it = document.createElement('div'); it.id = 'adm-intro'; $('#adm-nav').after(it); } const x = ADM_INTRO[S.admGrp]; it.hidden = !x; if (x) it.innerHTML = `<span>${x[0]}</span>${Array.isArray(x[1]) ? `<ol>${x[1].map(l => `<li>${l}</li>`).join('')}</ol>` : `<p>${x[1]}</p>`}`; }
@@ -2503,23 +2503,26 @@ function renderAdmDash() {
   const done = steps.filter(x => x[0]).length;
   const nextStep = steps.find(x => !x[0]);
   const cta = nextStep ? `<button class="card nextc hot" data-ag="${nextStep[2]}" data-nextgo="${nextStep[1].includes('sorteo') ? 'd-gen' : ''}" style="width:100%;text-align:left;margin-bottom:14px"><div class="nx-e">👉</div><div class="grow"><span class="muted small">Siguiente paso</span><b style="display:block">${nextStep[1]}</b></div><span class="btn sm gold">Hacerlo ahora</span></button>` : `<div class="card nextc" style="margin-bottom:14px"><div class="nx-e">✅</div><div class="grow"><b>${S.isOwner ? '¡Todo listo!' : 'Tus tareas están al día'}</b><div class="muted small">${S.isOwner ? 'Solo falta disfrutar la fiesta.' : 'Lo demás le toca al organizador principal.'}</div></div></div>`;
-  box.innerHTML = cta + `<div class="dgrid">
-      ${tile('👥 Inscritos', ps.length, regOpen() ? 'Inscripciones abiertas' : '🔒 Inscripciones cerradas', 'personas')}
-      ${tile('✅ Van', sm.going, sm.pending ? `${sm.pending} sin responder` : 'Todos respondieron', 'asistencia')}
-      ${c.contribAmount && mod('asistencia') && can('aportes') ? tile('💵 Aportes', `${sm.paid}/${sm.going}`, sm.said ? `${sm.said} dicen que ya` : 'recibidos', 'aportes') : tile('📅 Actividades', S.activities.length, 'programadas', 'actividades')}
-      ${tile('🎁 Con lista', `${withW}/${ps.length}`, 'ya escribieron deseos', 'personas')}
-      ${tile('🎡 Sorteo', drawn ? '✅' : '⏳', drawn ? 'Listo' : S.drawMeta ? 'Hay que repetirlo' : 'Pendiente', 'sorteo')}
-      ${S.isOwner && drawn && mod('estado') ? (() => { const ids = S.drawMeta.ids.filter(id => P(id)), b = ids.filter(id => ['comprado', 'envuelto'].includes(S.giftStatus[id])).length; return `<button class="dt" id="gs-who"><div class="dk">🛍️ Regalos</div><div class="dv">${b}/${ids.length}</div><div class="ds">ya lo compraron</div></button>`; })() : ''}
-      ${tile('💌 Anónimos', S.qCount || 0, 'preguntas', 'mensajes')}
-    </div>
-    ${steps.length ? `<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>Pasos para tener todo listo</b><span class="muted small">${done} de ${steps.length}</span></div>
-      <div class="prog" style="margin-top:8px"><i style="width:${done / steps.length * 100}%;background:var(--gold)"></i></div>
-      <div class="steps">${steps.map(([ok, l, g]) => `<button class="step ${ok ? 'done' : ''}" data-ag="${g}"><span class="ck">${ok ? '✓' : ''}</span><span>${l}</span>${ok ? '' : '<span class="go">Ir ›</span>'}</button>`).join('')}</div></div>` : ''}
-    <div class="card" style="margin-top:14px"><b>Accesos rápidos</b><div class="qa">
-      ${can('evento') ? '<button class="btn sm gold" data-ag="mensajes">📣 Enviar un aviso</button>' : ''}
-      ${can('participantes') ? '<button class="btn sm" data-ag="personas">👥 Participantes</button>' : ''}
-      ${can('actividades') ? '<button class="btn sm" data-ag="actividades" data-nextgo="a-fold">➕ Actividad</button>' : ''}
-      ${S.isOwner ? '<button class="btn sm" data-ag="fiesta">📺 Modo fiesta</button>' : ''}</div></div>`;
+  // Estado de cada sección, para verlo todo de un vistazo: [texto, ok | pend | info]
+  const amt = c.contribAmount, base = S.participants.filter(p => (S.att[p.id] || {}).status === 'si' || (S.att[p.id] || {}).confirmed).length;
+  const giftB = drawn && mod('estado') ? S.drawMeta.ids.filter(id => P(id) && ['comprado', 'envuelto'].includes(S.giftStatus[id])).length : null;
+  const ST = {
+    evento: c.eventDate && c.place ? [`${fmtDate(c.eventDate, { day: 'numeric', month: 'short' })} · ${c.place}`, 'ok'] : ['Falta la fecha o el lugar', 'pend'],
+    personas: [`${ps.length} inscritos · ${regOpen() ? 'inscripciones abiertas' : 'inscripciones cerradas'}`, ps.length >= 3 ? 'ok' : 'pend'],
+    asistencia: [sm.pending ? `${sm.going} van · faltan ${sm.pending} por responder` : `${sm.going} van · todos respondieron`, sm.pending ? 'pend' : 'ok'],
+    aportes: amt ? [`${sm.paid} de ${base} pagaron${sm.said ? ` · ${sm.said} por confirmar` : ''}`, base && sm.paid >= base ? 'ok' : 'pend'] : ['Sin configurar', 'info'],
+    sorteo: drawn ? [`Listo${giftB != null ? ` · ${giftB} de ${S.drawMeta.ids.filter(id => P(id)).length} ya compraron` : ''}`, 'ok'] : [S.drawMeta ? 'La lista cambió: hay que repetirlo' : 'Todavía no se ha hecho', 'pend'],
+    actividades: [S.activities.length ? `${S.activities.length} programadas` : 'Ninguna todavía', S.activities.length ? 'ok' : 'info'],
+    mensajes: [`${S.notices.length || 0} ${S.notices.length === 1 ? "aviso" : "avisos"} · ${S.qCount || 0} ${S.qCount === 1 ? "anónimo" : "anónimos"}`, "info"],
+    fiesta: ['Para el día del evento', 'info'],
+    ajustes: ['Secciones, entrar de nuevo y año nuevo', 'info'],
+  };
+  const secs = admAvail().filter(([g]) => g !== 'resumen');
+  box.innerHTML = cta + `${steps.length ? `<div class="card adm-prog"><div class="ap-ring" style="--p:${done / steps.length * 360}deg"><b>${done}/${steps.length}</b></div><div class="grow"><b>Preparación del angelito</b><span>${done === steps.length ? '🎉 Todo listo' : `Faltan ${steps.length - done} ${steps.length - done === 1 ? 'paso' : 'pasos'}`}</span></div></div>` : ''}
+    <div class="adm-grid">${secs.map(([g, e, l]) => { const [txt, k] = ST[g] || ['', 'info']; return `<button class="ag ${k}" data-ag="${g}"><span class="ag-e">${e}</span><span class="ag-t"><b>${l}</b><small>${esc(txt)}</small></span><i class="ag-dot"></i></button>`; }).join('')}</div>
+    ${giftB != null && S.isOwner ? `<button class="dt" id="gs-who" style="width:100%;margin-top:10px"><div class="dk">🛍️ ¿Quién ya compró el regalo?</div><div class="ds">${giftB} de ${S.drawMeta.ids.filter(id => P(id)).length} · toca para ver la lista</div></button>` : ''}
+    ${steps.length && done < steps.length ? `<div class="card" style="margin-top:14px"><b>Pasos para tener todo listo</b>
+      <div class="steps">${steps.map(([ok, l, g]) => `<button class="step ${ok ? 'done' : ''}" data-ag="${g}"><span class="ck">${ok ? '✓' : ''}</span><span>${l}</span>${ok ? '' : '<span class="go">Ir ›</span>'}</button>`).join('')}</div></div>` : ''}`;
 }
 function renderAdmin() {
   $('#adm-panel').style.display = S.isAdmin ? '' : 'none';
@@ -3059,7 +3062,7 @@ aForm.addEventListener('submit', async e => {
     } else {
       S.selfEditAt = Date.now(); const ref = doc(collection(adb, 'activities'));
       if (quizKey) await setDoc(doc(adb, 'quizKeys', ref.id), { c: quizKey });
-      await setDoc(ref, { ...o, at: serverTimestamp() }); toast('Actividad agregada 📅');
+      await setDoc(ref, { ...o, at: serverTimestamp(), dev: DEV }); toast('Actividad agregada 📅');
     }
     fillActForm({}, false); $('#a-fold').open = false;
     setTimeout(() => $('#a-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
@@ -3333,13 +3336,15 @@ async function notifyUser(title, body = '', url = './', tag) {
   toast(body ? `${title} · ${body}` : title);
 }
 let pushDone = false, pushToken = '';
+// Este teléfono tiene un número propio: lo que tú mandes desde aquí (avisos, actividades) no te llega como notificación a ti mismo
+const DEV = (() => { try { let d = localStorage.getItem('angelito:dev'); if (!d) { d = Math.random().toString(36).slice(2, 12); localStorage.setItem('angelito:dev', d); } return d; } catch { return ''; } })();
 // Un registro por teléfono (puedes tener la app en varios): guarda qué avisos NO quieres para que el servidor tampoco los mande.
 const tokenId = t => { let h = 0; for (const c of t) h = (h * 31 + c.charCodeAt(0)) | 0; return `${S.uid}_${(h >>> 0).toString(36)}`; };
 async function syncPushPrefs() {
   if (!pushToken || !S.uid) return;
   const o = nprefs(), off = Object.keys(NCAT).filter(k => o[k] === false);
   try {
-    await setDoc(doc(db, 'fcmTokens', tokenId(pushToken)), { uid: S.uid, token: pushToken, off, at: serverTimestamp() });
+    await setDoc(doc(db, 'fcmTokens', tokenId(pushToken)), { uid: S.uid, token: pushToken, off, dev: DEV, at: serverTimestamp() });
     if (!syncPushPrefs.old) { syncPushPrefs.old = true; { const w = writeBatch(db); w.delete(doc(db, 'fcmTokens', S.uid)); await w.commit().catch(() => { }); } } // formato viejo (uno por persona)
   } catch (e) { console.warn('push prefs', e); }
 }
@@ -3489,7 +3494,7 @@ function checkEvents() {
   if (now.rec && now.rec === was.rec) { const nw = added('recWishes'); if (nw.length) { const w = S.wishes.find(x => x.id === nw[nw.length - 1]); notifyCat('deseos', '🎁 Tu persona agregó un deseo nuevo', 'Entra a verlo 👀', './#deseos', n => `🎁 Tu persona agregó ${n} deseos nuevos`); } }
   if (!mine && was.ev !== now.ev && was.ev !== '||') notifyCat('evento', '🎄 Cambió la información del evento', `${fmtDate(S.event.eventDate) || ''}${S.event.place ? ' · 📍 ' + S.event.place : ''}`, './');
   if (!mine && was.rules !== now.rules && was.rules !== '[]') notifyCat('evento', '📜 Se actualizaron las reglas del angelito', 'Échales un vistazo en Inicio.', './');
-  added('notices').map(id => S.notices.find(n => n.id === id)).filter(n => n && noticeForMe(n) && !seen().has(n.id)).forEach(n => notifyCat('avisos', '📣 ' + n.title, n.body || '', './'));
+  added('notices').map(id => S.notices.find(n => n.id === id)).filter(n => n && noticeForMe(n) && !seen().has(n.id) && n.dev !== DEV).forEach(n => notifyCat('avisos', '📣 ' + n.title, n.body || '', './'));
 }
 function onOpenReminders() {
   try { milestoneReminders(); } catch (e) { console.warn(e); }
@@ -3509,7 +3514,7 @@ function renderNoticeAdmin() {
   $('#n-list').innerHTML = S.notices.length ? S.notices.slice(0, 15).map(n => `<div class="item"><span style="font-size:20px">📣</span><div class="grow"><div class="t">${esc(n.title)}</div>${n.body ? `<div class="muted small">${esc(n.body)}</div>` : ''}<div class="muted small" style="margin-top:4px">Para: ${esc(AUD[n.target] || 'Todos')} · ${esc(`${new Date(n.ts || 0).toLocaleDateString('es', { day: 'numeric', month: 'short' })}, ${hm(new Date(n.ts || 0))}`)}</div></div><button class="x" data-ndel="${esc(n.id)}" aria-label="Borrar">✕</button></div>`).join('') : '<p class="muted small">No has enviado avisos.</p>';
 }
 async function sendNotice(title, body, target) {
-  try { await setDoc(doc(collection(adb, 'notices')), { title, body, target, ts: Date.now(), at: serverTimestamp() }); toast('📣 Aviso enviado'); return true; }
+  try { await setDoc(doc(collection(adb, 'notices')), { title, body, target, ts: Date.now(), at: serverTimestamp(), dev: DEV }); S.selfEditAt = Date.now(); toast('📣 Aviso enviado'); return true; }
   catch (err) { toast(authErr(err)); return false; }
 }
 $('#n-form').addEventListener('submit', async e => {
