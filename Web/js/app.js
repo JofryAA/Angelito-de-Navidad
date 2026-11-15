@@ -392,14 +392,14 @@ function syncAdminMode() {
   if (adminAuth.currentUser) return;            // hay una sesión de organizador aparte: esa manda
   const had = !!S.staffSelf;
   if (S.myStaff && S.uid && S.me) {
-    const prev = JSON.stringify(S.staff?.perms || null);
-    const same = had && prev === JSON.stringify(S.myStaff.perms || null);
-    adb = db; S.staff = S.myStaff; S.isAdmin = true; S.isOwner = false; S.staffSelf = true;
+    const sig = x => JSON.stringify([x?.perms || null, !!x?.owner]);
+    const same = had && sig(S.staff) === sig(S.myStaff);
+    adb = db; S.staff = S.myStaff; S.isAdmin = true; S.isOwner = !!S.myStaff.owner; S.staffSelf = true; // acceso total = igual que el principal
     if (same) return; // nada cambió
     startAdminSubs();
     if (!had) { let seen = ''; try { seen = localStorage.getItem('angelito:staffHi') || ''; } catch { } if (seen !== S.uid) { try { localStorage.setItem('angelito:staffHi', S.uid); } catch { } toast('🛡️ Ya eres administrador: toca el engranaje de arriba'); } }
   } else if (had) {
-    S.staffSelf = false; S.staff = null; S.isAdmin = false; adb = adbOwn; startAdminSubs();
+    S.staffSelf = false; S.staff = null; S.isAdmin = false; S.isOwner = false; adb = adbOwn; startAdminSubs();
     if (location.hash === '#admin') location.hash = 'inicio';
   } else return;
   syncGuesses(true); render();
@@ -2170,9 +2170,9 @@ function renderAdmin() {
   const rr = $('#d-reveal-row'); if (rr) rr.style.display = S.drawMeta ? '' : 'none';
   { const sec = $('#d-gen')?.closest('.admin-sec'), want = (S.drawMeta && drawReady()) ? '3' : '0'; if (sec && sec.dataset.ord !== want) { sec.dataset.ord = want; sortAdm(); } } // sin sorteo, 'Generar sorteo' va primero
   applyAdmGroups(); renderAdmDash(); renderDrawRules();
-  $('#adm-who').textContent = S.isOwner ? 'Organizador principal' : S.staffSelf && S.me ? S.me.name : S.staff?.name || 'Organizador';
+  $('#adm-who').textContent = S.staffSelf && S.me ? S.me.name : S.isOwner ? 'Organizador principal' : S.staff?.name || 'Organizador';
   $('#adm-role').textContent = S.isOwner ? 'Panel de control · acceso total' : 'Panel de control · administrador';
-  { const k = S.isOwner ? 'crown' : S.staffSelf && S.me ? 'me' : 'shield'; const el = $('#adm-ic'); if (el.dataset.k !== k + (S.me?.emoji || '')) { el.dataset.k = k + (S.me?.emoji || ''); el.innerHTML = k === 'me' ? esc(S.me.emoji || '🙂') : pic(k, 22); } }
+  { const k = S.staffSelf && S.me ? 'me' : S.isOwner ? 'crown' : 'shield'; const el = $('#adm-ic'); if (el.dataset.k !== k + (S.me?.emoji || '')) { el.dataset.k = k + (S.me?.emoji || ''); el.innerHTML = k === 'me' ? esc(S.me.emoji || '🙂') : pic(k, 22); } }
   $('#adm-acts').hidden = !!S.staffSelf; // quien administra con su propia cuenta no tiene otra contraseña ni otra sesión que cerrar
   renderStaff();
   const f = $('#cfg-form');
@@ -2348,7 +2348,8 @@ function renderStaff() {
   if (sel.dataset.sig !== opts) { const v = sel.value; sel.innerHTML = opts; sel.dataset.sig = opts; if (v && !taken.has(v)) sel.value = v; }
   $('#st-list').innerHTML = (S.staffList || []).length ? S.staffList.map(st => { const p = P(st.id); return `<div class="staff">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="min-width:0"><b>${p ? esc(p.emoji || '🙂') : '🛡️'} ${esc(p ? p.name : st.name)}</b><div class="muted small">${p ? 'Entra con su cuenta de siempre' : st.username ? `Cuenta aparte · usuario: <b>${esc(st.username)}</b>` : '⚠️ Ya no está inscrita'}</div></div><button class="x" data-stdel="${esc(st.id)}" aria-label="Quitar">✕</button></div>
-      <div class="chips" style="margin-top:10px">${Object.entries(PERMS).map(([k, [e, l]]) => `<button type="button" class="chip perm ${st.perms?.[k] ? 'on' : ''}" data-sp="${k}" data-sid="${esc(st.id)}">${e} ${l}</button>`).join('')}</div></div>`; }).join('')
+      ${p ? `<div class="switch st-own"><div><b>👑 Acceso total</b><div class="muted small">Igual que el organizador principal: ve y maneja todo con su propia cuenta.</div></div><button class="tg ${st.owner ? 'on' : ''}" data-sown="${esc(st.id)}" aria-label="Acceso total"></button></div>` : ''}
+      ${st.owner ? '<p class="muted small" style="margin-top:8px">✅ Tiene todos los permisos.</p>' : `<div class="chips" style="margin-top:10px">${Object.entries(PERMS).map(([k, [e, l]]) => `<button type="button" class="chip perm ${st.perms?.[k] ? 'on' : ''}" data-sp="${k}" data-sid="${esc(st.id)}">${e} ${l}</button>`).join('')}</div>`}</div>`; }).join('')
     : '<p class="muted small">Todavía no hay administradores. El único es el organizador principal.</p>';
 }
 $('#st-perms').addEventListener('click', e => { const b = e.target.closest('[data-np]'); if (!b) return; stPerms[b.dataset.np] = !stPerms[b.dataset.np]; renderStaff(); });
@@ -2367,8 +2368,14 @@ $('#st-form').addEventListener('submit', async e => {
   busy(btn, false, '➕ Hacer administrador');
 });
 $('#st-list').addEventListener('click', async e => {
-  const t = e.target.closest('[data-sp]'), d = e.target.closest('[data-stdel]');
+  const t = e.target.closest('[data-sp]'), d = e.target.closest('[data-stdel]'), o = e.target.closest('[data-sown]');
   try {
+    if (o) {
+      const st = S.staffList.find(x => x.id === o.dataset.sown), p = P(st?.id), on = !st.owner; if (!p) return;
+      if (on && !(await confirmBox(`¿Darle acceso total a ${p.name}?`, 'Podrá hacer TODO lo que tú haces: ver las parejas del sorteo, quién escribió los anónimos y sugerencias, cambiar la configuración y dar o quitar administradores. Úsalo solo con alguien de total confianza.', 'Sí, acceso total'))) return;
+      await setDoc(doc(adb, 'staff', st.id), { owner: on }, { merge: true });
+      toast(on ? `👑 ${shortName(p)} ya tiene acceso total` : 'Acceso total quitado'); return;
+    }
     if (t) { const st = S.staffList.find(x => x.id === t.dataset.sid); const perms = { ...(st.perms || {}) }; perms[t.dataset.sp] = !perms[t.dataset.sp]; await setDoc(doc(adb, 'staff', st.id), { perms }, { merge: true }); toast(perms[t.dataset.sp] ? '✅ Permiso dado' : 'Permiso quitado'); }
     if (d) { const st = S.staffList.find(x => x.id === d.dataset.stdel); if (!(await confirmBox(`¿Quitar a ${P(st?.id)?.name || st?.name}?`, 'Ya no podrá entrar al panel. Sigue siendo participante.', 'Quitar'))) return; const w = writeBatch(adb); w.delete(doc(adb, 'staff', d.dataset.stdel)); await w.commit(); toast('Acceso retirado'); }
   } catch (err) { toast(authErr(err)); }

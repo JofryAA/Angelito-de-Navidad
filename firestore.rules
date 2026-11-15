@@ -9,7 +9,14 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function me() { return request.auth.uid; }
     // Organizador principal: puede todo.
-    function isOwner() { return signedIn() && request.auth.token.email == 'admin@angelito.app'; }
+    // Organizador principal: la cuenta admin@angelito.app o un participante al que el principal le dio "acceso total"
+    // (staff/{uid}.owner == true): así puede manejar todo con su propia cuenta, sin cambiar de sesión.
+    function isOwner() {
+      return signedIn() && (request.auth.token.email == 'admin@angelito.app'
+        || (exists(/databases/$(database)/documents/participants/$(request.auth.uid))
+          && exists(/databases/$(database)/documents/staff/$(request.auth.uid))
+          && get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.get('owner', false) == true));
+    }
     // Administradores: personas inscritas con permisos (staff/{uid}). Si la quitan del grupo, pierde el acceso al instante.
     // Las cuentas antiguas "@staff.angelito.app" (organizadores sin ficha de participante) siguen valiendo.
     function isStaff() {
