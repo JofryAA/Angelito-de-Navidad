@@ -268,7 +268,7 @@ body.chat-on #buz-seg{display:none!important}
 
 /* =================== Tanda 4: medidas que se adaptan =================== */
 /* Textos largos: parten bien y no se salen de su caja */
-h1,h2,h3,.v,.t,.st-l,.chead-t b,.ab-t b,.gc2-tx b,.qc-q{overflow-wrap:break-word;hyphens:auto}
+h1,h2,h3,.v,.t,.st-l,.chead-t b,.ab-t b,.gc2-tx b,.qc-q{overflow-wrap:break-word;hyphens:manual}
 .sec-title{font-size:clamp(1.45rem,6.4vw,2rem)!important;line-height:1.1}
 .sec-sub{font-size:clamp(.86rem,3.6vw,1rem)}
 .btn{min-width:0;line-height:1.15;text-align:center}
@@ -695,3 +695,7 @@ body.anim-in .wcard{animation:upin .4s var(--d,0ms) backwards}
 .wi-chip{flex:none;padding:7px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:inherit;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer;transition:transform .12s,background .2s}
 .wi-chip:active{transform:scale(.94)}
 .wi-chips.price .wi-chip{background:rgba(47,174,108,.15);border-color:rgba(47,174,108,.35)}
+
+/* sin guiones raros al partir palabras ("diciem-bre", "pan-talla") */
+*{hyphens:manual!important}
+.seats.four .seat.free .sn{font-size:.74rem}

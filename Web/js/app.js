@@ -2233,7 +2233,7 @@ function renderAdmin() {
   { const sec = $('#d-gen')?.closest('.admin-sec'), want = (S.drawMeta && drawReady()) ? '3' : '0'; if (sec && sec.dataset.ord !== want) { sec.dataset.ord = want; sortAdm(); } } // sin sorteo, 'Generar sorteo' va primero
   applyAdmGroups(); renderAdmDash(); renderDrawRules();
   $('#adm-who').textContent = S.staffSelf && S.me ? S.me.name : S.isOwner ? 'Organizador principal' : S.staff?.name || 'Organizador';
-  $('#adm-role').textContent = S.isOwner ? 'Panel de control · acceso total' : 'Panel de control · administrador';
+  $('#adm-role').textContent = S.isOwner ? 'Panel · acceso total' : 'Panel · administrador';
   { const k = S.staffSelf && S.me ? 'me' : S.isOwner ? 'crown' : 'shield'; const el = $('#adm-ic'); if (el.dataset.k !== k + (S.me?.emoji || '')) { el.dataset.k = k + (S.me?.emoji || ''); el.innerHTML = k === 'me' ? esc(S.me.emoji || '🙂') : pic(k, 22); } }
   $('#adm-acts').hidden = !!S.staffSelf; // quien administra con su propia cuenta no tiene otra contraseña ni otra sesión que cerrar
   renderStaff();

@@ -680,7 +680,7 @@ export function initGames(X) {
     const pz = g.type === 'domino' && g.mode === 'parejas';
     const free = g.status === 'lobby' ? Math.max(0, (g.max || 0) - n) : 0;
     const freeH = Array.from({ length: Math.min(free, 4) }, (_, k) => { const i = n + k; return `<button class="seat free ${pz ? 't' + (i % 2 ? 'b' : 'a') : ''}" ${g.players.includes(me()) ? 'data-gact="seat"' : 'disabled'}>
-      <span class="se">＋</span><span class="sn">Asiento libre</span><span class="sc">${g.players.includes(me()) ? 'Toca para invitar' : 'Esperando…'}</span>${pz ? `<span class="team t${i % 2}">${i % 2 ? 'B' : 'A'}</span>` : ''}</button>`; }).join('');
+      <span class="se">＋</span><span class="sn">${n + free > 2 ? 'Libre' : 'Asiento libre'}</span><span class="sc">${g.players.includes(me()) ? 'Invitar' : 'Esperando…'}</span>${pz ? `<span class="team t${i % 2}">${i % 2 ? 'B' : 'A'}</span>` : ''}</button>`; }).join('');
     return `<div class="seats ${n + free > 2 ? 'four' : 'two'}">${g.players.map((s, i) => `<div class="seat ${pz ? (i % 2 ? 'tb' : 'ta') : ''} ${g.status === 'playing' && !g.handOver && g.turn === i ? 'turn' : ''} ${s === me() ? 'me' : ''}" style="--d:${i * 60}ms">
       <span class="se">${esc(seatEmoji(s))}</span><span class="sn">${esc(s === me() ? 'Tú' : seatName(s).replace('🤖 ', ''))}</span>${live(g) && g.turn === i ? clockBar() : ''}
       ${g.type === 'domino' && g.status !== 'lobby' ? `<span class="sc">${g.counts?.[i] ?? 7} fichas</span>` : ''}
