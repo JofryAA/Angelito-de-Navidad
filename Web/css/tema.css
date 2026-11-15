@@ -562,3 +562,16 @@ body.ideas-on #buz-seg{display:none!important}
 .lbp:active{transform:scale(.96)}
 .lbp.on{border-color:var(--gold);background:rgba(236,188,92,.16);box-shadow:0 0 0 3px rgba(236,188,92,.15)}
 .lbp.ta.on{border-color:#2aa565;background:rgba(42,165,101,.2)}.lbp.tb.on{border-color:#d9466b;background:rgba(217,70,107,.2)}
+
+/* ---- Premio de la adivinanza ---- */
+@keyframes pzShine{0%{transform:translateX(-120%) skewX(-20deg)}60%,100%{transform:translateX(220%) skewX(-20deg)}}
+@keyframes pzTrophy{0%,100%{transform:rotate(-6deg) scale(1)}50%{transform:rotate(6deg) scale(1.08)}}
+@keyframes pzSpark{0%,100%{opacity:.3;transform:scale(.7) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(20deg)}}
+.prize2{position:relative;overflow:hidden;display:flex;align-items:center;gap:14px;padding:16px 18px;margin:0 0 14px;border-radius:22px;color:#3a2600;
+  background:radial-gradient(circle at 85% 20%,rgba(255,255,255,.55),transparent 40%),linear-gradient(135deg,#fff0b8 0%,#ffd36b 35%,#e2a93b 70%,#c8812a 100%);
+  box-shadow:0 12px 28px rgba(226,169,59,.35),inset 0 1px 0 rgba(255,255,255,.7),inset 0 -3px 8px rgba(120,70,0,.25)}
+.pz-sh{position:absolute;inset:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);animation:pzShine 3.2s ease-in-out infinite;pointer-events:none}
+.pz-ic{position:relative;flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:18px;font-size:32px;background:rgba(255,255,255,.45);box-shadow:inset 0 1px 0 #fff,0 4px 10px rgba(120,70,0,.25);animation:pzTrophy 2.4s ease-in-out infinite}
+.prize2 small{display:block;font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.75}
+.prize2 b{display:block;font-family:var(--serif,inherit);font-size:clamp(1.25rem,5.5vw,1.6rem);line-height:1.1;overflow-wrap:break-word}
+.pz-sp{position:relative;font-size:22px;animation:pzSpark 1.8s ease-in-out infinite}

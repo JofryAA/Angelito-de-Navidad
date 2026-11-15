@@ -1469,7 +1469,7 @@ function renderMyAngel() {
   if (!mod('adivinanza')) { box.innerHTML = h; return; }
   const prize = S.event.guessPrize;
   h += `<div class="h2row"><h2>🔮 ¿Qué crees que te van a regalar?</h2></div>`;
-  if (prize) h += `<div class="prize"><span style="font-size:22px">🏆</span><div>Quien más se acerque gana: <b>${esc(prize)}</b></div></div>`;
+  if (prize) h += `<div class="prize2"><div class="pz-sh"></div><span class="pz-ic">🏆</span><div class="grow"><small>Premio para quien más se acerque</small><b>${esc(prize)}</b></div><span class="pz-sp">✨</span></div>`;
   if (!guessesOpen() && S.event.guessesLocked) {
     h += `<div class="card empty"><span class="e">🔒</span>Las adivinanzas ya están cerradas.</div>`;
   } else if (!guessesOpen()) {
