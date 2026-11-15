@@ -1307,31 +1307,22 @@ function renderWishes() {
   root.innerHTML = `${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}
   <div class="pscroll" id="w-strip">${wishStrip()}</div>
   ${wishHero(S.wishPid, mine, isRec, items)}
-  ${mod('perfil') ? profileHtml(S.wishPid) : ''}
-  ${items.length ? `<div class="wl-h"><b>${mine ? 'Lo que me gustaría' : 'Lo que le gustaría'}</b><span>${items.length} ${items.length === 1 ? 'deseo' : 'deseos'}</span></div>` : ''}
-  <div class="wgrid">${items.length ? items.map((w, k) => { const img = w.hasImg && S.wishImgs[w.id], dom = /^https?:\/\//i.test(w.link || '') ? (w.link.match(/^https?:\/\/(?:www\.)?([^/?#]+)/i)?.[1] || 'Ver enlace') : '';
-    return `<article class="wcard ${w.top ? 'wtop' : ''} ${img ? 'has-img' : ''}" style="--d:${k * 60}ms">
-      ${w.hasImg ? (img ? `<button class="wc-img" data-wimg="${esc(w.id)}" style="background-image:url('${img}')" aria-label="Ver foto"></button>` : Date.now() - (wishImgTried.get(w.id) || Date.now()) > 8000 ? '' : '<div class="wc-img ld"></div>') : ''}
-      ${w.top ? '<span class="wc-rib">⭐ El que más quiere</span>' : ''}
-      <div class="wc-body">
-        ${img ? '' : `<span class="wi-ic c${k % 5 + 1}">${ic(w.top ? 'star' : 'gift', 22)}</span>`}
-        <div class="grow"><div class="wc-t">${esc(w.text)}</div>
-          <div class="wc-meta">${w.price ? `<span class="wc-price ${overBudget(w.price) ? 'over' : ''}">≈ ${esc(w.price)}${overBudget(w.price) ? ' · pasa el presupuesto' : ''}</span>` : ''}${dom ? `<a class="wc-link" href="${esc(w.link)}" target="_blank" rel="noopener">${ic('link', 13)}<span>${esc(dom)}</span></a>` : ''}</div>
-          ${isRec ? `<button class="wc-buy ${S.wishPick?.wishId === w.id ? 'on' : ''}" data-wpick="${esc(w.id)}">${S.wishPick?.wishId === w.id ? '🛒 Lo apartaste tú · solo tú lo ves' : '🛒 Este lo compro yo'}</button>` : ''}
-        </div>
-        ${w.uid === S.uid ? `<button class="wstar ${w.top ? 'on' : ''}" data-wstar="${esc(w.id)}" aria-label="${w.top ? 'Quitar de favorito' : 'Marcar como favorito'}">${ic('star', 18)}</button>` : ''}
-        ${w.uid === S.uid ? `<button class="wmore" data-wmore="${esc(w.id)}" aria-label="Opciones del deseo"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>` : ''}
-      </div></article>`; }).join('')
+  ${items.length || mine ? `<div class="wl-h"><b>${mine ? 'Lo que me gustaría' : 'Lo que le gustaría'}</b><span>${items.length} ${items.length === 1 ? 'deseo' : 'deseos'}</span></div>` : ''}
+  <div class="wshop">${items.length || mine ? items.map((w, k) => { const img = w.hasImg && S.wishImgs[w.id], dom = /^https?:\/\//i.test(w.link || '') ? (w.link.match(/^https?:\/\/(?:www\.)?([^/?#]+)/i)?.[1] || 'Ver enlace') : '', [we, wc] = wishArt(w.text, k);
+    return `<article class="wsc ${w.top ? 'wtop' : ''}" style="--d:${k * 60}ms">
+      <div class="wsc-pic ${img ? '' : 'art'}" style="${img ? `background-image:url('${img}')` : `--wa:${wc}`}" ${img ? `data-wimg="${esc(w.id)}" role="button" aria-label="Ver foto"` : ''}>
+        ${img ? '' : w.hasImg && Date.now() - (wishImgTried.get(w.id) || Date.now()) <= 8000 ? '<i class="wsc-ld"></i>' : `<span class="wsc-e">${we}</span>`}
+        ${w.top ? '<span class="wsc-top">⭐ Favorito</span>' : ''}
+        ${w.price ? `<span class="wsc-price ${overBudget(w.price) ? 'over' : ''}">${esc(w.price)}</span>` : ''}
+        ${w.uid === S.uid ? `<button class="wsc-star ${w.top ? 'on' : ''}" data-wstar="${esc(w.id)}" aria-label="Favorito">${ic('star', 16)}</button><button class="wsc-more" data-wmore="${esc(w.id)}" aria-label="Opciones"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>` : ''}
+      </div>
+      <div class="wsc-b"><div class="wsc-t">${esc(w.text)}</div>
+        ${dom ? `<a class="wsc-link" href="${esc(w.link)}" target="_blank" rel="noopener">${ic('link', 12)}<span>${esc(dom)}</span></a>` : ''}
+        ${overBudget(w.price) ? '<small class="wsc-warn">Pasa el presupuesto</small>' : ''}
+        ${isRec ? `<button class="wsc-buy ${S.wishPick?.wishId === w.id ? 'on' : ''}" data-wpick="${esc(w.id)}">${S.wishPick?.wishId === w.id ? '✓ Lo compro yo' : '🛒 Lo compro yo'}</button>` : ''}
+      </div></article>`; }).join('') + (mine ? `<button class="wsc wsc-add" data-wadd><span>${ic('plus', 26)}</span><b>Agregar deseo</b><small>Con foto queda mejor</small></button>` : '')
     : `<div class="wempty"><div class="we-ic">🎁</div><b>${mine ? 'Tu lista está vacía' : esc(pName(S.wishPid)) + ' todavía no ha pedido nada'}</b><p class="muted small">${mine ? 'Agrega lo que te gustaría recibir: con foto y enlace tu angelito acierta seguro.' : isRec ? 'Mira su perfil de gustos para inspirarte 👆' : 'Vuelve más tarde 😉'}</p></div>`}</div>
-  ${mine && items.length ? (() => { const tips = [];
-      if (items.length >= 2 && !items.some(w => w.top)) tips.push(['⭐', 'Marca tu favorito', 'Toca la estrella del que más quieres']);
-      const noImg = items.filter(w => !w.hasImg).length; if (noImg) tips.push(['📷', `${noImg} sin foto`, 'Con foto tu angelito sabe exactamente cuál']);
-      const noP = items.filter(w => !w.price).length; if (noP) tips.push(['💰', `${noP} sin precio`, 'Ayuda a que quepa en el presupuesto']);
-      if (mod('perfil') && profDone() < PROF.length) tips.push(['👕', 'Completa tu perfil', 'Tallas y colores para acertar']);
-      return tips.length ? `<div class="wtips"><b>✨ Mejora tu lista</b><div class="wt-row">${tips.map(([e, t, h]) => `<div class="wt"><span>${e}</span><div><b>${t}</b><small>${h}</small></div></div>`).join('')}</div></div>` : `<div class="wtips ok"><b>🌟 ¡Tu lista está completa!</b><small>Tu angelito tiene todo para acertar.</small></div>`; })() : ''}
-  ${!mine && !items.length && mod('perfil') ? (() => { const pr = S.profiles[S.wishPid] || {}, ideas = String([pr.likes, pr.colors].filter(Boolean).join(';')).split(/[;,\n]| y /).map(x => x.trim()).filter(Boolean).slice(0, 8);
-      return ideas.length ? `<div class="wtips"><b>💡 Ideas según lo que le gusta</b><div class="wp-chips" style="margin-top:8px">${ideas.map(x => `<span class="wp-chip like">${esc(x)}</span>`).join('')}</div></div>` : ''; })() : ''}
-  ${mine ? `<details class="wadd" id="w-add" ${S.wAddOpen || !items.length || keep.t ? 'open' : ''}><summary><span class="wa-ic">${ic('plus', 20)}</span><span><b>Agregar un deseo</b><small>Con foto, enlace y precio si quieres</small></span><span class="wa-ch">${ic('back', 18)}</span></summary><form class="card stack" id="w-form">
+  ${mine ? `<details class="wadd" id="w-add" ${S.wAddOpen || keep.t ? 'open' : ''}><summary><span class="wa-ic">${ic('plus', 20)}</span><span><b>Agregar un deseo</b><small>Con foto, enlace y precio si quieres</small></span><span class="wa-ch">${ic('back', 18)}</span></summary><form class="card stack" id="w-form">
     <div class="wi-chips">${WISH_IDEAS.map(([e, t]) => `<button type="button" class="wi-chip" data-widea="${esc(t)}">${e} ${t}</button>`).join('')}</div>
     <input class="in" id="w-text" maxlength="160" placeholder="Ej. Un libro de cocina, talla M, color azul…" required>
     <div class="row"><input class="in" id="w-link" maxlength="300" placeholder="Enlace (opcional)"><input class="in" id="w-price" maxlength="30" placeholder="Precio aprox. (opcional)"></div>
@@ -1383,6 +1374,7 @@ $('#w-root').addEventListener('click', e => {
   const wi = e.target.closest('[data-widea]'); if (wi) { const t = $('#w-text'); if (!t.value.trim()) t.value = wi.dataset.widea + ': '; else if (!t.value.toLowerCase().includes(wi.dataset.widea.toLowerCase())) t.value = wi.dataset.widea + ': ' + t.value.replace(/^[^:]{1,20}: /, ''); t.focus(); t.setSelectionRange(t.value.length, t.value.length); return; }
   const wp = e.target.closest('[data-wprice]'); if (wp) { $('#w-price').value = wp.dataset.wprice; return; }
   const ws = e.target.closest('[data-wstar]'); if (ws) return toggleTop(ws.dataset.wstar);
+  if (e.target.closest('[data-wadd]')) { S.wAddOpen = true; const d = $('#w-add'); if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => $('#w-text')?.focus(), 350); } return; }
   const im = e.target.closest('[data-wimg]'); if (!im) return;
   openModal(`<img src="${S.wishImgs[im.dataset.wimg] || ''}" alt="" style="width:100%;border-radius:14px"><div class="actions"><button class="btn gold" data-a="x">Cerrar</button></div>`).onclick = ev => { if (ev.target.closest('[data-a]')) closeModal(); };
 });
@@ -1853,7 +1845,29 @@ function renderProfCard() {
     <span class="pbar2"><i style="width:${Math.round(n / PROF.length * 100)}%"></i></span><span class="small" style="color:var(--gold);font-weight:700">${n} de ${PROF.length} listos</span></span><span class="chev">›</span></button>`;
 }
 document.addEventListener('click', e => { if (e.target.closest('#prof-cta')) openProfile(); });
+// Ilustración para deseos sin foto: emoji según lo que pidió y un color de fondo
+const WISH_ART = [[/libro|biblia|novela|cuento/i, '📚'], [/perfume|colonia|fragancia/i, '🧴'], [/zapat|tenis|sandalia|chancleta/i, '👟'], [/camis|blusa|ropa|pantal|falda|vestid|suéter|sueter|abrigo|jacket/i, '👕'],
+  [/caf[eé]|taza|termo/i, '☕'], [/aud[ií]fono|bocina|speaker|celular|tel[eé]fono|tablet|laptop|reloj inteligente|smartwatch|tecnolog/i, '🎧'], [/reloj/i, '⌚'], [/cartera|bolso|mochila/i, '👜'],
+  [/chocolate|dulce|galleta|bomb[oó]n/i, '🍫'], [/maquillaje|labial|crema|skin|uñas/i, '💄'], [/juego|consola|play|nintendo|xbox/i, '🎮'], [/cocina|olla|sart[eé]n|licuadora/i, '🍳'],
+  [/flor|planta/i, '🌸'], [/vino|whisky|ron\b|cerveza/i, '🍷'], [/cadena|arete|anillo|pulsera|collar|joya/i, '💍'], [/gorra|sombrero/i, '🧢'], [/pelota|bate|guante|b[eé]isbol|f[uú]tbol|basket/i, '⚾'], [/m[uú]sica|guitarra/i, '🎸']];
+const WISH_COL = ['#f0a33a', '#d9466b', '#8a4ad8', '#3779de', '#1fa58f', '#2aa565'];
+const wishArt = (t, k) => [(WISH_ART.find(([r]) => r.test(t)) || [0, '🎁'])[1], WISH_COL[k % WISH_COL.length]];
 function wishHero(uid, mine, isRec, items) {
+  const p = P(uid), col = nmColor(uid), pd = profDone(uid), pr = (mod('perfil') && S.profiles[uid]) || {}, v = k => String(pr[k] || '').trim();
+  const list = k => v(k).split(/[;,\n]| y /).map(x => x.trim()).filter(Boolean).slice(0, 6);
+  const sizes = [['shirt', '👕'], ['pants', '👖'], ['shoe', '👟']].filter(([k]) => v(k)).map(([k, e]) => `<span class="whs">${e} <b>${esc(v(k))}</b></span>`).join('');
+  const chips = [...list('colors').map(c => `<span class="whc col">${esc(c)}</span>`), ...list('likes').map(c => `<span class="whc">${esc(c)}</span>`)].join('');
+  const warn = [v('allergy') && !/^(n\/?a|no|ninguna?|nada)$/i.test(v('allergy')) ? `⚠️ ${esc(v('allergy'))}` : '', v('nogift') ? `🙅 ${mine ? 'No me regales' : 'No le regales'}: ${esc(v('nogift'))}` : ''].filter(Boolean);
+  return `<section class="whero2" style="--hc:${col}">
+    <div class="wh2-top"><div class="wh-av"><span>${esc(pEmoji(uid))}</span></div>
+      <div class="grow wh-tx">${isRec ? '<span class="wh-tag">🎯 ¡Es tu persona!</span>' : ''}<b>${esc(mine ? 'Mi lista' : p?.name || '')}</b>
+        <small>${items.length} ${items.length === 1 ? 'deseo' : 'deseos'}${S.event.budget ? ` · 💰 ${esc(S.event.budget)}` : ''}</small></div>
+      ${mine ? `<div class="wh-act"><button class="whb" id="prof-icon" aria-label="Cambiar ícono">${esc(S.me.emoji)}</button>${mod('perfil') ? `<button class="whb ${pd < PROF.length ? 'pend' : ''}" id="prof-edit" aria-label="Mi perfil">${ic('shirt', 20)}</button>` : ''}</div>` : ''}</div>
+    ${mod('perfil') && (sizes || chips || warn.length) ? `<div class="wh2-prof">${sizes ? `<div class="whs-row">${sizes}</div>` : ''}${chips ? `<div class="whc-row">${chips}</div>` : ''}${warn.map(w => `<div class="whw">${w}</div>`).join('')}</div>`
+      : mod('perfil') ? `<div class="wh2-prof empty">${mine ? `👕 Completa tu perfil (tallas, colores y gustos) para que tu angelito acierte · <b>${pd}/${PROF.length}</b>` : 'Todavía no ha llenado su perfil de gustos.'}</div>` : ''}
+  </section>`;
+}
+function wishHeroOld(uid, mine, isRec, items) {
   const p = P(uid), col = nmColor(uid), pd = profDone(uid);
   return `<section class="whero" style="--hc:${col}">
     <div class="wh-av"><span>${esc(pEmoji(uid))}</span></div>
