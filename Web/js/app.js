@@ -311,8 +311,8 @@ function startUserSubs(user) {
     unsubUser.push(onSnapshot(query(collection(db, 'notices'), orderBy('ts', 'desc'), limit(30)), s => { S.notices = rows(s); render(); }, ufail('notices')));
     unsubUser.push(onSnapshot(doc(db, 'party', 'live'), s => { S.live = s.exists() ? s.data() : null; render(); }, () => { }));
     unsubUser.push(onSnapshot(doc(db, 'stats', 'questions'), s => { S.qCount = s.exists() ? (s.data().count || 0) : 0; render(); }, ufail('stats')));
-    unsubUser.push(onSnapshot(collection(db, 'presence'), s => { S.presence = Object.fromEntries(s.docs.map(d => [d.id, { ts: +d.data().ts || 0, on: !!d.data().on }])); chatSig = ''; render(); }, () => { })); beat(true);
-    unsubUser.push(onSnapshot(collection(db, 'chatSeen'), s => { S.chatSeenAll = Object.fromEntries(s.docs.map(d => [d.id, +d.data().ts || 0])); chatSig = ''; render(); }, () => { }));
+    unsubUser.push(onSnapshot(collection(db, 'presence'), s => { S.presence = Object.fromEntries(s.docs.map(d => [d.id, { ts: +d.data().ts || 0, on: !!d.data().on }])); try { renderChat(); } catch { } }, () => { })); beat(true);
+    unsubUser.push(onSnapshot(collection(db, 'chatSeen'), s => { S.chatSeenAll = Object.fromEntries(s.docs.map(d => [d.id, +d.data().ts || 0])); try { renderChat(); renderBadges(); } catch { } }, () => { }));
     unsubUser.push(onSnapshot(doc(db, 'thanks', user.uid), s => { S.myThanks = s.exists() ? s.data() : null; render(); }, ufail('thanks')));
     unsubUser.push(onSnapshot(doc(db, 'wishPick', user.uid), s => { S.wishPick = s.exists() ? s.data() : null; render(); }, ufail('wishPick')));
     unsubUser.push(onSnapshot(collection(db, 'memories'), s => { S.memories = rows(s); render(); }, ufail('memories')));
@@ -1949,9 +1949,9 @@ function renderChat() {
   if (!S.me) $('#c-ngate').innerHTML = `<div class="ngate"><span>💬</span><div><b>Para escribir, entra con tu nombre</b><small>${S.isAdmin ? 'Como organizador solo puedes leer el chat.' : 'Usa tu PIN de 4 números.'}</small></div>${S.isAdmin ? '' : '<button class="btn sm gold" type="button" data-auth="login">Entrar</button>'}</div>`;
   else if (needN) $('#c-ngate').innerHTML = `<div class="ngate"><span>🔔</span><div><b>Activa los avisos para escribir</b><small>${Notification.permission === 'denied' ? 'Los tienes bloqueados: te explico cómo permitirlos.' : 'Así te enteras cuando te respondan o te mencionen.'}</small></div><button class="btn sm gold" type="button" data-nact>Activar</button></div>`;
   if (!can) return;
-  { const n = onlineIds().length; $('#c-count').innerHTML = navigator.onLine === false ? '<button type="button" class="onl off" data-online><i class="netdot off"></i>Sin conexión</button>' : `<button type="button" class="onl" data-online><i class="netdot on"></i>${n} en línea</button>`; }
+  { const n = onlineIds().length, cc = $('#c-count'), h = navigator.onLine === false ? '<button type="button" class="onl off" data-online><i class="netdot off"></i>Sin conexión</button>' : `<button type="button" class="onl" data-online><i class="netdot on"></i>${n} en línea</button>`; if (cc.dataset.h !== h) { cc.dataset.h = h; cc.innerHTML = h; } }
   loadChatImgs();
-  const sig = S.chat.map(m => m.id + (m.edited ? 'e' + m.text.length + m.text.slice(-4) : '') + (m.pending ? '~' : '') + (m.hasImg && S.chatImgs[m.id] ? 'i' : '')).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join() + '|' + JSON.stringify(S.chatSeenAll || {});
+  const sig = S.chat.map(m => m.id + (m.edited ? 'e' + m.text.length + m.text.slice(-4) : '') + (m.pending ? '~' : '') + (m.hasImg && S.chatImgs[m.id] ? 'i' : '')).join() + S.participants.length + (S.isAdmin ? 'a' : '') + '|' + S.chat.map(m => JSON.stringify(m.r || {})).join() + '|' + onlineIds().join() + '|' + S.chat.filter(m => m.uid === S.uid).map(m => seenBy(m).length).join();
   if (sig === chatSig) return; chatSig = sig;
   const l = $('#c-list'), near = l.scrollHeight - l.scrollTop - l.clientHeight < 80;
   let last = '', prev = null;

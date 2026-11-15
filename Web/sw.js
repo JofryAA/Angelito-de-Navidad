@@ -3,15 +3,26 @@ const VERSION = 'angelito-2026.11.13-114418';
 const SHELL = ['./', './index.html', './firebase-config.js', './css/app.css', './css/panel.css', './css/tema.css', './js/app.js', './js/panel.js', './js/juegos.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon-64.png', './icons/badge-96.png'];
 
+// Si el teléfono nunca llegó a guardar la app (por ejemplo, justo después de «Reparar» sin internet), una página propia en vez del aviso en inglés del navegador
+const OFFLINE = () => new Response(`<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Angelito</title>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#08150f;color:#f3ead6;font-family:system-ui,sans-serif;text-align:center;padding:24px">
+<div><div style="font-size:64px">🎁</div><h1 style="font-size:1.4rem;margin:12px 0 6px">Estás sin internet</h1><p style="opacity:.75;max-width:300px;margin:0 auto 18px;line-height:1.5">El angelito abre solo en cuanto vuelva la señal. Si ya la tienes, toca el botón.</p>
+<button onclick="location.reload()" style="padding:12px 22px;border:0;border-radius:999px;background:#ecbc5c;color:#2b1d00;font-weight:700;font-size:1rem">Intentar de nuevo</button></div>
+<script>addEventListener('online',()=>location.reload());setInterval(()=>{if(navigator.onLine)fetch('./',{cache:'no-store'}).then(r=>r.ok&&location.reload()).catch(()=>{})},5000)</script></body></html>`, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 const LIBS = ['app', 'auth', 'firestore'].map(n => `https://www.gstatic.com/firebasejs/10.12.2/firebase-${n}.js`);
 
 self.addEventListener('install', e => {
   // 'reload' evita guardar una copia vieja del navegador; las librerías de Firebase se guardan también para abrir sin internet.
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))
-    .then(() => Promise.allSettled(LIBS.map(u => c.add(u))))).then(() => self.skipWaiting()));
+  // cada archivo por separado: si uno falla (mala señal), los demás igual quedan guardados y la app abre sin internet
+  e.waitUntil(caches.open(VERSION).then(async c => {
+    const r = await Promise.allSettled(SHELL.map(u => c.add(new Request(u, { cache: 'reload' }))));
+    if (r[1].status === 'rejected') { const old = await caches.match('./index.html'); if (old) await c.put('./index.html', old); } // nunca quedarse sin la página principal
+    await Promise.allSettled(LIBS.map(u => c.add(u)));
+  }).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  // se borran las copias viejas solo si la nueva ya tiene la página principal
+  e.waitUntil(caches.open(VERSION).then(c => c.match('./index.html')).then(ok => ok ? caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))) : null).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', e => {
   const req = e.request; if (req.method !== 'GET') return;
@@ -21,8 +32,14 @@ self.addEventListener('fetch', e => {
   if (url.pathname.endsWith('version.json')) return;
   // Página principal: primero internet (para tener siempre la última versión), si no hay, la copia guardada.
   if (req.mode === 'navigate' || (url.origin === location.origin && /\/(index\.html)?$/.test(url.pathname))) {
-    e.respondWith(fetch(req).then(r => { if (r.ok) { const c = r.clone(); caches.open(VERSION).then(x => x.put('./index.html', c)); } return r; })
-      .catch(() => caches.match('./index.html')));
+    // con internet lento no se espera para siempre: a los 4 segundos abre la copia guardada
+    const net = fetch(req).then(r => { if (r.ok) { const c = r.clone(); caches.open(VERSION).then(x => x.put('./index.html', c)); } return r; });
+    const saved = () => caches.match('./index.html').then(r => r || caches.match('./')).then(r => r || caches.match(req, { ignoreSearch: true }));
+    e.respondWith(new Promise(res => {
+      let done = false; const fin = r => { if (!done && r) { done = true; res(r); } };
+      const t = setTimeout(() => saved().then(fin), 4000);
+      net.then(r => { clearTimeout(t); fin(r); }).catch(() => { clearTimeout(t); saved().then(r => fin(r || OFFLINE())); });
+    }));
     return;
   }
   // Código y estilos de la app: siempre lo más reciente; sin internet, la copia guardada.
