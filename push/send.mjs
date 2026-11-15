@@ -100,14 +100,12 @@ if (remDue.length) {
   const lugar = ev.place ? ` en ${ev.place}` : '';
   const drawIds = draw?.ids || all;
   const needCol = c => remDue.some(k => c.includes(k));
-  const gs = needCol(['buy7', 'buy2']) ? Object.fromEntries((await db.collection('giftStatus').get()).docs.map(d => [d.id, d.data().status])) : {};
   const att = needCol(['rsvp1']) ? Object.fromEntries((await db.collection('attendance').get()).docs.map(d => [d.id, d.data().status])) : {};
   const hasW = needCol(['wish10']) ? new Set((await db.collection('wishes').get()).docs.map(d => d.data().uid)) : new Set();
-  const bought = uid => ['comprado', 'envuelto'].includes(gs[uid]);
   for (const k of remDue) {
     if (k === 'wish10') for (const uid of all) if (!hasW.has(uid)) put(uid, 'avisos', { title: '🎁 Escribe tu lista de deseos', body: 'Faltan 10 días: ayuda a tu angelito a acertar con tu regalo.', url: '#deseos' });
-    if (k === 'buy7') for (const uid of drawIds) if (!bought(uid)) put(uid, 'avisos', { title: '🛍️ Falta una semana', body: '¿Ya compraste el regalo de tu angelito? Marca cómo vas en la Ruleta.', url: '#ruleta' });
-    if (k === 'buy2') for (const uid of drawIds) if (!bought(uid)) put(uid, 'avisos', { title: '⏰ ¡Faltan 2 días!', body: '¿Ya tienes el regalo de tu angelito? No lo dejes para última hora 😉', url: '#ruleta' });
+    if (k === 'buy7') for (const uid of drawIds) put(uid, 'avisos', { title: '🛍️ Falta una semana', body: '¿Ya tienes el regalo de tu angelito? Que no te agarre la última hora 🎁', url: '#ruleta' });
+    if (k === 'buy2') for (const uid of drawIds) put(uid, 'avisos', { title: '⏰ ¡Faltan 2 días!', body: '¿Ya tienes el regalo de tu angelito? No lo dejes para última hora 😉', url: '#ruleta' });
     if (k === 'eve1') for (const uid of all) put(uid, 'avisos', { title: '🎄 ¡Mañana es el angelito!', body: `${hora ? 'A las ' + hora : 'Mañana'}${lugar}. ¡No olvides el regalo envuelto! 🎁`, url: '#inicio' });
     if (k === 'day0') for (const uid of all) put(uid, 'avisos', { title: '🎁 ¡Hoy es el angelito!', body: `${hora ? 'Te esperamos a las ' + hora : 'Te esperamos'}${lugar}.`, url: '#inicio' });
     if (k === 'rsvp1') for (const uid of all) if (!att[uid]) put(uid, 'avisos', { title: '📝 Mañana se cierra la confirmación', body: '¿Vas al angelito? Confírmalo en la app.', url: '#inicio' });
