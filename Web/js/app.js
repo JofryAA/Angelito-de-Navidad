@@ -450,7 +450,7 @@ addEventListener('popstate', () => {
   if ($('#modal').classList.contains('on')) { if (S.spinning || S.forcePin) { sheetHistory(); return; } closeModal(); return; }
   history.back(); // la hoja ya estaba cerrada: este "atrás" era para navegar
 });
-function openModal(html) { $('#sheet').className = 'sheet'; $('#sheet').innerHTML = html; $('#modal').classList.add('on'); sheetHistory(); return $('#sheet'); }
+function openModal(html) { $('#sheet').className = 'sheet'; $('#sheet').innerHTML = html; if (document.body.classList.contains('touring')) { openModal.later = true; return $('#sheet'); } /* durante la guía, las ventanas automáticas esperan a que termine */ $('#modal').classList.add('on'); sheetHistory(); return $('#sheet'); }
 function viewImage(src) { openModal(`<img src="${src || ''}" alt="" style="width:100%;border-radius:14px"><div class="actions"><button class="btn gold" data-a="x">Cerrar</button></div>`).onclick = ev => { if (ev.target.closest('[data-a]')) closeModal(); }; }
 // Cabecera de una hoja con la persona (menú ⋯, asistencia…)
 const personHead = (p, sub) => `<div class="wm-h who-card" style="display:flex;gap:12px;align-items:center"><span class="av">${esc(p.emoji)}</span><div><div class="muted small">${esc(sub)}</div><b>${esc(p.name)}</b></div></div>`;
@@ -743,7 +743,7 @@ async function fullLogout() {
   toast('Cerrando sesión…');
   try { await signOut(auth); } catch { }
   try { await terminate(db); await clearIndexedDbPersistence(db); } catch (e) { console.warn(e); }  // borra la copia local de esta persona
-  for (const k of Object.keys(localStorage)) if (/^angelito:(remind|ms|chatSeen|sugSeen|lg|tour2?):/.test(k)) try { localStorage.removeItem(k); } catch { } // en un teléfono prestado no queda nada tuyo
+  for (const k of Object.keys(localStorage)) if (/^angelito:(remind|ms|chatSeen|sugSeen|lg|tour\d?):/.test(k)) try { localStorage.removeItem(k); } catch { } // en un teléfono prestado no queda nada tuyo
   try { sessionStorage.clear(); } catch { }
   location.reload();
 }
@@ -1139,56 +1139,93 @@ function renderHome() {
 }
 
 /* ---------- tus pendientes ---------- */
-/* ---------- 📘 guía paso a paso: te lleva por cada pantalla y te enseña qué hacer en ella ---------- */
+/* ---------- 📘 guía paso a paso: oscurece la pantalla y señala cada cosa de verdad, con capítulos ---------- */
 const TOUR = () => [
-  { v: 'inicio', e: '🎁', t: `¡Bienvenido, ${S.me?.first || ''}!`, d: 'Te enseñamos toda la app en 2 minutos. Toca <b>Siguiente</b> o desliza la tarjeta. Puedes salir cuando quieras.' },
-  { v: 'inicio', e: '🏠', t: 'Inicio', d: 'Aquí ves la <b>cuenta regresiva</b>, los detalles del evento con el <b>mapa</b>, y <b>tus pendientes</b>: tócalos y te llevan directo.' },
-  { v: 'inicio', e: '👕', t: 'Tu perfil de gustos', d: 'Toca <b>tu nombre arriba</b> → Mi perfil de gustos. Pon tallas, colores y lo que te gusta: así tu angelito acierta.', hl: '#userbox', m: 'perfil' },
-  { v: 'ruleta', e: '🎡', t: 'La ruleta', d: 'Cuando el organizador haga el sorteo te llega un aviso. Entras aquí con tu PIN, giras y ves a quién le regalas. <b>Solo tú lo ves.</b> Aquí mismo marcas cómo va tu regalo.', m: 'ruleta' },
-  { v: 'deseos', e: '🎁', t: 'Lista de deseos', d: 'Escribe lo que te gustaría recibir, con foto, enlace y precio. Marca ⭐ tu favorito. En la lista de quien te tocó toca <b>🛒 Lo compro yo</b>.', m: 'deseos' },
-  { v: 'actividades', e: '📅', t: 'Actividades', d: 'Todo lo que haremos: votaciones, trivias y el <b>💌 buzón anónimo</b>. Toca una para participar.', m: 'agenda' },
-  { v: 'buzon', e: '💬', t: 'Chat del grupo', d: '<b>Desliza un mensaje a la derecha</b> para responder, <b>mantenlo presionado</b> para seleccionar varios y tócalo para reaccionar. Con <b>@</b> mencionas a alguien.', m: 'chat' },
-  { v: 'sugerencias', e: '💡', t: 'Ideas', d: 'Propón juegos, comida o música para el angelito y vota las ideas de los demás.', m: 'buzon' },
-  { v: 'juegos', e: '🎮', t: 'Juegos', d: 'Dominó, ahorcado, 4 en línea y X y O con el grupo o contra 🤖, con música y voz. <b>Sin internet también se puede jugar</b> contra la máquina.', m: 'juegos' },
-  { v: 'inicio', e: '❓', t: '¿Dudas? Toca el ?', d: 'En cualquier pantalla, el botón <b>?</b> de arriba te explica paso a paso lo que puedes hacer ahí.', hl: '#help-btn' },
-  { v: 'inicio', e: '📲', t: 'Último paso', d: 'Instala la app y activa los avisos para enterarte de la ruleta, las actividades y los mensajes. <b>Sin internet la app sigue funcionando</b>: lo que hagas se sube después.', end: 1 },
+  { c: 'Empezar', v: 'inicio', e: '🎁', t: `¡Hola, ${S.me?.first || ''}!`, d: 'Te enseño la app señalando cada cosa en tu pantalla. Son 2 minutos. Toca <b>Siguiente</b>, o toca lo que está iluminado.' },
+  { c: 'Empezar', v: 'inicio', s: '#tabs', e: '🧭', t: 'Las pestañas', d: 'Toca una para cambiar de sección, o <b>desliza la pantalla a los lados</b>.' },
+  { c: 'Empezar', v: 'inicio', s: '#help-btn', e: '❓', t: 'Ayuda en cada pantalla', d: 'Si no sabes cómo hacer algo, toca el <b>?</b>: te explica paso a paso lo de la pantalla donde estás.' },
+  { c: 'Empezar', v: 'inicio', s: '#userbox', e: '👤', t: 'Tu menú', d: 'Aquí están tu <b>perfil de gustos</b>, los avisos, la ayuda y cerrar sesión.' },
+  { c: 'Inicio', v: 'inicio', s: '#h-next:not(:empty), #h-todo:not(:empty)', e: '✅', t: 'Lo que te toca', d: 'Tus pendientes: confirmar si vas, llenar tu perfil, escribir deseos… Tócalos y te llevan directo.' },
+  { c: 'Inicio', v: 'inicio', s: '#h-evcard:not(:empty), #h-info:not(:empty)', e: '📍', t: 'El evento', d: 'Fecha, hora y lugar con el <b>mapa</b>. Toca el mapa para abrir la ruta.' },
+  { c: 'Ruleta', m: 'ruleta', v: 'ruleta', s: '#spinBtn, #wheel', e: '🎡', t: 'La ruleta', d: 'Cuando se haga el sorteo te llega un aviso. Giras con tu PIN y ves a quién le regalas. <b>Solo tú lo ves.</b>' },
+  { c: 'Deseos', m: 'deseos', v: 'deseos', s: '#w-strip', e: '👀', t: 'Las listas del grupo', d: 'Toca un nombre para ver su lista de deseos y su perfil (tallas, colores, gustos).' },
+  { c: 'Deseos', m: 'deseos', v: 'deseos', s: '[data-wadd], #w-add', e: '➕', t: 'Tu lista', d: 'Agrega lo que te gustaría recibir con <b>foto, enlace y precio</b>. Marca ⭐ tu favorito.' },
+  { c: 'Actividades', m: 'agenda', v: 'actividades', s: '#acts-root', e: '📅', t: 'Actividades', d: 'Votaciones, trivias y el <b>💌 buzón anónimo</b>. Toca una para participar.' },
+  { c: 'Chat', m: 'chat', v: 'buzon', s: '#c-list', e: '💬', t: 'Los mensajes', d: '<b>Desliza a la derecha</b> para responder · <b>mantén presionado</b> para seleccionar · <b>toca</b> para reaccionar.' },
+  { c: 'Chat', m: 'chat', v: 'buzon', s: '#c-form', e: '✍️', t: 'Escribir', d: 'Con <b>@</b> mencionas a alguien, 🎲 te da una ocurrencia y 📷 envía una foto. Sin internet se envía al volver.' },
+  { c: 'Ideas', m: 'buzon', v: 'sugerencias', s: '#s-formbox', e: '💡', t: 'Ideas', d: 'Propón juegos, comida o música para el angelito y vota las de los demás.' },
+  { c: 'Juegos', m: 'juegos', v: 'juegos', s: '.gcreate2', e: '🎮', t: 'Juegos', d: 'Dominó, ahorcado, 4 en línea y X y O con el grupo o contra 🤖, con música y voz. <b>Sin internet también</b>.' },
+  { c: 'Listo', v: 'inicio', e: '🎉', t: '¡Ya conoces la app!', d: 'Te recomiendo empezar por aquí:', end: 1 },
 ];
 function openTour(force) {
   if (!S.me) return;
-  const key = 'angelito:tour2:' + S.uid;
+  const key = 'angelito:tour3:' + S.uid;
   if (!force) { try { if (localStorage.getItem(key)) return; } catch { } }
   try { localStorage.setItem(key, '1'); } catch { }
   $('#tourx')?.remove(); closeModal();
-  const T = TOUR().filter(s => !s.m || mod(s.m)); let i = 0;
-  const ov = document.createElement('div'); ov.id = 'tourx'; ov.innerHTML = '<div class="tx-card" role="dialog" aria-live="polite"></div>'; document.body.appendChild(ov);
-  const card = ov.firstChild, back = location.hash || '#inicio';
-  const clearHl = () => $$('.tour-hl').forEach(x => x.classList.remove('tour-hl'));
-  const paint = () => {
-    const s = T[i], last = i === T.length - 1;
-    if (location.hash.slice(1) !== s.v) location.hash = s.v;
-    clearHl(); setTimeout(() => { $(`.tab[data-v="${s.v}"]`)?.classList.add('tour-hl'); if (s.hl) $(s.hl)?.classList.add('tour-hl'); }, 60);
-    card.innerHTML = `<div class="tx-top"><span class="tx-e">${s.e}</span><div class="grow"><small>Paso ${i + 1} de ${T.length}</small><b>${esc(s.t)}</b></div><button class="tx-x" data-t="skip" aria-label="Salir de la guía">${ic('x', 18)}</button></div>
-      <p>${s.d}</p><div class="tx-bar"><i style="width:${(i + 1) / T.length * 100}%"></i></div>
-      ${last ? `<div class="tx-end">${mod('perfil') ? '<button class="btn sm gold" data-t="prof">👕 Llenar mi perfil</button>' : ''}<button class="btn sm" data-t="notif">🔔 Activar avisos</button></div>` : ''}
-      <div class="tx-act">${i ? '<button class="btn ghost" data-t="prev">‹ Atrás</button>' : '<button class="btn ghost" data-t="skip">Saltar</button>'}<button class="btn gold" data-t="${last ? 'done' : 'next'}">${last ? '¡Listo! 🎉' : 'Siguiente ›'}</button></div>`;
+  const T = TOUR().filter(s => !s.m || mod(s.m)), chaps = [...new Set(T.map(s => s.c))], back = location.hash || '#inicio';
+  let i = 0, target = null, tok = 0;
+  const ov = document.createElement('div'); ov.id = 'tourx';
+  ov.innerHTML = '<div class="tx-hole"><i class="tx-ring"></i></div><div class="tx-card" role="dialog" aria-live="polite"><i class="tx-arrow"></i><div class="tx-body"></div></div>';
+  document.body.appendChild(ov); document.body.classList.add('touring');
+  const hole = $('.tx-hole', ov), card = $('.tx-card', ov), body = $('.tx-body', ov), arrow = $('.tx-arrow', ov);
+  const find = sel => sel && $$(sel).find(el => { const r = el.getBoundingClientRect(); return el.offsetParent !== null && r.width > 0 && r.height > 0; });
+  function place() {
+    const vw = innerWidth, vh = visualViewport?.height || innerHeight, cw = Math.min(420, vw - 24), ch = card.offsetHeight;
+    card.style.width = cw + 'px'; card.style.left = Math.round((vw - cw) / 2) + 'px';
+    if (!target) { hole.classList.add('off'); card.style.top = Math.max(16, Math.round((vh - ch) / 2)) + 'px'; arrow.hidden = true; return; }
+    const r = target.getBoundingClientRect(), pad = 8;
+    const x = Math.max(6, r.left - pad), y = Math.max(6, r.top - pad), w = Math.min(vw - 12, r.width + pad * 2), h = Math.min(vh - 12, r.height + pad * 2);
+    hole.classList.remove('off'); Object.assign(hole.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+    const below = y + h + 14, above = y - ch - 14; let top, up;
+    if (below + ch < vh - 8) { top = below; up = true; } else if (above > 8) { top = above; up = false; } else { top = Math.max(8, vh - ch - 12); up = null; }
+    card.style.top = Math.round(top) + 'px'; arrow.hidden = up == null; arrow.className = 'tx-arrow ' + (up ? 'up' : 'down');
+    arrow.style.left = Math.max(18, Math.min(cw - 30, x + w / 2 - (vw - cw) / 2 - 8)) + 'px';
+  }
+  function paint() {
+    const s = T[i], my = ++tok, last = i === T.length - 1;
+    body.innerHTML = `<div class="tx-chaps">${chaps.map(c => `<button type="button" class="${c === s.c ? 'on' : chaps.indexOf(c) < chaps.indexOf(s.c) ? 'done' : ''}" data-tc="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+      <div class="tx-top"><span class="tx-e">${s.e}</span><div class="grow"><small>Paso ${i + 1} de ${T.length}</small><b>${esc(s.t)}</b></div><button class="tx-x" data-t="skip" aria-label="Salir de la guía">${ic('x', 18)}</button></div>
+      <p>${s.d}</p>
+      ${last ? `<div class="tx-end">${mod('perfil') ? `<button class="tx-go" data-t="prof"><span>👕</span><b>Llenar mi perfil</b><small>Para que tu angelito acierte</small></button>` : ''}${mod('deseos') ? `<button class="tx-go" data-t="wish"><span>🎁</span><b>Escribir mis deseos</b><small>2 o 3 ideas bastan</small></button>` : ''}<button class="tx-go" data-t="notif"><span>🔔</span><b>Activar los avisos</b><small>Para no perderte nada</small></button></div>` : ''}
+      <div class="tx-bar"><i style="width:${(i + 1) / T.length * 100}%"></i></div>
+      <div class="tx-act">${i ? '<button class="btn ghost" data-t="prev">‹ Atrás</button>' : '<button class="btn ghost" data-t="skip">Ahora no</button>'}<button class="btn gold" data-t="${last ? 'done' : 'next'}">${last ? 'Terminar' : 'Siguiente ›'}</button></div>`;
     card.classList.remove('in'); void card.offsetWidth; card.classList.add('in');
+    $('.tx-chaps .on', body)?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    target = null; place();
+    if (location.hash.slice(1) !== s.v) location.hash = s.v;
+    setTimeout(() => { // espera a que la pantalla esté lista y busca lo que hay que señalar
+      if (my !== tok) return; target = find(s.s) || null;
+      if (target) { const r = target.getBoundingClientRect(); if (r.top < 70 || r.bottom > innerHeight - 90) target.scrollIntoView({ block: 'center' }); }
+      setTimeout(() => { if (my === tok) place(); }, 60);
+    }, location.hash.slice(1) === s.v ? 30 : 320);
+  }
+  const relayout = () => requestAnimationFrame(place);
+  addEventListener('resize', relayout); addEventListener('scroll', relayout, true);
+  const end = go => {
+    removeEventListener('resize', relayout); removeEventListener('scroll', relayout, true); tok++;
+    document.body.classList.remove('touring'); ov.classList.add('out'); setTimeout(() => ov.remove(), 220); location.hash = go || back;
+    openModal.later = false; // lo que quiso abrirse durante la guía ya no aplica: se vuelve a ofrecer más tarde
   };
-  const end = go => { clearHl(); ov.classList.add('out'); setTimeout(() => ov.remove(), 220); location.hash = go || back; };
-  card.addEventListener('click', e => {
-    const t = e.target.closest('[data-t]')?.dataset.t; if (!t) return;
-    if (t === 'next') { i = Math.min(T.length - 1, i + 1); return paint(); }
-    if (t === 'prev') { i = Math.max(0, i - 1); return paint(); }
+  const step = d => { i = Math.max(0, Math.min(T.length - 1, i + d)); paint(); };
+  ov.addEventListener('click', e => {
+    const c = e.target.closest('[data-tc]'); if (c) { i = T.findIndex(s => s.c === c.dataset.tc); return paint(); }
+    const t = e.target.closest('[data-t]')?.dataset.t;
+    if (!t) { if (e.target === hole || e.target.closest('.tx-hole')) step(1); return; } // tocar lo iluminado también avanza
+    if (t === 'next') return step(1);
+    if (t === 'prev') return step(-1);
     if (t === 'prof') { end('#inicio'); return setTimeout(openProfile, 300); }
+    if (t === 'wish') return end('#deseos');
     if (t === 'notif') { end('#inicio'); return setTimeout(() => { try { enableNotifications(); } catch { } }, 300); }
     end(t === 'done' ? '#inicio' : back);
   });
-  let x0 = null; card.addEventListener('pointerdown', e => { x0 = e.clientX; }); card.addEventListener('pointerup', e => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 60) { i = Math.max(0, Math.min(T.length - 1, i + (dx < 0 ? 1 : -1))); paint(); } });
+  let x0 = null; card.addEventListener('pointerdown', e => { x0 = e.clientX; }); card.addEventListener('pointerup', e => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 60) step(dx < 0 ? 1 : -1); });
   paint();
 }
 let tourT = null;
 function maybeTour() {
   if (!S.me || S.forcePin || tourT) return;
-  try { if (localStorage.getItem('angelito:tour2:' + S.uid)) return; } catch { }
+  try { if (localStorage.getItem('angelito:tour3:' + S.uid)) return; } catch { }
   tourT = setTimeout(function go() { tourT = null; if (!S.me) return; if ($('#modal').classList.contains('on') || S.spinning || S.forcePin || $('#tourx')) { tourT = setTimeout(go, 3000); return; } openTour(); }, 1200);
 }
 /* ---------- lo que te toca ahora (cambia según el momento) ---------- */
