@@ -538,3 +538,10 @@ body.ideas-on #buz-seg{display:none!important}
 .hand .dmn.ok{animation:okglow 1.6s ease-in-out infinite}
 @keyframes okglow{50%{box-shadow:0 0 0 2px #ffd77a,0 0 16px rgba(255,215,122,.55),0 6px 10px rgba(0,0,0,.4)}}
 .myhand:not(.turn) .hand .dmn{opacity:.9}
+/* bombillo: vuelve el 💡, sobre un círculo oscuro de vidrio con aro dorado */
+.hb-orb{font-size:26px!important;color:inherit;background:radial-gradient(circle at 35% 30%,#3b3520,#16251c 70%)!important;
+  box-shadow:0 0 0 2px rgba(236,188,92,.55),0 8px 20px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.12)!important}
+#helper.pend .hb-orb{box-shadow:0 0 0 2px #ecbc5c,0 0 18px rgba(236,188,92,.45),0 8px 20px rgba(0,0,0,.45)!important}
+/* ideas: los ejemplos del estado vacío se ven completos */
+.s2-empty .if-chips{flex-wrap:wrap;overflow:visible;justify-content:center}
+.s2-empty .if-chip{white-space:normal}

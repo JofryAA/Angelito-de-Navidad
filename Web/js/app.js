@@ -902,7 +902,7 @@ function renderHelper() {
   const tips = helperTips();
   el.hidden = busy || !tips.length; if (el.hidden) { el.classList.remove('open'); return; }
   el.classList.toggle('pend', tips[0][2] !== '#sugerencias'); // brilla solo si hay algo pendiente de verdad
-  { const n = tips.filter(t => t[2] !== '#sugerencias').length, bt = $('#helper-btn'); if (bt.dataset.n !== String(n)) { bt.dataset.n = n; bt.innerHTML = `<span class="hb-orb">${ic('bulb', 24)}</span>${n ? `<span class="hb-n">${n}</span>` : ''}`; } }
+  { const n = tips.filter(t => t[2] !== '#sugerencias').length, bt = $('#helper-btn'); if (bt.dataset.n !== String(n)) { bt.dataset.n = n; bt.innerHTML = `<span class="hb-orb">💡</span>${n ? `<span class="hb-n">${n}</span>` : ''}`; } }
   if (el.classList.contains('open')) fillHelper(tips);
   // se asoma una vez por sesión, un rato después de entrar y en un momento tranquilo
   let shown = false; try { shown = sessionStorage.getItem('angelito:helper') === '1'; } catch { }

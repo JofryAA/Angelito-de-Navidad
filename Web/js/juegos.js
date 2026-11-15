@@ -409,10 +409,10 @@ export function initGames(X) {
         G.pend = Math.max(0, (G.pend || 1) - 1);
         if (!G.cur || G.cur.id !== g0.id || !G.srv) return;
         if (ok && real) G.okSeq = Math.max(G.okSeq || 0, real); // confirmada: un aviso más viejo que esto ya no cuenta
-        if (ok && real !== opt && !G.pend && G.srv.seq >= real) { const prev = G.cur; G.cur = G.srv; G.hand = G.srvHand || []; G.botHands = { ...G.srvBots }; G.turnKey = ''; onGameChange(prev); render(); return; }
+        if (ok && real !== opt && !G.pend && G.srv.seq >= real) { const prev = G.cur; G.cur = G.srv; G.hand = G.srvHand || []; G.botHands = { ...G.srvBots }; G.turnKey = ''; onGameChange(prev); render(); maybeBot(); return; }
         if (!ok || (!G.pend && (G.cur.seq || 0) <= G.srv.seq)) { // falló, o ya no queda nada en camino: manda lo que dice la base
           const prev = G.cur; G.cur = G.srv; G.hand = G.srvHand || []; G.botHands = { ...G.srvBots };
-          G.turnKey = ''; onGameChange(prev); render();
+          G.turnKey = ''; onGameChange(prev); render(); maybeBot(); // si la jugada de un 🤖 falló, que lo vuelva a intentar
         }
       });
   }
@@ -721,6 +721,12 @@ export function initGames(X) {
   }
 
   document.addEventListener('visibilitychange', () => { if (!document.hidden) maybeBot(); });
+  // Vigilante: si le toca a un 🤖 y nada está en camino (p. ej. se perdió una jugada por mala señal), lo despierta.
+  setInterval(() => {
+    const g = G.cur; if (!live(g) || g.host !== me() || document.hidden || G.busy || G.pend) return;
+    if (!isBot(g.players[g.turn])) { G.botWait = 0; return; }
+    G.botWait = (G.botWait || 0) + 1; if (G.botWait >= 2) { G.botWait = 0; maybeBot(); }
+  }, 1500);
 
   /* ----- toques ----- */
   document.addEventListener('click', async e => {
@@ -754,8 +760,8 @@ export function initGames(X) {
     }
     const k = e.target.closest('[data-gkick]'); if (k) return kick(k.dataset.gkick);
     const hl = e.target.closest('[data-hl]'); if (hl && !hl.disabled) return hangLetter(hl.dataset.hl);
-    const c = e.target.closest('[data-ttt]'); if (c && !c.disabled) return playTTT(me(), +c.dataset.ttt);
-    const c4 = e.target.closest('[data-c4]'); if (c4 && !c4.disabled) return playC4(me(), +c4.dataset.c4);
+    const c = e.target.closest('[data-ttt]'); if (c && !c.disabled) { if (G.pend || G.busy || Date.now() - (G.tapAt || 0) < 350) return; G.tapAt = Date.now(); return playTTT(me(), +c.dataset.ttt); }
+    const c4 = e.target.closest('[data-c4]'); if (c4 && !c4.disabled) { if (G.pend || G.busy || Date.now() - (G.tapAt || 0) < 350) return; G.tapAt = Date.now(); return playC4(me(), +c4.dataset.c4); }
     const tl = e.target.closest('[data-tile]');
     if (tl && G.cur.type === 'domino') {
       const g = G.cur, t = tl.dataset.tile, chain = g.chain || [];
