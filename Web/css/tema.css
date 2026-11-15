@@ -964,3 +964,23 @@ body.touring #helper{display:none!important}
 .tx-go{display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;text-align:left;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:inherit}
 .tx-go span{grid-row:1/3;font-size:24px;text-align:center}.tx-go small{color:var(--muted);font-size:.78rem}.tx-go:active{background:rgba(255,255,255,.12)}
 .tx-act{display:flex;gap:10px;margin-top:12px}.tx-act .btn{flex:1}
+/* 💵 aportes: configuración y tarjeta de cada quien */
+.pay-setup{display:flex;flex-direction:column;gap:12px}
+.pay-how{margin:0;padding:0;list-style:none;counter-reset:ph;display:flex;flex-direction:column;gap:8px}
+.pay-how li{counter-increment:ph;display:flex;gap:10px;align-items:flex-start;font-size:.9rem;line-height:1.4}
+.pay-how li::before{content:counter(ph);flex-shrink:0;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:rgba(236,188,92,.18);color:var(--gold);font-weight:800;font-size:.8rem}
+.pay-cfg{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.pay-cfg .grow{flex:1;min-width:0}.pay-cfg b{display:block}.pay-cfg small{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}.pay-cfg em{color:#ff9b8f;font-style:normal;font-weight:700}
+.pay-amt{display:flex;align-items:center;gap:8px}.pay-amt b{font-size:1.1rem;color:var(--gold)}.pay-amt .in{font-size:1.3rem;font-weight:700}
+.mypay{margin-top:14px;padding:14px;border-radius:20px;background:linear-gradient(150deg,rgba(236,188,92,.16),rgba(236,188,92,.04));border:1px solid rgba(236,188,92,.3);display:flex;flex-direction:column;gap:12px}
+.mypay.late{border-color:rgba(255,122,110,.5);background:linear-gradient(150deg,rgba(255,122,110,.14),rgba(255,122,110,.03))}
+.mp-h{display:flex;gap:12px;align-items:center}.mp-h .grow{flex:1;min-width:0}.mp-h b{display:block;font-size:1.05rem}.mp-h small{display:block;color:var(--muted);font-size:.8rem;margin-top:2px}
+.mp-i{width:42px;height:42px;flex-shrink:0;border-radius:14px;display:grid;place-items:center;font-size:22px;background:rgba(236,188,92,.2)}
+.mp-steps{display:grid;grid-template-columns:repeat(3,1fr);position:relative}
+.mp-steps::before{content:'';position:absolute;left:16%;right:16%;top:13px;height:2px;background:rgba(255,255,255,.12)}
+.mp-steps div{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.75rem;color:var(--muted)}
+.mp-steps i{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:.8rem;background:#1b3a2d;border:2px solid rgba(255,255,255,.18);color:var(--muted)}
+.mp-steps .cur i{border-color:var(--gold);color:var(--gold);box-shadow:0 0 12px rgba(236,188,92,.45)}.mp-steps .cur{color:#fff;font-weight:700}
+.mp-steps .done i{background:#2fae6c;border-color:#2fae6c;color:#fff}.mp-steps .done{color:#8ff0bd}
+.mp-info{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:rgba(0,0,0,.2);font-size:.85rem}.mp-info span{flex:1;min-width:0}
+.mp-msg{font-size:.88rem;line-height:1.4}

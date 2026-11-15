@@ -1730,7 +1730,10 @@ function renderAttReport(sm, amt, num, pre) {
   </div>`;
   $('#att-list').innerHTML = '';
   // 💵 Aportes (solo si hay monto): quién pagó, quién debe y quién dice que ya
-  $('#pay-card').style.display = amt ? '' : 'none'; if (!amt) return;
+  $('#pay-card').style.display = mod('asistencia') ? '' : 'none';
+  if (!amt) { $('#pay-sum').innerHTML = `<div class="pay-setup"><p class="muted small">¿Van a hacer una «vaca» para la comida, la bebida o el lugar? Configúralo y la app se encarga del resto:</p>
+      <ol class="pay-how"><li><b>Pones el monto</b>, para qué es y cómo pagar.</li><li><b>Cada quien lo ve</b> en Inicio y toca «Ya lo di».</li><li><b>Tú confirmas</b> cuando te llega el dinero.</li><li>La app <b>recuerda</b> a los que deben antes de la fecha límite.</li></ol>
+      <button class="btn gold" type="button" data-payset style="width:100%">💵 Configurar el aporte</button></div>`; return; }
   const owe = p => { const a = attOf(p.id); return a.status === 'si' && !a.confirmed && !a.paid; }, said = p => { const a = attOf(p.id); return !a.confirmed && a.paid; }, paid = p => attOf(p.id).confirmed;
   const cnt = f => S.participants.filter(f).length, nP = cnt(paid), nO = cnt(owe), nS = cnt(said), base = nP + nO + nS;
   const money = v => esc(pre) + Math.round(v).toLocaleString('es-DO'), mp = base ? Math.round(nP / base * 100) : 0;
@@ -1738,7 +1741,8 @@ function renderAttReport(sm, amt, num, pre) {
   S.payTab = pickTab(ptabs, S.payTab, S.payTabPicked);
   const plist = byName(S.participants.filter({ debe: owe, dice: said, pago: paid }[S.payTab]));
   $('#pay-sum').innerHTML = `<div class="ar">
-    <div class="ar-money"><div class="ar-mh"><span>${esc(amt)} por persona</span><b>${mp}%</b></div>
+    <div class="pay-cfg"><div class="grow"><b>${esc(amt)} por persona</b><small>${[S.event.contribFor && esc(S.event.contribFor), S.event.contribDue && `Hasta el ${esc(fmtDate(S.event.contribDue, { day: 'numeric', month: 'long' }))}${payLate() ? ' · <em>venció</em>' : ` · ${payDaysLeft()}`}`].filter(Boolean).join(' · ') || 'Toca «Editar» para poner para qué es y la fecha límite'}</small></div><button type="button" class="btn sm" data-payset>${ic('edit', 14)} Editar</button></div>
+    <div class="ar-money"><div class="ar-mh"><span>Recogido</span><b>${mp}%</b></div>
       ${num ? `<div class="ar-mv"><b>${money(num * nP)}</b><span>recogido de ${money(num * base)}</span></div>` : `<div class="ar-mv"><b>${nP} de ${base}</b><span>ya pagaron</span></div>`}
       <div class="ar-mbar"><i style="width:${mp}%"></i></div></div>
     ${segTabs(ptabs, S.payTab, 'ptab')}
@@ -1747,12 +1751,39 @@ function renderAttReport(sm, amt, num, pre) {
   </div>`;
 }
 ['#att-sum', '#pay-sum'].forEach(sel => $(sel).addEventListener('click', e => {
+  if (e.target.closest('[data-payset]')) return paySetup();
   const t = e.target.closest('[data-atab]'); if (t) { S.attTab = t.dataset.atab; S.attTabPicked = true; return renderAttendance(); }
   const pt = e.target.closest('[data-ptab]'); if (pt) { S.payTab = pt.dataset.ptab; S.payTabPicked = true; return renderAttendance(); }
   const a = e.target.closest('[data-aact]'); if (a) return $('#' + a.dataset.aact)?.click();
   const pe = e.target.closest('[data-aped]'); if (pe) return editAtt(pe.dataset.aped, 'att');
   const pp = e.target.closest('[data-pped]'); if (pp) return editAtt(pp.dataset.pped, 'pay');
 }));
+// 💵 Configurar el aporte (monto, para qué, cómo pagar y fecha límite) — todo en un solo lugar
+const payDue = () => S.event.contribDue ? new Date(S.event.contribDue + 'T23:59') : null;
+const payLate = () => { const d = payDue(); return !!d && d < new Date(); };
+const payDaysLeft = () => { const d = payDue(); if (!d) return ''; const n = Math.ceil((d - Date.now()) / 864e5); return n <= 0 ? 'vence hoy' : n === 1 ? 'falta 1 día' : `faltan ${n} días`; };
+function paySetup() {
+  const c = S.event, num = String(c.contribAmount || '').replace(/[^\d]/g, '');
+  const s2 = openModal(`<h3>💵 Aporte del grupo</h3><p class="muted small">Lo verán todos los que van, con un botón para avisar que ya pagaron.</p>
+    <form class="stack" id="pay-form" style="margin-top:12px">
+      <label class="field"><span>¿Cuánto da cada persona?</span><div class="pay-amt"><b>RD$</b><input class="in" name="amt" inputmode="numeric" maxlength="7" placeholder="500" value="${esc(num)}"></div></label>
+      <div class="wi-chips">${[300, 500, 700, 1000, 1500].map(v => `<button type="button" class="wi-chip" data-pv="${v}">RD$${v.toLocaleString('es-DO')}</button>`).join('')}</div>
+      <label class="field"><span>¿Para qué es? <small class="muted">(opcional)</small></span><input class="in" name="for" maxlength="100" placeholder="Comida, bebida y decoración" value="${esc(c.contribFor || '')}"></label>
+      <label class="field"><span>¿Cómo pagar y a quién?</span><input class="in" name="info" maxlength="160" placeholder="Transferencia a Banreservas 123-456 o en efectivo a Carmen" value="${esc(c.contribInfo || '')}"></label>
+      <label class="field"><span>Fecha límite <small class="muted">(opcional)</small></span><input class="in" type="date" name="due" value="${esc(c.contribDue || '')}"></label>
+      <div class="actions">${c.contribAmount ? '<button type="button" class="btn ghost" data-a="off">Quitar aporte</button>' : '<button type="button" class="btn ghost" data-a="x">Cancelar</button>'}<button class="btn gold" type="submit">Guardar</button></div></form>`);
+  s2.onclick = async e => {
+    const v = e.target.closest('[data-pv]'); if (v) { s2.querySelector('[name=amt]').value = v.dataset.pv; return; }
+    const a = e.target.closest('[data-a]')?.dataset.a; if (a === 'x') return closeModal();
+    if (a === 'off' && await confirmBox('¿Quitar el aporte?', 'Ya no se mostrará a nadie. Los pagos marcados se quedan guardados.', 'Quitar')) { if (await saveEvent({ contribAmount: '', contribFor: '', contribDue: '' })) { closeModal(); toast('Aporte quitado'); } }
+  };
+  $('#pay-form', s2).addEventListener('submit', async e => {
+    e.preventDefault(); const f = e.target.elements, n = parseInt(String(f.amt.value).replace(/[^\d]/g, ''), 10);
+    if (!n) return toast('Pon el monto del aporte');
+    if (f.due.value && S.event.eventDate && f.due.value > S.event.eventDate.slice(0, 10)) return toast('La fecha límite debe ser antes del evento');
+    if (await saveEvent({ contribAmount: 'RD$' + n.toLocaleString('es-DO'), contribFor: f.for.value.trim(), contribInfo: f.info.value.trim(), contribDue: f.due.value || '' })) { closeModal(); toast('💵 Aporte guardado'); }
+  });
+}
 // ✏️ Quien tiene permiso de aportes cambia la asistencia o el pago de alguien (cada cosa por su lado)
 async function editAtt(id, what) {
   const p = P(id), a = attOf(id); if (!p || !can('aportes')) return;
@@ -1793,9 +1824,13 @@ function renderAttendance() {
       ${editing ? `<div class="rsvp" style="grid-template-columns:1fr 1fr;margin-top:12px"><button class="${me.status === 'si' ? 'on' : ''}" data-att="si"><span class="rs-i">${ic('check', 26)}</span>Sí, voy</button><button class="${me.status === 'no' ? 'on' : ''}" data-att="no"><span class="rs-i">${ic('xcircle', 26)}</span>No puedo</button></div>`
         : `<div class="rv-me ${me.status}"><span class="rv-mi">${me.status === 'si' ? ic('check', 18) : ic('xcircle', 18)}</span><b>${me.status === 'si' ? '¡Vas! Te esperamos' : 'Dijiste que no puedes ir'}</b><button class="btn sm" data-attedit type="button">Cambiar</button></div>`}`;
     if (me.status === 'si' && c.contribAmount) {
-      h += `<div class="prize" style="margin:14px 0 0;flex-wrap:wrap"><span style="font-size:22px">💵</span><div style="flex:1;min-width:180px"><b>Aporte: ${esc(c.contribAmount)}</b>${c.contribInfo ? `<div class="small" style="margin-top:2px">${esc(c.contribInfo)}</div>` : ''}
-        <div class="small" style="margin-top:6px">${me.confirmed ? '✅ <b>El organizador confirmó tu aporte.</b> ¡Gracias!' : me.paid ? '⏳ Marcaste que ya lo diste. Falta que el organizador lo confirme.' : '💤 Todavía no has dado tu aporte.'}</div></div>
-        ${me.confirmed ? '' : me.paid ? '<button class="btn sm" data-paid="0">Deshacer</button>' : '<button class="btn sm gold" data-paid="1">Ya lo di</button>'}</div>`;
+      const st = me.confirmed ? 3 : me.paid ? 2 : 1, late = !me.confirmed && !me.paid && payLate();
+      h += `<div class="mypay ${late ? 'late' : ''}">
+        <div class="mp-h"><span class="mp-i">💵</span><div class="grow"><b>Tu aporte: ${esc(c.contribAmount)}</b><small>${[c.contribFor && esc(c.contribFor), c.contribDue && (me.confirmed ? '' : late ? '⚠️ La fecha límite ya pasó' : `Hasta el ${esc(fmtDate(c.contribDue, { day: 'numeric', month: 'long' }))} · ${payDaysLeft()}`)].filter(Boolean).join(' · ')}</small></div></div>
+        <div class="mp-steps">${['Pagar', 'Avisar', 'Confirmado'].map((l, k) => `<div class="${k + 1 < st || st === 3 ? 'done' : k + 1 === st ? 'cur' : ''}"><i>${k + 1 < st || st === 3 ? '✓' : k + 1}</i><span>${l}</span></div>`).join('')}</div>
+        ${c.contribInfo && !me.confirmed ? `<div class="mp-info"><span>${esc(c.contribInfo)}</span><button type="button" class="btn xs" data-paycopy>${ic('copy', 14)} Copiar</button></div>` : ''}
+        <div class="mp-msg">${me.confirmed ? '✅ <b>El organizador confirmó tu aporte.</b> ¡Gracias!' : me.paid ? '⏳ Avisaste que ya lo diste. Falta que el organizador lo confirme.' : 'Cuando lo des, toca <b>«Ya lo di»</b> para avisarle al organizador.'}</div>
+        ${me.confirmed ? '' : me.paid ? '<button class="btn sm ghost" data-paid="0" style="width:100%">Me equivoqué, todavía no</button>' : '<button class="btn gold" data-paid="1" style="width:100%">💵 Ya lo di</button>'}</div>`;
     }
     if (c.contribAmount && sm.going) {
       const going = S.participants.filter(p => (S.att[p.id] || {}).status === 'si');
@@ -1812,6 +1847,7 @@ function renderAttendance() {
   renderAttReport(sm, amt, num, pre);
 }
 $('#h-att').addEventListener('click', async e => {
+  if (e.target.closest('[data-paycopy]')) return copyText(S.event.contribInfo || '', '📋 Datos para pagar copiados');
   if (e.target.closest('[data-attedit]')) { S.attEdit = true; return renderAttendance(); }
   if (e.target.closest('[data-attlist]')) return openAttList();
   const b = e.target.closest('[data-att],[data-paid]'); if (!b || !S.me) return;
@@ -2474,7 +2510,7 @@ function renderAdmin() {
   $('#adm-acts').hidden = !!S.staffSelf; // quien administra con su propia cuenta no tiene otra contraseña ni otra sesión que cerrar
   renderStaff();
   const f = $('#cfg-form');
-  if (!cfgDirty) for (const k of ['eventName', 'subtitle', 'eventDate', 'place', 'mapsUrl', 'budget', 'dress', 'revealDate', 'revealTime', 'notes', 'contribAmount', 'contribInfo', 'rsvpDeadline']) f.elements[k].value = S.event[k] || '';
+  if (!cfgDirty) for (const k of ['eventName', 'subtitle', 'eventDate', 'place', 'mapsUrl', 'budget', 'dress', 'revealDate', 'revealTime', 'notes', 'rsvpDeadline']) f.elements[k].value = S.event[k] || '';
   $('#reg-tg').classList.toggle('on', regOpen());
   $('#g-open').classList.toggle('on', guessesOpen());
   $('#mod-list').innerHTML = Object.entries(MODS).map(([k, [e, l]]) => `<div class="switch"><div><b>${e} ${l}</b></div><button class="tg ${mod(k) ? 'on' : ''}" data-mod="${k}" aria-label="${esc(l)}"></button></div>`).join('');
@@ -2547,7 +2583,7 @@ const saveEvent = async patch => {
 };
 $('#cfg-form').addEventListener('submit', async e => {
   e.preventDefault(); const f = e.target, o = {};
-  for (const k of ['eventName', 'subtitle', 'eventDate', 'place', 'mapsUrl', 'budget', 'dress', 'revealDate', 'revealTime', 'notes', 'contribAmount', 'contribInfo', 'rsvpDeadline']) o[k] = f.elements[k].value.trim();
+  for (const k of ['eventName', 'subtitle', 'eventDate', 'place', 'mapsUrl', 'budget', 'dress', 'revealDate', 'revealTime', 'notes', 'rsvpDeadline']) o[k] = f.elements[k].value.trim();
   if (o.eventDate && isNaN(new Date(o.eventDate))) return toast('La fecha del evento no es válida');
   if (o.revealDate && isNaN(new Date(o.revealDate + 'T00:00'))) return toast('La fecha de los anónimos no es válida');
   o.eventAt = o.eventDate ? Timestamp.fromDate(new Date(o.eventDate)) : null;

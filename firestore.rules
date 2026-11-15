@@ -92,6 +92,9 @@ service cloud.firestore {
       allow update: if id == 'event' && eventOk(request.resource.data) && (
         (can('evento') && !changed().hasAny(['revealNow', 'revealDate', 'revealTime', 'guessesOpen', 'guessesLocked', 'registrationOpen', 'angelLocked', 'guessWinner'])
           && revealFollowsDate())
+        // quien maneja los aportes puede configurarlos (monto, para qué, cómo pagar y fecha límite)
+        || (can('aportes') && changed().hasOnly(['contribAmount', 'contribInfo', 'contribFor', 'contribDue'])
+            && str(request.resource.data.get('contribAmount', ''), 40) && str(request.resource.data.get('contribFor', ''), 120) && str(request.resource.data.get('contribDue', ''), 10))
         || (can('participantes') && changed().hasOnly(['registrationOpen'])
             && (request.resource.data.registrationOpen == false || !drawn())));
     }
