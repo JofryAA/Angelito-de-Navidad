@@ -1091,7 +1091,7 @@ function renderUser() {
   const box = $('#userbox');
   $('#gear').style.display = S.isAdmin ? '' : 'none';
   if (!S.authReady && !S.me) { box.innerHTML = '<span class="pill"><span class="spin-dots" style="width:12px;height:12px;border-width:2px"></span></span>'; return; }
-  box.innerHTML = S.me ? `<button class="userchip" id="ubtn"><span class="av">${esc(S.me.emoji)}</span>${esc(shortName(S.me))}</button>` : `<button class="userchip login" data-auth="login">Entrar</button>`;
+  box.innerHTML = S.me ? `<button class="userchip" id="ubtn"><span class="av">${esc(S.me.emoji)}</span><span class="nm">${esc(shortName(S.me))}</span></button>` : `<button class="userchip login" data-auth="login">Entrar</button>`;
   $('#ubtn')?.addEventListener('click', userMenu);
   $('#gear').style.display = S.isAdmin ? '' : 'none';
 }

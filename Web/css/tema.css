@@ -1023,3 +1023,11 @@ body.touring #helper{display:none!important}
 @keyframes mInv{50%{box-shadow:0 0 14px rgba(236,188,92,.5)}}
 @keyframes mBot{0%,30%{opacity:.2;transform:scale(.8)}40%,90%{opacity:1;transform:none}100%{opacity:.2}}
 @media(prefers-reduced-motion:reduce){.tdm *{animation:none!important;opacity:1!important;transform:none!important}}
+/* barra de arriba: el nombre nunca se corta; si falta espacio, primero se esconde la palabra «Angelito» */
+.top{gap:8px!important}
+.brand{min-width:0;flex-shrink:1}
+.brand span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topr{min-width:0;flex-shrink:0;gap:6px!important}
+.userchip{max-width:58vw}
+.userchip .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+@media(max-width:460px){.brand span{display:none}}
