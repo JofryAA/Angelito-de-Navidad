@@ -444,3 +444,8 @@ body.ideas-on #buz-seg{display:none!important}
 @keyframes rvt{from{width:100%}to{width:0}}
 .pg-it{text-align:left}.pg-it>span:last-child{flex:1}
 .um-hd{margin:0 0 4px!important;padding:14px!important;border-radius:20px!important}.um-hd h3{overflow-wrap:break-word}.um-hd .av{cursor:pointer;transition:transform .15s}.um-hd .av:active{transform:scale(.92)}
+/* foto lista para enviar en el chat: miniatura limpia con X en la esquina */
+.cip2{display:flex;padding:4px 2px 8px}
+.cip2-th{position:relative;width:76px;height:76px;border-radius:16px;overflow:visible;animation:popin .25s backwards}
+.cip2-th img{width:100%;height:100%;object-fit:cover;border-radius:16px;border:2px solid rgba(255,255,255,.18);box-shadow:0 6px 14px rgba(0,0,0,.35)}
+.cip2-x{position:absolute;top:-8px;right:-8px;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;border:2px solid #10261c;background:#fff;color:#1b140a;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,.35)}

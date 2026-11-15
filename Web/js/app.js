@@ -1778,7 +1778,8 @@ $('#c-file').addEventListener('change', async e => {
 });
 function renderChatImgPrev() {
   const b = $('#c-imgprev'); b.hidden = !S.chatDraftImg; syncSend();
-  b.innerHTML = S.chatDraftImg ? `<div class="cip"><img src="${S.chatDraftImg}" alt=""><span>Foto lista · escribe algo (opcional) y envía</span><button type="button" class="x" data-cipx aria-label="Quitar foto">✕</button></div>` : '';
+  b.innerHTML = S.chatDraftImg ? `<div class="cip2"><div class="cip2-th"><img src="${S.chatDraftImg}" alt="Foto a enviar"><button type="button" class="cip2-x" data-cipx aria-label="Quitar foto">${ic('x', 14)}</button></div></div>` : '';
+  $('#c-text').placeholder = S.chatDraftImg ? 'Añade un texto…' : 'Escribe un mensaje…';
 }
 $('#c-imgprev').addEventListener('click', e => { if (e.target.closest('[data-cipx]')) { S.chatDraftImg = null; renderChatImgPrev(); } });
 $('#c-list').addEventListener('click', e => {
@@ -3379,6 +3380,7 @@ document.addEventListener('click', e => {
 const NM_COLORS = ['#f6c560', '#7fd6a8', '#8ec5ff', '#f59ab5', '#c7a6ff', '#ffb37a', '#6fe0d6', '#e8e07a'];
 function nmColor(uid) { let h = 0; for (const c of String(uid)) h = (h * 31 + c.charCodeAt(0)) | 0; return NM_COLORS[Math.abs(h) % NM_COLORS.length]; }
 const SVGI = {
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
   gift: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 0 1 0 5"/>',
   wheel: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7M5.6 5.6l5 5M13.4 13.4l5 5M18.4 5.6l-5 5M10.6 13.4l-5 5"/>',
   gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
