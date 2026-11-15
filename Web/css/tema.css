@@ -839,3 +839,9 @@ body.csel .msg{cursor:pointer}
 .gsnd{width:40px;height:40px;font-size:18px;margin-left:auto;margin-right:6px}.gsnd.off{opacity:.55}
 .autopass{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:rgba(236,188,92,.18);color:var(--gold);font-size:.85rem;font-weight:700;animation:apPulse 1s ease-in-out infinite alternate}
 @keyframes apPulse{to{opacity:.55}}
+/* 👉 deslizar entre pestañas */
+body[data-swipe=l] .view.on{animation:swL .32s cubic-bezier(.2,.9,.3,1)}
+body[data-swipe=r] .view.on{animation:swR .32s cubic-bezier(.2,.9,.3,1)}
+@keyframes swL{from{opacity:.3;transform:translateX(40px)}}
+@keyframes swR{from{opacity:.3;transform:translateX(-40px)}}
+.sheet::before{content:'';display:block;width:40px;height:5px;border-radius:9px;background:rgba(255,255,255,.22);margin:-12px auto 12px}

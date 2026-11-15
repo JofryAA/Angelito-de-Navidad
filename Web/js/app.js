@@ -6,7 +6,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, deleteUser, updatePassword, reauthenticateWithCredential, EmailAuthProvider, setPersistence, browserSessionPersistence, inMemoryPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { initGames } from './juegos.js';
 import { decoratePanel, navHTML, pic, fillPics } from './panel.js';
-import { runTransaction, deleteField, terminate, clearIndexedDbPersistence, getFirestore, getDocsFromServer, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, writeBatch, increment, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { runTransaction, deleteField, terminate, clearIndexedDbPersistence, getFirestore, getDocsFromServer, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc as fsSetDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, writeBatch as fsWriteBatch, increment, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 /* ---------- helpers ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -52,6 +52,16 @@ if (!configured) {
   throw new Error('Firebase no configurado');
 }
 
+/* ---------- 📡 sin internet: cada cambio se guarda en el teléfono y se sube solo cuando vuelve la conexión ----------
+   (antes la app se quedaba «cargando» esperando al servidor; ahora sigue al instante) */
+let offTip = 0;
+function queued(p) {
+  if (navigator.onLine !== false) return p;
+  p.catch(e => { try { toast('⚠️ Un cambio no se pudo subir: ' + authErr(e)); } catch { } });
+  return Promise.race([p, new Promise(r => setTimeout(r, 300))]).then(v => { if (Date.now() - offTip > 6000) { offTip = Date.now(); setTimeout(() => toast('💾 Guardado en tu teléfono · se sube al volver el internet'), 900); } return v; });
+}
+const setDoc = (...a) => queued(fsSetDoc(...a));
+const writeBatch = d => { const b = fsWriteBatch(d), c = b.commit.bind(b); b.commit = () => queued(c()); return b; };
 /* ---------- firebase ---------- */
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -4081,7 +4091,39 @@ addEventListener('resize', () => { if (!S.spinning) drawWheel(); });
 
 $('#datafail-btn').addEventListener('click', () => repairData());
 const netState = () => { $('#offline').hidden = navigator.onLine !== false; };
-addEventListener('online', () => { netState(); toast('✅ De vuelta en línea'); }); addEventListener('offline', netState); netState();
+addEventListener('online', () => { netState(); toast('📶 Volvió el internet · tus cambios se están subiendo'); }); addEventListener('offline', netState); netState();
 snow(); buildBulbs(); route(); renderAll(); tick(); maybeAskInstall();
 try { if (sessionStorage.getItem('angelito:afterLogout') === 'reg') { sessionStorage.removeItem('angelito:afterLogout'); setTimeout(() => openAuth('reg'), 1200); } } catch { }
 
+
+/* ---------- 👉 gestos: deslizar a los lados cambia de pestaña · deslizar hacia abajo cierra las ventanas ---------- */
+(() => {
+  const NOSWIPE = 'input,textarea,select,button.tg,#c-list,.pscroll,.hand,.mesa,.ttt,.c4,.hkb,.wheel,canvas,iframe,.evmap,.rxw-tabs,.wi-chips,.podium,[data-noswipe]';
+  const scrollsX = el => { for (let n = el; n && n !== document.body; n = n.parentElement) { if (n.scrollWidth > n.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(n).overflowX)) return true; } return false; };
+  let st = null;
+  document.addEventListener('touchstart', e => {
+    st = null; if (e.touches.length !== 1) return;
+    const t = e.target, view = t.closest?.('.view.on');
+    if (!view || $('#modal').classList.contains('on') || $('.cfocus') || document.body.classList.contains('kb') || document.body.classList.contains('csel')) return;
+    if (t.closest(NOSWIPE) || scrollsX(t) || ($('#v-juegos')?.classList.contains('ingame') && view.id === 'v-juegos')) return;
+    const p = e.touches[0]; st = { x: p.clientX, y: p.clientY, t: Date.now() };
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!st) return; const p = e.changedTouches[0], dx = p.clientX - st.x, dy = p.clientY - st.y, dt = Date.now() - st.t; st = null;
+    if (Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy) * 2.2 || dt > 700) return;
+    const tabs = $$('.tab').filter(t => t.style.display !== 'none' && t.offsetParent !== null), i = tabs.findIndex(t => t.classList.contains('on'));
+    const nx = tabs[i + (dx < 0 ? 1 : -1)]; if (i < 0 || !nx) return;
+    if (navigator.vibrate) try { navigator.vibrate(8); } catch { }
+    document.body.dataset.swipe = dx < 0 ? 'l' : 'r'; setTimeout(() => { delete document.body.dataset.swipe; }, 450);
+    nx.click();
+  }, { passive: true });
+  // Ventanas (hojas de abajo): arrastrar hacia abajo para cerrar
+  let sd = null; const sh = $('#sheet');
+  sh.addEventListener('touchstart', e => { sd = null; if (S.spinning || S.forcePin || sh.scrollTop > 2 || e.target.closest('input,textarea,select,.wheel,canvas')) return; sd = { y: e.touches[0].clientY, dy: 0 }; }, { passive: true });
+  sh.addEventListener('touchmove', e => { if (!sd) return; sd.dy = Math.max(0, e.touches[0].clientY - sd.y); if (sd.dy > 6) { sh.style.transition = 'none'; sh.style.transform = `translateY(${sd.dy}px)`; sh.style.opacity = String(Math.max(.4, 1 - sd.dy / 500)); } }, { passive: true });
+  sh.addEventListener('touchend', () => {
+    if (!sd) return; const dy = sd.dy; sd = null; sh.style.transition = 'transform .22s ease, opacity .22s ease';
+    if (dy > 110) { sh.style.transform = 'translateY(100%)'; sh.style.opacity = '0'; setTimeout(() => { if (history.state?.sheet) history.back(); else closeModal(); sh.style.transform = sh.style.opacity = ''; }, 200); }
+    else { sh.style.transform = sh.style.opacity = ''; }
+  }, { passive: true });
+})();
