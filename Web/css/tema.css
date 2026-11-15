@@ -788,3 +788,50 @@ body.anim-in .wsc{animation:popin .4s var(--d,0ms) backwards}
 .hist-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.hist-hd b{flex:1;min-width:0}
 .hist-pairs{display:grid;gap:4px;margin:8px 0 4px}.hist-p{font-size:.92em}
 .hist-t{font-size:.88em;margin-top:6px;opacity:.9}
+
+/* 💬 chat estilo WhatsApp */
+.chead{position:relative}
+.selbar{position:absolute;inset:-4px 0;z-index:6;display:flex;align-items:center;gap:4px;padding:0 6px;border-radius:18px;background:linear-gradient(160deg,#2a5a46,#1b3c2f);border:1px solid rgba(255,255,255,.12);box-shadow:0 6px 18px rgba(0,0,0,.35);animation:sbIn .18s ease-out}
+.selbar[hidden]{display:none}
+@keyframes sbIn{from{opacity:0;transform:translateY(-6px)}}
+.sb-b{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:20px;color:#fff;background:none}
+.sb-b:active{background:rgba(255,255,255,.12)}.sb-b.danger{color:#ff9b8f}
+.sb-n{font-size:1.15rem;margin-left:4px}
+.msg{position:relative;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;will-change:transform}
+.msg .swr{position:absolute;left:-38px;top:50%;width:30px;height:30px;margin-top:-15px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.12);color:#fff;opacity:0;transform:scale(.5);transition:opacity .15s,transform .15s;font-style:normal}
+.msg.swiping .swr{opacity:.6;transform:scale(.8)}.msg.swok .swr{opacity:1;transform:scale(1);background:var(--gold);color:#1b2a22}
+.msg.sel{background:rgba(236,188,92,.16);border-radius:16px;box-shadow:0 0 0 6px rgba(236,188,92,.16)}
+body.csel .msg{cursor:pointer}
+.msg.hasrx{margin-bottom:16px}
+.rxpill{position:absolute;bottom:-16px;left:10px;display:flex;align-items:center;gap:1px;padding:2px 7px;min-height:24px;border-radius:999px;font-size:13px;line-height:1;background:#1c3a2e;border:1.5px solid #0f241c;box-shadow:0 2px 6px rgba(0,0,0,.35);color:#fff;z-index:2;animation:rxPop .28s cubic-bezier(.3,1.6,.5,1)}
+.msg.me .rxpill{left:auto;right:10px}
+.rxpill b{font-size:11px;font-weight:600;margin-left:4px;opacity:.85}
+.rxpill.me{border-color:rgba(236,188,92,.6)}
+@keyframes rxPop{from{transform:scale(.3);opacity:0}}
+.msg .reacts{display:none}
+/* menú al tocar un mensaje */
+.cfocus{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,14,10,.55);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);opacity:0;transition:opacity .18s}
+.cfocus.on{opacity:1}
+.cf-col{display:flex;flex-direction:column;align-items:flex-start;gap:10px;width:min(420px,100%);max-height:100%;transform:scale(.94);transition:transform .22s cubic-bezier(.2,.9,.3,1.15)}
+.cfocus.on .cf-col{transform:none}.cfocus.me .cf-col{align-items:flex-end}
+.cf-rx{display:flex;gap:2px;padding:6px 8px;border-radius:999px;background:#1e3d31;border:1px solid rgba(255,255,255,.1);box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.cf-rx button{width:42px;height:42px;border-radius:50%;font-size:25px;display:grid;place-items:center;animation:rxPop .3s calc(var(--i)*35ms) both cubic-bezier(.3,1.6,.5,1);transition:transform .12s}
+.cf-rx button:active{transform:scale(1.35)}.cf-rx button.on{background:rgba(236,188,92,.3)}
+.cf-msg{max-width:100%;max-height:42vh;overflow:auto;pointer-events:none}
+.cf-msg .bub{box-shadow:0 10px 30px rgba(0,0,0,.5)!important}.cf-msg .rxpill{display:none}
+.cf-menu{min-width:220px;border-radius:18px;overflow:hidden;background:#1a3529;border:1px solid rgba(255,255,255,.1);box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.cf-menu button{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:13px 16px;font-size:.98rem;color:#fff;text-align:left;background:none}
+.cf-menu button+button{border-top:1px solid rgba(255,255,255,.07)}
+.cf-menu button:active{background:rgba(255,255,255,.08)}.cf-menu button.danger{color:#ff9b8f}
+.cf-menu svg{opacity:.85}
+/* quién reaccionó */
+.rxw-tabs{display:flex;gap:6px;overflow-x:auto;margin:10px 0 6px;padding-bottom:4px}
+.rxw-tabs button{flex-shrink:0;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.07);font-size:.9rem;color:inherit}
+.rxw-tabs button.on{background:var(--gold);color:#1b2a22;font-weight:700}
+.rxw-list{display:flex;flex-direction:column;gap:2px;max-height:50vh;overflow:auto}
+.rxw-row{display:flex;align-items:center;gap:12px;padding:9px 6px;border-radius:12px}
+.rxw-row.me{cursor:pointer}.rxw-row.me:active{background:rgba(255,255,255,.06)}
+.rxw-row small{display:block;font-size:.75rem;color:var(--muted)}
+.rxw-av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:20px;background:rgba(255,255,255,.08)}
+.rxw-e{font-size:22px}
+.selbar .grow,.rxw-row .grow{flex:1;min-width:0}

@@ -310,8 +310,8 @@ function startUserSubs(user) {
     unsubUser.push(onSnapshot(doc(db, 'guesses', user.uid), s => { S.myGuess = s.exists() ? s.data() : null; render(); }, ufail('myGuess')));
     unsubUser.push(onSnapshot(query(collection(db, 'chat'), orderBy('ts', 'desc'), limit(120)), { includeMetadataChanges: true }, s => {
       // orden por la hora del SERVIDOR (no la del teléfono, que puede estar adelantada o atrasada); lo que aún no sube va al final con 🕓
-      const t = m => m.pending ? 9e15 + (m.ts || 0) : (ms(m.at) || m.ts || 0);
-      S.chat = s.docs.map(d => ({ id: d.id, ...d.data(), pending: !!d.metadata?.hasPendingWrites })).sort((a, b) => t(a) - t(b));
+      const t = m => ms(m.at) || (9e15 + (m.ts || 0)); // sin hora del servidor = aún no subió (va al final); una reacción pendiente NO mueve el mensaje
+      S.chat = s.docs.map(d => { const x = d.data(); return { id: d.id, ...x, pending: !!d.metadata?.hasPendingWrites && !ms(x.at) }; }).sort((a, b) => t(a) - t(b));
       S.chatLive = !s.metadata?.fromCache; render();
     }, ufail('chat')));
 }
@@ -1699,9 +1699,11 @@ function renderChat() {
     // mensajes seguidos de la misma persona (menos de 5 min): sin repetir nombre ni ícono, más juntitos
     const cont = !sep && prev && prev.uid === m.uid && Math.abs((ms(m.at) || m.ts || 0) - (ms(prev.at) || prev.ts || 0)) < 5 * 60e3; prev = m;
     const tagMe = (m.mentions || []).includes(S.uid) || ((m.mentions || []).includes('all') && m.uid !== S.uid);
-    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''}"><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm" style="color:${nmColor(m.uid)}">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}${m.hasImg ? (S.chatImgs[m.id] ? `<button type="button" class="cimg" data-cimg="${esc(m.id)}" aria-label="Ver foto"><img src="${S.chatImgs[m.id]}" alt=""></button>` : '<div class="cimg ld"></div>') : ''}${m.hasImg && m.text === '📷 Foto' ? '' : `<div class="mt">${mentionHTML(m)}</div>`}${(() => { const r = reactsFor(m.id); const k = Object.keys(r); return k.length ? `<div class="reacts">${k.map(e => `<span class="${r[e].includes(S.uid) ? 'me' : ''}">${e} ${r[e].length}</span>`).join('')}</div>` : ''; })()}<div class="tm">${m.edited ? '<span class="edt">editado · </span>' : ''}${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : ' <span class="ok" title="Enviado">✓</span>') : ''}</div></div></div>`;
+    const rx = reactsFor(m.id), rk = Object.keys(rx).sort((a, b) => rx[b].length - rx[a].length), rn = rk.reduce((a, e) => a + rx[e].length, 0);
+    return `${sep}<div class="msg ${me ? 'me' : ''} ${cont ? 'cont' : ''} ${rn ? 'hasrx' : ''} ${S.chatSel?.has(m.id) ? 'sel' : ''}" data-row="${esc(m.id)}"><i class="swr">${ic('reply', 18)}</i><div class="av">${esc(pEmoji(m.uid))}</div><div class="bub ${tagMe ? 'tagged' : ''}" data-mid="${esc(m.id)}" data-mine="${me ? 1 : ''}">${me || cont ? '' : `<div class="nm" style="color:${nmColor(m.uid)}">${esc(shortName(P(m.uid)) || 'Alguien')}</div>`}${m.replyTo ? `<div class="quote">↩️ <b>${esc(shortName(P(m.replyTo.uid)) || '')}</b> ${esc(m.replyTo.text || '')}</div>` : ''}${m.hasImg ? (S.chatImgs[m.id] ? `<button type="button" class="cimg" data-cimg="${esc(m.id)}" aria-label="Ver foto"><img src="${S.chatImgs[m.id]}" alt=""></button>` : '<div class="cimg ld"></div>') : ''}${m.hasImg && m.text === '📷 Foto' ? '' : `<div class="mt">${mentionHTML(m)}</div>`}<div class="tm">${m.edited ? '<span class="edt">editado · </span>' : ''}${hm(d)}${me ? (m.pending ? ' <span title="Enviando…">🕓</span>' : ' <span class="ok" title="Enviado">✓</span>') : ''}</div>${rn ? `<button type="button" class="rxpill ${rk.some(e => rx[e].includes(S.uid)) ? 'me' : ''}" data-rx="${esc(m.id)}" aria-label="Ver reacciones">${rk.slice(0, 3).join('')}${rn > 1 ? `<b>${rn}</b>` : ''}</button>` : ''}</div></div>`;
   }).join('') : `<div class="empty" style="margin:auto"><span class="e">💬</span>Nadie ha escrito todavía.<br>¡Rompe el hielo! Toca 🎲 para una idea.</div>`;
   if (near || S.chatStick) { S.chatStick = false; l.scrollTop = l.scrollHeight; }
+  syncSelBar();
 }
 // Mientras se escribe, la barra de pestañas se esconde para que el teclado no tape el cuadro de texto.
 const isTyping = el => el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && /^(text|search|tel|url|email|password|number)$/.test(el.type || 'text')));
@@ -1719,6 +1721,17 @@ visualViewport?.addEventListener('resize', kbCheck);
 addEventListener('resize', kbCheck);
 visualViewport?.addEventListener('resize', () => { if (document.activeElement?.id === 'c-text') try { scrollChat(true); } catch { } });
 $('#c-emo').addEventListener('click', e => { const b = e.target.closest('[data-e]'); if (!b) return; const i = $('#c-text'); i.value += (b.dataset.e.startsWith('@') && i.value && !i.value.endsWith(' ') ? ' ' : '') + b.dataset.e; i.focus(); });
+/* ---------- 🔍 buscadores: recuerdan lo escrito aunque se toque un perfil o la pantalla se redibuje ---------- */
+const QMEM = (() => { try { return JSON.parse(sessionStorage.getItem('angelito:q') || '{}'); } catch { return {}; } })();
+const qSave = t => { if (!t?.matches?.('input.qs, input[type=search], #l-q, #sp-q') || !t.id) return; QMEM[t.id] = t.value; try { sessionStorage.setItem('angelito:q', JSON.stringify(QMEM)); } catch { } };
+['input', 'change', 'compositionend', 'keyup'].forEach(ev => document.addEventListener(ev, e => qSave(e.target), true));
+function qRestore() {
+  document.querySelectorAll('input.qs, input[type=search], #l-q, #sp-q').forEach(i => {
+    const v = QMEM[i.id]; if (!v || i.value || i.dataset.qr === v) return;
+    i.dataset.qr = v; i.value = v; i.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+new MutationObserver(() => requestAnimationFrame(qRestore)).observe(document.body, { childList: true, subtree: true });
 /* ---------- @menciones ---------- */
 const mLabel = p => { const dup = S.participants.filter(x => normName(x.first) === normName(p.first)).length > 1; return dup ? `${p.first}${(p.last || '').charAt(0)}` : p.first; };
 function mentionHTML(m) {
@@ -1808,11 +1821,11 @@ function renderChatImgPrev() {
 }
 $('#c-imgprev').addEventListener('click', e => { if (e.target.closest('[data-cipx]')) { S.chatDraftImg = null; renderChatImgPrev(); } });
 $('#c-list').addEventListener('click', e => {
-  const im = e.target.closest('[data-cimg]'); if (!im) return; e.stopPropagation();
+  const im = e.target.closest('[data-cimg]'); if (!im || S.chatSel?.size) return; e.stopPropagation();
   openModal(`<img src="${S.chatImgs[im.dataset.cimg] || ''}" alt="" style="width:100%;border-radius:14px"><div class="actions"><button class="btn gold" data-a="x">Cerrar</button></div>`).onclick = ev => { if (ev.target.closest('[data-a]')) closeModal(); };
 }, true);
 $('#c-ngate').addEventListener('click', e => { if (e.target.closest('[data-nact]')) enableNotifications(); });
-$('#c-list').addEventListener('click', e => { const b = e.target.closest('[data-mid]'); if (!b) return; const m = S.chat.find(x => x.id === b.dataset.mid); if (m) openMsgMenu(m); });
+/* (toques del chat: ver «💬 chat estilo WhatsApp») */
 
 /* ---------- admin: adivinanzas y chat ---------- */
 $('#g-prize-save').addEventListener('click', async () => { if (await saveEvent({ guessPrize: $('#g-prize').value.trim() })) toast('Premio guardado 🏆'); });
@@ -3592,30 +3605,136 @@ function sheet({ title = '', sub = '', head = '', items = [] }) {
 /* ---------- 💬 reacciones y respuestas ---------- */
 const REACTS = ['❤️', '😂', '🔥', '👍', '😮', '🎄'];
 function reactsFor(id) { const r = {}, m = S.chat.find(x => x.id === id); Object.entries((m && m.r) || {}).forEach(([u, e]) => { if (REACTS.includes(e)) (r[e] ||= []).push(u); }); return r; }
+/* ---------- 💬 chat estilo WhatsApp: deslizar para responder, mantener para seleccionar, reacciones por fuera ---------- */
+const msgOf = id => S.chat.find(x => x.id === id);
+const msgText = m => (m.hasImg && m.text === '📷 Foto') ? '📷 Foto' : m.text;
+const canDelMsg = m => m.uid === S.uid || can('moderar');
+const buzz = n => { if (navigator.vibrate) try { navigator.vibrate(n); } catch { } };
+async function reactTo(m, e) {
+  if (!S.me || !m) return; const myR = (m.r || {})[S.uid]; buzz(12);
+  try { await setDoc(doc(db, 'chat', m.id), { r: { [S.uid]: myR === e ? deleteField() : e } }, { merge: true }); } catch (err) { toast(authErr(err)); }
+}
+function replyTo(m) { if (!S.me || !m) return; S.replyTo = { id: m.id, uid: m.uid, text: m.text.slice(0, 100) }; renderReplyBar(); $('#c-text').focus(); }
+async function copyMsgs(list) {
+  const t = list.length === 1 ? list[0].text : list.map(m => `[${hm(new Date(ms(m.at) || m.ts || 0))}] ${shortName(P(m.uid)) || 'Alguien'}: ${msgText(m)}`).join('\n');
+  try { await navigator.clipboard.writeText(t); toast(list.length > 1 ? `📋 ${list.length} mensajes copiados` : '📋 Texto copiado'); } catch { toast('No se pudo copiar'); }
+}
+async function delMsgs(list) {
+  if (!list.length || !list.every(canDelMsg)) return;
+  if (!(await confirmBox(list.length > 1 ? `¿Eliminar ${list.length} mensajes?` : '¿Eliminar este mensaje?', 'Se borrará para todos.', 'Eliminar'))) return;
+  try {
+    const x = list.every(m => m.uid === S.uid) ? db : adb, w = writeBatch(x);
+    list.forEach(m => { w.delete(doc(x, 'chat', m.id)); if (m.hasImg) w.delete(doc(x, 'chatImg', m.id)); });
+    await w.commit(); toast(list.length > 1 ? 'Mensajes eliminados' : 'Mensaje eliminado');
+  } catch (err) { toast(authErr(err)); }
+}
+// ✅ Selección de varios mensajes (mantener presionado)
+S.chatSel = new Set();
+function selToggle(id) {
+  if (S.chatSel.has(id)) S.chatSel.delete(id); else S.chatSel.add(id);
+  $(`#c-list [data-row="${CSS.escape(id)}"]`)?.classList.toggle('sel', S.chatSel.has(id)); syncSelBar();
+}
+function selClear() { if (!S.chatSel.size) return; S.chatSel.clear(); $$('#c-list .msg.sel').forEach(x => x.classList.remove('sel')); syncSelBar(); }
+function syncSelBar() {
+  [...S.chatSel].forEach(id => { if (!msgOf(id)) S.chatSel.delete(id); });
+  const n = S.chatSel.size, bar = $('#c-selbar'); document.body.classList.toggle('csel', n > 0);
+  if (!bar) return; bar.hidden = !n; if (!n) { bar.innerHTML = ''; return; }
+  const list = [...S.chatSel].map(msgOf), one = n === 1 ? list[0] : null;
+  bar.innerHTML = `<button type="button" class="sb-b" data-sb="x" aria-label="Cancelar selección">${ic('x', 20)}</button><b class="sb-n">${n}</b><span class="grow"></span>
+    ${one && S.me ? `<button type="button" class="sb-b" data-sb="reply" aria-label="Responder">${ic('reply', 20)}</button><button type="button" class="sb-b" data-sb="react" aria-label="Reaccionar">😊</button>` : ''}
+    <button type="button" class="sb-b" data-sb="copy" aria-label="Copiar">${ic('copy', 20)}</button>
+    ${one && one.uid === S.uid ? `<button type="button" class="sb-b" data-sb="edit" aria-label="Editar">${ic('edit', 20)}</button>` : ''}
+    ${list.every(canDelMsg) ? `<button type="button" class="sb-b danger" data-sb="del" aria-label="Eliminar">${ic('trash', 20)}</button>` : ''}`;
+}
+$('#c-selbar').addEventListener('click', async e => {
+  const k = e.target.closest('[data-sb]')?.dataset.sb; if (!k) return;
+  const list = [...S.chatSel].map(msgOf).filter(Boolean).sort((a, b) => S.chat.indexOf(a) - S.chat.indexOf(b));
+  if (k === 'x') return selClear();
+  selClear();
+  if (k === 'copy') return copyMsgs(list);
+  if (k === 'reply') return replyTo(list[0]);
+  if (k === 'edit') return editMsg(list[0]);
+  if (k === 'react') return openMsgMenu(list[0]);
+  if (k === 'del') return delMsgs(list);
+});
+$('#c-back').addEventListener('click', e => { if (S.chatSel.size) { e.stopImmediatePropagation(); selClear(); } }, true);
+addEventListener('hashchange', selClear);
+// 👀 Quién reaccionó (tocando las reacciones debajo del mensaje)
+function showReacts(m) {
+  const rx = reactsFor(m.id), all = Object.entries(rx).flatMap(([e, us]) => us.map(u => [e, u])).sort((a, b) => (b[1] === S.uid) - (a[1] === S.uid));
+  if (!all.length) return; let tab = '';
+  const s2 = openModal(`<h3>Reacciones</h3><div class="rxw-tabs"><button type="button" data-rt="">Todas ${all.length}</button>${Object.keys(rx).map(e => `<button type="button" data-rt="${e}">${e} ${rx[e].length}</button>`).join('')}</div><div class="rxw-list"></div><div class="actions"><button class="btn gold" data-a="x">Listo</button></div>`);
+  const paint = () => {
+    s2.querySelector('.rxw-list').innerHTML = all.filter(([e]) => !tab || e === tab).map(([e, u]) => `<div class="rxw-row ${u === S.uid ? 'me' : ''}" ${u === S.uid ? `data-rmx="${e}" role="button"` : ''}><span class="rxw-av">${esc(pEmoji(u))}</span><span class="grow"><b>${u === S.uid ? 'Tú' : esc(pName(u))}</b>${u === S.uid ? '<small>Toca para quitarla</small>' : ''}</span><span class="rxw-e">${e}</span></div>`).join('');
+    s2.querySelectorAll('[data-rt]').forEach(b => b.classList.toggle('on', b.dataset.rt === tab));
+  };
+  paint();
+  s2.onclick = ev => {
+    const t = ev.target.closest('[data-rt]'); if (t) { tab = t.dataset.rt; return paint(); }
+    const r = ev.target.closest('[data-rmx]'); if (r) { closeModal(); return reactTo(m, r.dataset.rmx); }
+    if (ev.target.closest('[data-a]')) closeModal();
+  };
+}
+// Al tocar un mensaje: se resalta con el fondo borroso, arriba las reacciones y abajo las opciones
 function openMsgMenu(m) {
-  const mine = m.uid === S.uid, canDel = mine || can('moderar'), myR = (m.r || {})[S.uid];
-  const reacts = S.me ? `<div class="wm-extra" style="display:flex;justify-content:space-between;gap:6px;margin:4px 0 10px">${REACTS.map(e => `<button class="iconbtn" data-re="${e}" style="width:46px;height:46px;font-size:24px;${myR === e ? 'background:var(--cream)' : ''}">${e}</button>`).join('')}</div>` : '';
-  const head = `<div class="wm-h"><div class="muted small">${esc(shortName(P(m.uid)) || 'Alguien')}</div><b style="font-weight:500;white-space:pre-wrap">${esc(m.hasImg && m.text === '📷 Foto' ? '📷 Foto' : m.text.slice(0, 300))}</b></div>${reacts}`;
-  const p = sheet({ head, items: [
-    S.me && { k: 'reply', icon: 'reply', label: 'Responder' },
-    !(m.hasImg && m.text === '📷 Foto') && { k: 'copy', icon: 'copy', label: 'Copiar texto' },
-    mine && { k: 'edit', icon: 'edit', label: m.hasImg ? 'Editar comentario' : 'Editar mensaje', hint: 'Los demás verán que lo editaste' },
-    canDel && { k: 'del', icon: 'trash', label: 'Eliminar mensaje', hint: mine ? 'Se borra para todos' : 'Como moderador', danger: true },
-  ] });
-  $('#sheet').addEventListener('click', async e => {
-    const r = e.target.closest('[data-re]'); if (!r) return; closeModal();
-    try { await setDoc(doc(db, 'chat', m.id), { r: { [S.uid]: myR === r.dataset.re ? deleteField() : r.dataset.re } }, { merge: true }); } catch (err) { toast(authErr(err)); }
-  }, { once: true });
-  p.then(async a => {
-    if (a === 'reply') { S.replyTo = { id: m.id, uid: m.uid, text: m.text.slice(0, 100) }; renderReplyBar(); $('#c-text').focus(); }
-    if (a === 'copy') { try { await navigator.clipboard.writeText(m.text); toast('Texto copiado'); } catch { toast('No se pudo copiar'); } }
-    if (a === 'edit') editMsg(m);
-    if (a === 'del') {
-      if (!(await confirmBox('¿Eliminar este mensaje?', 'Se borrará para todos.', 'Eliminar'))) return;
-      try { const x = mine ? db : adb, w = writeBatch(x); w.delete(doc(x, 'chat', m.id)); if (m.hasImg) w.delete(doc(x, 'chatImg', m.id)); await w.commit(); toast('Mensaje eliminado'); } catch (err) { toast(authErr(err)); }
-    }
+  if (!m || $('.cfocus')) return;
+  const row = $(`#c-list [data-row="${CSS.escape(m.id)}"]`), bub = row?.querySelector('.bub');
+  const mine = m.uid === S.uid, myR = (m.r || {})[S.uid], rn = Object.values(reactsFor(m.id)).flat().length;
+  const acts = [S.me && ['reply', 'reply', 'Responder'], !(m.hasImg && m.text === '📷 Foto') && ['copy', 'copy', 'Copiar'], ['sel', 'check', 'Seleccionar'],
+    rn && ['rx', 'users', `Ver reacciones (${rn})`], mine && ['edit', 'edit', m.hasImg ? 'Editar comentario' : 'Editar'],
+    canDelMsg(m) && ['del', 'trash', mine ? 'Eliminar' : 'Eliminar · moderador']].filter(Boolean);
+  const ov = document.createElement('div'); ov.className = 'cfocus' + (mine ? ' me' : '');
+  ov.innerHTML = `<div class="cf-col">
+    ${S.me ? `<div class="cf-rx">${REACTS.map((e, i) => `<button type="button" data-re="${e}" class="${myR === e ? 'on' : ''}" style="--i:${i}" aria-label="Reaccionar ${e}">${e}</button>`).join('')}</div>` : ''}
+    <div class="cf-msg msg ${mine ? 'me' : ''}">${bub ? bub.outerHTML : ''}</div>
+    <div class="cf-menu">${acts.map(([k, icn, l]) => `<button type="button" data-ca="${k}" class="${k === 'del' ? 'danger' : ''}"><span>${esc(l)}</span>${ic(icn, 18)}</button>`).join('')}</div></div>`;
+  document.body.appendChild(ov); requestAnimationFrame(() => ov.classList.add('on')); buzz(10);
+  let after = null;
+  const onPop = () => { removeEventListener('popstate', onPop); ov.classList.remove('on'); setTimeout(() => ov.remove(), 200); const f = after; after = null; if (f) setTimeout(f, 40); };
+  try { history.pushState({ cf: 1 }, ''); } catch { }
+  addEventListener('popstate', onPop);
+  const done = f => { after = f; if (history.state?.cf) history.back(); else onPop(); };
+  ov.addEventListener('click', e => {
+    const r = e.target.closest('[data-re]'); if (r) return done(() => reactTo(m, r.dataset.re));
+    const a = e.target.closest('[data-ca]')?.dataset.ca;
+    if (!a) { if (!e.target.closest('.cf-msg')) done(); return; }
+    done(() => ({ reply: () => replyTo(m), copy: () => copyMsgs([m]), sel: () => selToggle(m.id), rx: () => showReacts(m), edit: () => editMsg(m), del: () => delMsgs([m]) })[a]?.());
   });
 }
+// Gestos sobre la lista: deslizar a la derecha = responder · mantener = seleccionar · tocar = opciones
+(() => {
+  const L = $('#c-list'); let st = null, lpT = 0, suppress = 0;
+  L.addEventListener('pointerdown', e => {
+    const row = e.target.closest('.msg[data-row]'); if (!row || e.button > 0 || e.target.closest('.rxpill')) return;
+    st = { row, id: row.dataset.row, x: e.clientX, y: e.clientY, dx: 0, sw: false, moved: false }; row.style.transition = 'none';
+    clearTimeout(lpT); lpT = setTimeout(() => { if (!st || st.moved) return; st.lp = true; buzz(25); selToggle(st.id); }, 430);
+  });
+  L.addEventListener('pointermove', e => {
+    if (!st || st.lp) return; const dx = e.clientX - st.x, dy = e.clientY - st.y;
+    if (!st.sw && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) { st.moved = true; clearTimeout(lpT); }
+    if (!st.sw && dx > 14 && Math.abs(dx) > Math.abs(dy) * 1.6 && S.me && !S.chatSel.size) st.sw = true;
+    if (!st.sw) return;
+    const t = Math.max(0, Math.min(dx * .75, 84)); st.dx = t; st.row.style.transform = `translateX(${t}px)`; st.row.classList.add('swiping');
+    const ok = t > 56; if (ok !== st.row.classList.contains('swok')) { st.row.classList.toggle('swok', ok); if (ok) buzz(12); }
+  });
+  const up = () => {
+    clearTimeout(lpT); if (!st) return;
+    if (st.lp) suppress = Date.now();
+    if (st.sw) { suppress = Date.now(); if (st.dx > 56) replyTo(msgOf(st.id)); }
+    const row = st.row; row.style.transition = 'transform .25s cubic-bezier(.2,.9,.3,1.2)'; row.style.transform = ''; row.classList.remove('swiping', 'swok'); st = null;
+  };
+  L.addEventListener('pointerup', up); L.addEventListener('pointercancel', up);
+  L.addEventListener('contextmenu', e => { if (e.target.closest('.msg[data-row]')) e.preventDefault(); });
+  L.addEventListener('click', e => {
+    if (suppress && Date.now() - suppress < 600) { suppress = 0; e.stopPropagation(); return; } suppress = 0;
+    const px = e.target.closest('[data-rx]'); if (px && !S.chatSel.size) return showReacts(msgOf(px.dataset.rx));
+    const row = e.target.closest('.msg[data-row]'); if (!row) return;
+    if (S.chatSel.size) { e.stopPropagation(); return selToggle(row.dataset.row); }
+    if (!e.target.closest('.bub') || e.target.closest('[data-cimg]')) return;
+    openMsgMenu(msgOf(row.dataset.row));
+  });
+})();
+
 // ✏️ Editar un mensaje propio (o el comentario de una foto)
 function editMsg(m) {
   const cur = m.hasImg && m.text === '📷 Foto' ? '' : m.text;
