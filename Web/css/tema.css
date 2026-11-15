@@ -845,3 +845,48 @@ body[data-swipe=r] .view.on{animation:swR .32s cubic-bezier(.2,.9,.3,1)}
 @keyframes swL{from{opacity:.3;transform:translateX(40px)}}
 @keyframes swR{from{opacity:.3;transform:translateX(-40px)}}
 .sheet::before{content:'';display:block;width:40px;height:5px;border-radius:9px;background:rgba(255,255,255,.22);margin:-12px auto 12px}
+/* 💡 bombillo más pequeño */
+.hb-btn{width:40px!important;height:40px!important}
+.hb-orb{font-size:19px!important}
+.hb-n{min-width:17px!important;height:17px!important;font-size:.62rem!important;top:-5px!important;right:-5px!important}
+/* ❓ centro de ayuda */
+.helpbtn{width:36px!important;height:36px!important;font-size:17px!important;font-weight:800;color:var(--gold)!important;border:1.5px solid rgba(236,188,92,.45)!important;border-radius:50%!important}
+.sheet.sheet-tall{max-width:560px;height:min(92vh,calc(100dvh - 40px));max-height:none}
+.hc-hd h3{margin:0}
+.hc-hd .in{margin-top:10px}
+.hc-cats{display:flex;gap:6px;overflow-x:auto;margin:12px -4px 4px;padding:2px 4px 6px;scrollbar-width:none}
+.hc-cats::-webkit-scrollbar{display:none}
+.hc-cats button{flex-shrink:0;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);color:inherit;font-size:.88rem;white-space:nowrap}
+.hc-cats button.on{background:var(--gold);color:#1b2a22;font-weight:700;border-color:transparent}
+.hc-ttl{font-weight:800;font-size:1.05rem;margin:10px 2px 8px}
+.hc-list{display:flex;flex-direction:column;gap:8px}
+.hc-a{border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);overflow:hidden}
+.hc-a summary{display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;list-style:none}
+.hc-a summary::-webkit-details-marker{display:none}
+.hc-a summary::after{content:'›';margin-left:auto;font-size:1.3rem;color:var(--gold);transition:transform .2s}
+.hc-a[open] summary::after{transform:rotate(90deg)}
+.hc-e{width:34px;height:34px;flex-shrink:0;border-radius:11px;display:grid;place-items:center;background:rgba(236,188,92,.14);font-size:18px}
+.hc-steps{margin:0;padding:0 16px 12px 44px;display:flex;flex-direction:column;gap:8px;line-height:1.45;font-size:.95rem}
+.hc-steps li::marker{color:var(--gold);font-weight:800}
+.hc-tip{margin:0 14px 14px;padding:9px 12px;border-radius:12px;background:rgba(236,188,92,.12);font-size:.88rem}
+.hc-foot{margin-top:16px}
+/* 📘 guía paso a paso */
+#tourx{position:fixed;inset:0;z-index:95;pointer-events:none;background:linear-gradient(180deg,rgba(4,12,8,0) 30%,rgba(4,12,8,.55));animation:txFade .25s}
+#tourx.out{opacity:0;transition:opacity .2s}
+@keyframes txFade{from{opacity:0}}
+.tx-card{pointer-events:auto;position:absolute;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));max-width:480px;margin:0 auto;padding:16px 16px 14px;border-radius:22px;background:linear-gradient(165deg,#24503f,#15342a);border:1px solid rgba(236,188,92,.35);box-shadow:0 18px 40px rgba(0,0,0,.55)}
+.tx-card.in{animation:txIn .3s cubic-bezier(.2,1.1,.3,1)}
+@keyframes txIn{from{opacity:0;transform:translateY(14px) scale(.97)}}
+.tx-top{display:flex;align-items:center;gap:12px}
+.tx-top small{display:block;color:var(--gold);font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.tx-top b{font-size:1.1rem}
+.tx-e{width:46px;height:46px;flex-shrink:0;border-radius:14px;display:grid;place-items:center;font-size:26px;background:rgba(236,188,92,.16)}
+.tx-x{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.08)}
+.tx-card p{margin:10px 0 12px;line-height:1.5;font-size:.97rem}
+.tx-bar{height:4px;border-radius:9px;background:rgba(255,255,255,.1);overflow:hidden}.tx-bar i{display:block;height:100%;background:var(--gold);transition:width .3s}
+.tx-end{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.tx-act{display:flex;justify-content:space-between;gap:10px;margin-top:12px}.tx-act .btn{flex:1}
+.tour-hl{position:relative;z-index:96;box-shadow:0 0 0 3px var(--gold),0 0 22px rgba(236,188,92,.7)!important;border-radius:14px;animation:tourHl 1.2s ease-in-out infinite alternate}
+@keyframes tourHl{to{box-shadow:0 0 0 5px rgba(236,188,92,.6),0 0 30px rgba(236,188,92,.4)!important}}
+.tx-card{box-sizing:border-box;width:auto;max-width:min(480px,calc(100vw - 24px))}
+.tx-top .grow{min-width:0;flex:1}

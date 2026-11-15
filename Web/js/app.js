@@ -803,37 +803,114 @@ function userMenu() {
   };
 }
 
-/* ---------- ❓ ayuda ---------- */
-function openHelp() {
-  const qa = (q, a) => `<details class="faq"><summary>${q}</summary><div>${a}</div></details>`;
-  const s = openModal(`<h3>❓ Ayuda</h3><p class="muted small">Toca una pregunta para ver la respuesta.</p>
-    <div class="stack" style="gap:8px;margin-top:12px">
-      ${qa('🎡 ¿Cómo sé quién me tocó?', 'Cuando el organizador haga el sorteo, entra a <b>Ruleta</b> y gírala. Solo tú ves tu resultado: guarda el secreto 🤫.')}
-      ${qa('🎁 ¿Para qué es la lista de deseos?', 'En <b>Deseos</b> escribe ideas de lo que te gustaría recibir (puedes poner foto, enlace y precio). Tu angelito la verá. También llena <b>Mi perfil de gustos</b> con tus tallas y colores.')}
-      ${qa('🔐 Olvidé mi PIN', 'Pídele al organizador un <b>PIN temporal</b>. Entras con ese y la app te pide crear uno nuevo. No pierdes nada de lo tuyo.')}
-      ${qa('👻 No me aparecen las personas o los datos', 'Revisa que tengas internet y toca <b>Recargar datos</b> aquí abajo. Eso vuelve a bajar todo; no borra nada ni cierra tu sesión.')}
-      ${qa('🔔 No me llegan las notificaciones', 'Entra a tu menú → <b>Notificaciones</b> y actívalas. En iPhone primero hay que <b>instalar la app</b> en la pantalla de inicio. Si las bloqueaste, actívalas en los ajustes del teléfono.')}
-      ${qa('📲 ¿Cómo instalo la app?', 'Toca el ícono de descarga arriba, o en el menú del navegador elige <b>Instalar app</b> / <b>Agregar a pantalla de inicio</b>.')}
-      ${qa('🎮 ¿Cómo se juega?', 'En <b>Juegos</b> elige un juego, crea la mesa e invita con el enlace (o juega contra 🤖). Cada turno tiene tiempo: 1 minuto en dominó y 30 segundos en los demás; si se acaba, la app juega por ti. En la siguiente partida sale quien ganó.')}
-      ${qa('💌 ¿Qué es el buzón anónimo?', 'Está en <b>Actividades</b>. Escribes mensajes sin que se sepa quién fuiste; se abren todos juntos el día que diga el organizador.')}
-      ${qa('🛡️ Soy administrador, ¿dónde está el panel?', 'Si el organizador te dio permisos, toca el <b>engranaje</b> de arriba o tu menú → <b>Panel de control</b>. Entras con tu misma cuenta.')}
-    </div>
-    <div class="mlist" style="margin-top:14px">
-      <button class="mrow" data-a="tour"><span class="me-e">${ic('book', 22)}</span><span class="grow"><b>Ver la guía paso a paso</b></span><span class="chev">›</span></button>
+/* ---------- ❓ centro de ayuda: buscador, temas y pasos; se abre en el tema de la pantalla donde estás ---------- */
+const HELP_CATS = [
+  ['empezar', '🚀', 'Empezar'], ['ruleta', '🎡', 'Ruleta'], ['deseos', '🎁', 'Deseos'], ['actividades', '📅', 'Actividades'],
+  ['chat', '💬', 'Chat'], ['ideas', '💡', 'Ideas'], ['juegos', '🎮', 'Juegos'], ['cuenta', '👤', 'Cuenta y avisos'], ['problemas', '🛠️', 'Problemas'], ['organizador', '🛡️', 'Organizador'],
+];
+const HELP = () => [
+  // 🚀 empezar
+  ['empezar', '👋', '¿Qué es esta app?', ['Es la app del angelito del grupo: aquí está el sorteo, las listas de deseos, las actividades, el chat y los juegos.', 'Abajo tienes las pestañas: toca una o desliza la pantalla a los lados para cambiar.', 'El botón <b>?</b> de arriba abre esta ayuda en el tema de la pantalla donde estés.']],
+  ['empezar', '📝', 'Registrarme y entrar', ['Toca <b>Registrarme</b>, escribe tu nombre y apellido y elige un emoji.', 'Crea un <b>PIN de 4 números</b>: es tu clave, no se lo digas a nadie.', 'Para volver a entrar: <b>Entrar</b> → busca tu nombre → tócalo → escribe tu PIN.'], 'Si se te olvida el PIN, el organizador te da uno temporal y no pierdes nada.'],
+  ['empezar', '🏠', 'La pantalla de inicio', ['Arriba ves la cuenta regresiva y los detalles del evento (fecha, hora y mapa del lugar).', 'En <b>Tus pendientes</b> aparece lo que te falta: confirmar si vas, llenar tu perfil, escribir deseos…', 'Toca cualquier pendiente y la app te lleva directo.']],
+  ['empezar', '🧭', 'Moverme por la app', ['Toca las pestañas de abajo o <b>desliza a la izquierda o a la derecha</b> para pasar de una a otra.', 'Las ventanas que suben desde abajo se cierran deslizándolas hacia abajo o con el botón atrás del teléfono.', 'El 💡 te da consejos de lo que te falta; muévelo arrastrándolo.']],
+  ['empezar', '📘', 'Ver la guía paso a paso otra vez', ['Abre esta ayuda y toca <b>Ver la guía paso a paso</b> (abajo del todo).', 'La guía te lleva pantalla por pantalla y te enseña cada función.']],
+  // 🎡 ruleta
+  ['ruleta', '🎡', '¿Cómo sé a quién le regalo?', ['Espera a que el organizador haga el sorteo (te llega un aviso).', 'Entra a <b>Ruleta</b>, confirma que estás en un lugar donde nadie ve tu pantalla y escribe tu PIN.', 'Toca <b>Girar</b>. El nombre se muestra unos segundos y luego se oculta solo.'], 'Solo tú ves tu resultado. Para volver a verlo, entra otra vez a Ruleta con tu PIN.'],
+  ['ruleta', '🤫', '¿Alguien más puede ver quién me tocó?', ['No. Ni el organizador ve las parejas en la app.', 'Las parejas solo se muestran a todos si el organizador hace la <b>Gran revelación</b> en la fiesta.']],
+  ['ruleta', '🛍️', 'Marcar cómo va mi regalo', ['Después de girar, en <b>Ruleta</b> baja hasta <b>Mi regalo para mi angelito</b>.', 'Elige: Pensando, Tengo ideas o <b>Ya lo compré</b>.', 'A esa persona le llega el aviso sin tu nombre 🤫.']],
+  ['ruleta', '🕵️', '¿Quién creo que es mi angelito?', ['En <b>Ruleta</b> aparece <b>¿Quién crees que es tu angelito?</b>', 'Elige a la persona que sospechas. Puedes cambiarla hasta la revelación.', 'En la gran revelación se ve quién adivinó.']],
+  ['ruleta', '💛', 'Recibí mi regalo', ['Después de la fiesta, en <b>Ruleta</b> toca <b>💛 Recibí mi regalo</b>.', 'Escribe un mensaje de agradecimiento: solo lo lee tu angelito.']],
+  // 🎁 deseos
+  ['deseos', '➕', 'Agregar un deseo', ['Entra a <b>Deseos</b>; tu lista sale primero (<b>Mi lista</b>).', 'Toca <b>Agregar deseo</b>, escribe qué te gustaría (talla y color si aplica).', 'Opcional: <b>Tomar foto</b> o <b>Galería</b>, un enlace de la tienda y el precio aproximado.', 'Toca <b>✨ Agregar a mi lista</b>.'], 'Con foto y enlace tu angelito acierta seguro.'],
+  ['deseos', '⭐', 'Marcar mi favorito, editar o borrar', ['En tu lista, toca la ⭐ de un deseo para marcarlo como el que más quieres (sale primero).', 'Toca los tres puntos <b>⋯</b> del deseo para editarlo o borrarlo.']],
+  ['deseos', '👀', 'Ver la lista de otra persona', ['Arriba en Deseos está la fila de personas: toca un nombre.', 'Si son muchos, usa el buscador <b>🔍 Buscar a alguien</b>.', 'También ves su perfil de gustos: tallas, colores, lo que le gusta y lo que no.']],
+  ['deseos', '🛒', '«Lo compro yo»', ['Abre la lista de la persona que te tocó.', 'En el deseo que vas a regalar, toca <b>🛒 Lo compro yo</b>.', 'Así queda apartado para ti y no se te olvida cuál elegiste.']],
+  ['deseos', '👕', 'Mi perfil de gustos', ['Toca tu nombre arriba a la derecha → <b>Mi perfil de gustos</b>.', 'Llena tu talla de camisa, zapatos, colores, lo que te gusta, alergias y lo que no quieres recibir.', 'Todo es opcional, pero mientras más llenes, mejor regalo.']],
+  // 📅 actividades
+  ['actividades', '📅', 'Ver y participar en actividades', ['Entra a <b>Actividades</b> y toca una para ver los detalles.', 'Según la actividad puedes votar, anotarte, responder la trivia o elegir una opción.', 'Te llega un aviso cuando empieza.']],
+  ['actividades', '🎉', 'Confirmar si voy', ['En Inicio toca <b>¿Vas al angelito?</b> (también sale en el 💡).', 'Elige <b>Sí, voy</b> o <b>No puedo</b>. Lo puedes cambiar después.']],
+  ['actividades', '💌', 'Buzón anónimo', ['En Actividades entra a <b>💌 Buzón anónimo</b>.', 'Escribe tu pregunta o mensaje y, si quieres, para quién es.', 'Nadie ve quién lo escribió. Los mensajes se abren todos juntos el día que diga el organizador.']],
+  ['actividades', '🗺️', '¿Dónde y cuándo es?', ['En Inicio toca los detalles del evento.', 'Ahí están la fecha, la hora y el mapa: toca el mapa para abrir la ruta en tu teléfono.']],
+  // 💬 chat
+  ['chat', '✍️', 'Escribir en el chat', ['Entra a <b>Chat</b> y escribe abajo. Toca la flechita para enviar.', 'Para escribir hay que tener los avisos activados.', 'Sin internet también puedes escribir: se envía solo cuando vuelve la conexión (verás 🕓).']],
+  ['chat', '↩️', 'Responder un mensaje', ['<b>Desliza el mensaje hacia la derecha</b> y suéltalo cuando salga la flechita.', 'O tócalo y elige <b>Responder</b>.', 'Para cancelar la respuesta toca la ✕ de arriba del cuadro de texto.']],
+  ['chat', '😂', 'Reaccionar y ver quién reaccionó', ['Toca un mensaje: arriba salen las reacciones ❤️ 😂 🔥 👍 😮 🎄.', 'Las reacciones se ven debajo del mensaje. Tócalas para ver <b>quién reaccionó</b>.', 'Para quitar la tuya, vuelve a tocar el mismo emoji o tócala en la lista.']],
+  ['chat', '✅', 'Seleccionar varios mensajes', ['<b>Mantén presionado</b> un mensaje hasta que vibre.', 'Toca otros mensajes para agregarlos a la selección.', 'Arriba puedes copiarlos, responder, reaccionar, editar o borrar (los tuyos). La ✕ cancela.']],
+  ['chat', '📣', 'Mencionar a alguien', ['Escribe <b>@</b> y las primeras letras del nombre; toca la persona.', 'A esa persona le llega un aviso. Con <b>@todos</b> le llega a todo el grupo (úsalo solo para cosas importantes).']],
+  ['chat', '📷', 'Enviar una foto o una ocurrencia', ['Toca la cámara 📷: <b>Tomar foto</b> o <b>Elegir de la galería</b>.', 'Toca el 🎲 y te sale una ocurrencia al azar para romper el hielo.']],
+  // 💡 ideas
+  ['ideas', '💡', 'Proponer una idea', ['Entra a <b>Ideas</b> y escribe tu propuesta (juegos, comida, música…).', 'Los demás pueden votarla; las más votadas salen primero.']],
+  // 🎮 juegos
+  ['juegos', '🎲', 'Crear una partida', ['Entra a <b>Juegos</b> y elige: Dominó, Ahorcado, 4 en línea o X y O.', 'Elige cómo jugar: con el grupo o <b>contra la máquina 🤖</b>.', 'Con el grupo: toca un asiento libre <b>＋</b> para invitar a alguien (le llega una notificación) o comparte el enlace.', 'Cuando estén listos, toca <b>▶ Empezar partida</b>. Los asientos vacíos se llenan con 🤖.']],
+  ['juegos', '🙅', 'Dominó: pases, capicúa y tranque', ['Si no llevas ficha, la app pasa sola y te avisa: no tienes que tocar nada.', 'Si una ficha cabe por los dos lados, te pregunta dónde ponerla.', 'Capicúa, pase de salida y pase corrido valen +25. En el tranque gana quien tenga menos puntos.']],
+  ['juegos', '⏱️', 'Tiempo, salir y volver', ['Cada turno tiene tiempo: 1 minuto en dominó y 30 segundos en los demás. Si se acaba, la app juega por ti.', 'Si sales de la app, la partida sigue guardada (hasta 12 horas): vuelve a Juegos → <b>Tus partidas</b> → <b>Seguir</b>.']],
+  ['juegos', '📴', 'Jugar sin internet', ['Sin internet, al crear una partida juegas contra 🤖 en tu teléfono.', 'Las partidas contra la máquina se guardan en tu teléfono aunque cierres la app.', 'Estas partidas no suman puntos a la tabla de campeones.']],
+  ['juegos', '🔊', 'Música y voz del juego', ['En la mesa toca el botón 🔊 de arriba.', 'Activa o apaga la <b>música de fondo</b> y los <b>efectos y voz</b> («Paso», «¡Capicúa!», «¡Ganaste!»).']],
+  ['juegos', '🏆', 'Tabla de campeones', ['Cada partida ganada con el grupo suma: dominó 3, ahorcado y 4 en línea 2, X y O 1.', 'La tabla está al final de la pantalla de Juegos.']],
+  // 👤 cuenta
+  ['cuenta', '🔔', 'Activar las notificaciones', ['Toca tu nombre arriba → <b>Notificaciones</b> → Activar.', 'En iPhone primero instala la app en la pantalla de inicio.', 'Si las bloqueaste: ajustes del teléfono → navegador → Notificaciones → permitir este sitio.']],
+  ['cuenta', '📲', 'Instalar la app', ['Toca el ícono 🎁 con la flechita de arriba.', 'O en el menú del navegador elige <b>Instalar app</b> / <b>Agregar a pantalla de inicio</b>.', 'Instalada abre al instante y funciona sin internet.']],
+  ['cuenta', '🔐', 'Mi ícono, mi PIN y cerrar sesión', ['Toca tu nombre arriba para abrir tu menú.', 'Toca tu ícono para cambiarlo; abajo está <b>Cerrar sesión</b>.', 'Para cambiar el PIN, pídele al organizador un PIN temporal: al entrar con él creas uno nuevo.']],
+  ['cuenta', '🛡️', 'Mis datos y mi privacidad', ['Tu PIN no se guarda en ningún lado: solo sirve para entrar.', 'Tu resultado de la ruleta, tus agradecimientos y lo que apartas solo los ves tú.', 'Si cierras sesión en un teléfono prestado, no queda nada tuyo guardado ahí.']],
+  // 🛠️ problemas
+  ['problemas', '📡', 'Sin internet', ['La app sigue funcionando: verás <b>Sin conexión</b> arriba.', 'Lo que hagas (mensajes, deseos, reacciones) se guarda en tu teléfono y se sube solo cuando vuelve el internet.', 'Las partidas en línea esperan a que vuelvas; contra 🤖 puedes jugar igual.']],
+  ['problemas', '👻', 'No me aparecen personas o datos', ['Revisa que tengas internet.', 'Abre esta ayuda y toca <b>Recargar datos</b>: baja todo de nuevo sin borrar nada ni cerrar tu sesión.']],
+  ['problemas', '⏰', 'Me dice «revisa la hora de tu teléfono»', ['Ajustes del teléfono → Fecha y hora → activa <b>hora automática</b>.', 'Vuelve a intentarlo.']],
+  ['problemas', '🔐', 'Olvidé mi PIN', ['Pídele al organizador un <b>PIN temporal</b>.', 'Entra con ese PIN: la app te pide crear uno nuevo. No pierdes nada.']],
+  // 🛡️ organizador
+  ['organizador', '🎡', 'Hacer el sorteo', ['Panel → <b>Sorteo</b>. Primero pon las <b>restricciones</b> (por ejemplo, esposos que no se toquen).', 'Toca <b>🎡 Generar sorteo</b>: se cierran las inscripciones y a todos les llega el aviso para girar.', 'Para empezar de nuevo: <b>🧹 Limpiar sorteo</b>. Si ya se había revelado, queda guardado en <b>📜 Angelitos pasados</b>.']],
+  ['organizador', '🎉', 'La gran revelación', ['En la fiesta toca <b>Revelar</b> en la sección Sorteo.', 'Todos ven quién era el angelito de quién y quién adivinó. Se puede ocultar otra vez.']],
+  ['organizador', '👥', 'Participantes y PIN temporal', ['En <b>Participantes</b> busca a la persona y toca <b>⋯</b>.', 'Ahí le das un PIN temporal, la editas o la quitas.']],
+  ['organizador', '🧑‍🤝‍🧑', 'Ayudantes y co-organizadores', ['En <b>Equipo</b> agrega a alguien y elige qué puede hacer (actividades, chat, aportes…).', 'Actívale <b>organizador principal</b> si debe tener los mismos poderes que tú.']],
+];
+const VIEW_HELP = { inicio: 'empezar', ruleta: 'ruleta', deseos: 'deseos', actividades: 'actividades', actividad: 'actividades', anonimos: 'actividades', juegos: 'juegos', admin: 'organizador' };
+function helpCtx() {
+  const v = location.hash.slice(1);
+  if (v.startsWith('juego')) return 'juegos';
+  if (v === 'buzon' || v === 'chat' || v === 'sugerencias') return S.buz === 's' ? 'ideas' : 'chat';
+  if (v.startsWith('actividad')) return 'actividades';
+  return VIEW_HELP[v] || 'empezar';
+}
+function openHelp(cat) {
+  cat = cat || helpCtx();
+  const isAdm = S.isAdmin || S.isOwner || !!S.staff;
+  const cats = HELP_CATS.filter(c => c[0] !== 'organizador' || isAdm), all = HELP().filter(a => a[0] !== 'organizador' || isAdm);
+  let q = '', open = 0;
+  const s = openModal(`<div class="hc"><div class="hc-hd"><h3>❓ Ayuda</h3><p class="muted small">Busca lo que quieres hacer o elige un tema.</p>
+      <input class="in" id="hc-q" type="text" placeholder="🔍 Ej. responder, PIN, foto, dominó…" autocomplete="off" enterkeyhint="search"></div>
+    <div class="hc-cats">${cats.map(([k, e, l]) => `<button type="button" data-hc="${k}">${e} ${l}</button>`).join('')}</div>
+    <div class="hc-list" id="hc-list"></div>
+    <div class="mlist hc-foot">
+      <button class="mrow" data-a="tour"><span class="me-e">${ic('book', 22)}</span><span class="grow"><b>Ver la guía paso a paso</b><span class="muted small">Te lleva por cada pantalla de la app</span></span><span class="chev">›</span></button>
       <button class="mrow" data-a="reload"><span class="me-e">${ic('refresh', 22)}</span><span class="grow"><b>Recargar datos</b><span class="muted small">Si algo no aparece o se ve viejo</span></span><span class="chev">›</span></button>
       ${S.me && mod('chat') ? `<button class="mrow" data-a="chat"><span class="me-e">${ic('chat', 22)}</span><span class="grow"><b>Preguntar en el chat del grupo</b></span><span class="chev">›</span></button>` : ''}
     </div>
-    <div class="actions"><button class="btn gold" data-a="close">Listo</button></div>`);
+    <div class="actions"><button class="btn gold" data-a="close">Listo</button></div></div>`);
+  s.classList.add('sheet-tall');
+  const norm = t => normName(String(t).replace(/<[^>]+>/g, ''));
+  const paint = () => {
+    const nq = norm(q.trim());
+    const list = nq ? all.filter(a => norm(a[2] + ' ' + a[3].join(' ') + ' ' + (a[4] || '')).includes(nq)) : all.filter(a => a[0] === cat);
+    s.querySelectorAll('[data-hc]').forEach(b => b.classList.toggle('on', !nq && b.dataset.hc === cat));
+    const ct = cats.find(c => c[0] === cat);
+    $('#hc-list', s).innerHTML = (nq ? `<div class="hc-ttl">${list.length ? `${list.length} resultado${list.length > 1 ? 's' : ''}` : 'No encontré nada con eso. Prueba con otra palabra o pregunta en el chat.'}</div>` : `<div class="hc-ttl">${ct[1]} ${ct[2]}</div>`)
+      + list.map((a, k) => `<details class="hc-a" ${k === open && !nq ? 'open' : nq && list.length <= 2 ? 'open' : ''}><summary><span class="hc-e">${a[1]}</span><b>${a[2]}</b></summary>
+        <ol class="hc-steps">${a[3].map(x => `<li>${x}</li>`).join('')}</ol>${a[4] ? `<p class="hc-tip">💡 ${a[4]}</p>` : ''}</details>`).join('');
+  };
+  paint();
+  $('#hc-q', s).addEventListener('input', e => { q = e.target.value; paint(); });
   s.onclick = e => {
+    const c = e.target.closest('[data-hc]'); if (c) { cat = c.dataset.hc; q = ''; $('#hc-q', s).value = ''; open = 0; paint(); c.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); $('#hc-list', s).scrollIntoView({ block: 'nearest' }); return; }
     const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return; closeModal();
-    if (a === 'tour') return openTour(true);
+    if (a === 'tour') return setTimeout(() => openTour(true), 250);
     if (a === 'reload') return repairData();
     if (a === 'chat') { location.hash = 'chat'; }
   };
+  requestAnimationFrame(() => s.querySelector('[data-hc].on')?.scrollIntoView({ inline: 'center', block: 'nearest' }));
 }
-// Toda la fila del interruptor es táctil, no solo la bolita.
-document.addEventListener('click', e => { const sw = e.target.closest('.switch'); if (!sw || e.target.closest('button,a,input,select,label')) return; sw.querySelector('.tg')?.click(); });
-document.addEventListener('click', e => { if (e.target.closest('[data-help]')) { e.preventDefault(); openHelp(); } });
+
+document.addEventListener('click', e => { const h = e.target.closest('[data-help]'); if (h) { e.preventDefault(); openHelp(h.dataset.help || undefined); } });
 
 /* ---------- routing ---------- */
 const VIEWS = ['inicio', 'ruleta', 'deseos', 'actividades', 'anonimos', 'buzon', 'juegos', 'admin'];
@@ -1053,43 +1130,57 @@ function renderHome() {
 }
 
 /* ---------- tus pendientes ---------- */
-/* ---------- 📘 guía para quien entra por primera vez ---------- */
+/* ---------- 📘 guía paso a paso: te lleva por cada pantalla y te enseña qué hacer en ella ---------- */
 const TOUR = () => [
-  ['🎁', `¡Bienvenido, ${S.me?.first || ''}!`, 'Esta es la app del angelito: aquí pasa todo antes y durante la fiesta. Te enseñamos lo principal en 1 minuto.'],
-  ['👕', 'Tu perfil es lo más importante', 'Pon tu talla, tus colores y lo que te gusta. Así tu angelito acierta con el regalo. Lo encuentras en tu nombre (arriba) o en Deseos.'],
-  ['🎁', 'Tu lista de deseos', 'Escribe lo que te gustaría recibir, con foto si quieres. Marca con ⭐ el que más quieres.'],
-  ['🎡', 'La ruleta', 'Cuando el organizador haga el sorteo, gira la ruleta para descubrir a quién le regalas. ¡Es secreto!'],
-  ['💬', 'Chat del grupo', 'Escribe ocurrencias, menciona a alguien con @ para que le llegue el aviso, y si no sabes qué decir toca el 🎲.'],
-  ['🎮', 'Juegos', 'Dominó, ahorcado, 4 en línea y X y O con el grupo o contra 🤖. Ganar suma puntos en la tabla de campeones.'],
-  ['📲', 'Instálala y activa los avisos', 'Así te enteras de la ruleta, las actividades y los mensajes. Busca el 📲 arriba.'],
+  { v: 'inicio', e: '🎁', t: `¡Bienvenido, ${S.me?.first || ''}!`, d: 'Te enseñamos toda la app en 2 minutos. Toca <b>Siguiente</b> o desliza la tarjeta. Puedes salir cuando quieras.' },
+  { v: 'inicio', e: '🏠', t: 'Inicio', d: 'Aquí ves la <b>cuenta regresiva</b>, los detalles del evento con el <b>mapa</b>, y <b>tus pendientes</b>: tócalos y te llevan directo.' },
+  { v: 'inicio', e: '👕', t: 'Tu perfil de gustos', d: 'Toca <b>tu nombre arriba</b> → Mi perfil de gustos. Pon tallas, colores y lo que te gusta: así tu angelito acierta.', hl: '#userbox', m: 'perfil' },
+  { v: 'ruleta', e: '🎡', t: 'La ruleta', d: 'Cuando el organizador haga el sorteo te llega un aviso. Entras aquí con tu PIN, giras y ves a quién le regalas. <b>Solo tú lo ves.</b> Aquí mismo marcas cómo va tu regalo.', m: 'ruleta' },
+  { v: 'deseos', e: '🎁', t: 'Lista de deseos', d: 'Escribe lo que te gustaría recibir, con foto, enlace y precio. Marca ⭐ tu favorito. En la lista de quien te tocó toca <b>🛒 Lo compro yo</b>.', m: 'deseos' },
+  { v: 'actividades', e: '📅', t: 'Actividades', d: 'Todo lo que haremos: votaciones, trivias y el <b>💌 buzón anónimo</b>. Toca una para participar.', m: 'agenda' },
+  { v: 'buzon', e: '💬', t: 'Chat del grupo', d: '<b>Desliza un mensaje a la derecha</b> para responder, <b>mantenlo presionado</b> para seleccionar varios y tócalo para reaccionar. Con <b>@</b> mencionas a alguien.', m: 'chat' },
+  { v: 'sugerencias', e: '💡', t: 'Ideas', d: 'Propón juegos, comida o música para el angelito y vota las ideas de los demás.', m: 'buzon' },
+  { v: 'juegos', e: '🎮', t: 'Juegos', d: 'Dominó, ahorcado, 4 en línea y X y O con el grupo o contra 🤖, con música y voz. <b>Sin internet también se puede jugar</b> contra la máquina.', m: 'juegos' },
+  { v: 'inicio', e: '❓', t: '¿Dudas? Toca el ?', d: 'En cualquier pantalla, el botón <b>?</b> de arriba te explica paso a paso lo que puedes hacer ahí.', hl: '#help-btn' },
+  { v: 'inicio', e: '📲', t: 'Último paso', d: 'Instala la app y activa los avisos para enterarte de la ruleta, las actividades y los mensajes. <b>Sin internet la app sigue funcionando</b>: lo que hagas se sube después.', end: 1 },
 ];
 function openTour(force) {
   if (!S.me) return;
-  const key = 'angelito:tour:' + S.uid;
+  const key = 'angelito:tour2:' + S.uid;
   if (!force) { try { if (localStorage.getItem(key)) return; } catch { } }
   try { localStorage.setItem(key, '1'); } catch { }
-  const T = TOUR().filter((_, k) => !(k === 1 && !mod('perfil')) && !(k === 5 && !mod('juegos'))); let i = 0;
-  const s2 = openModal('<div id="tour"></div>');
+  $('#tourx')?.remove(); closeModal();
+  const T = TOUR().filter(s => !s.m || mod(s.m)); let i = 0;
+  const ov = document.createElement('div'); ov.id = 'tourx'; ov.innerHTML = '<div class="tx-card" role="dialog" aria-live="polite"></div>'; document.body.appendChild(ov);
+  const card = ov.firstChild, back = location.hash || '#inicio';
+  const clearHl = () => $$('.tour-hl').forEach(x => x.classList.remove('tour-hl'));
   const paint = () => {
-    const [e, t, d] = T[i], last = i === T.length - 1;
-    $('#tour', s2).innerHTML = `<div class="tour-e">${e}</div><h3 style="text-align:center">${esc(t)}</h3><p class="muted" style="text-align:center">${esc(d)}</p>
-      <div class="tour-dots">${T.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
-      ${last ? `<div class="stack" style="margin-top:14px">${mod('perfil') ? '<button class="btn gold" data-t="prof">👕 Llenar mi perfil ahora</button>' : ''}<button class="btn" data-t="wish">🎁 Escribir mis deseos</button></div>` : ''}
-      <div class="actions">${i ? '<button class="btn ghost" data-t="prev">‹ Atrás</button>' : '<button class="btn ghost" data-t="skip">Saltar</button>'}${last ? '<button class="btn" data-t="skip">Listo</button>' : '<button class="btn gold" data-t="next">Siguiente ›</button>'}</div>`;
+    const s = T[i], last = i === T.length - 1;
+    if (location.hash.slice(1) !== s.v) location.hash = s.v;
+    clearHl(); setTimeout(() => { $(`.tab[data-v="${s.v}"]`)?.classList.add('tour-hl'); if (s.hl) $(s.hl)?.classList.add('tour-hl'); }, 60);
+    card.innerHTML = `<div class="tx-top"><span class="tx-e">${s.e}</span><div class="grow"><small>Paso ${i + 1} de ${T.length}</small><b>${esc(s.t)}</b></div><button class="tx-x" data-t="skip" aria-label="Salir de la guía">${ic('x', 18)}</button></div>
+      <p>${s.d}</p><div class="tx-bar"><i style="width:${(i + 1) / T.length * 100}%"></i></div>
+      ${last ? `<div class="tx-end">${mod('perfil') ? '<button class="btn sm gold" data-t="prof">👕 Llenar mi perfil</button>' : ''}<button class="btn sm" data-t="notif">🔔 Activar avisos</button></div>` : ''}
+      <div class="tx-act">${i ? '<button class="btn ghost" data-t="prev">‹ Atrás</button>' : '<button class="btn ghost" data-t="skip">Saltar</button>'}<button class="btn gold" data-t="${last ? 'done' : 'next'}">${last ? '¡Listo! 🎉' : 'Siguiente ›'}</button></div>`;
+    card.classList.remove('in'); void card.offsetWidth; card.classList.add('in');
   };
-  paint();
-  s2.onclick = e => {
+  const end = go => { clearHl(); ov.classList.add('out'); setTimeout(() => ov.remove(), 220); location.hash = go || back; };
+  card.addEventListener('click', e => {
     const t = e.target.closest('[data-t]')?.dataset.t; if (!t) return;
-    if (t === 'next') { i = Math.min(T.length - 1, i + 1); paint(); } else if (t === 'prev') { i = Math.max(0, i - 1); paint(); }
-    else { closeModal(); if (t === 'prof') setTimeout(openProfile, 150); if (t === 'wish') location.hash = 'deseos'; }
-  };
-  let x0 = null; s2.onpointerdown = e => { x0 = e.clientX; }; s2.onpointerup = e => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 60) { i = Math.max(0, Math.min(T.length - 1, i + (dx < 0 ? 1 : -1))); paint(); } };
+    if (t === 'next') { i = Math.min(T.length - 1, i + 1); return paint(); }
+    if (t === 'prev') { i = Math.max(0, i - 1); return paint(); }
+    if (t === 'prof') { end('#inicio'); return setTimeout(openProfile, 300); }
+    if (t === 'notif') { end('#inicio'); return setTimeout(() => { try { enableNotifications(); } catch { } }, 300); }
+    end(t === 'done' ? '#inicio' : back);
+  });
+  let x0 = null; card.addEventListener('pointerdown', e => { x0 = e.clientX; }); card.addEventListener('pointerup', e => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 60) { i = Math.max(0, Math.min(T.length - 1, i + (dx < 0 ? 1 : -1))); paint(); } });
+  paint();
 }
 let tourT = null;
 function maybeTour() {
   if (!S.me || S.forcePin || tourT) return;
-  try { if (localStorage.getItem('angelito:tour:' + S.uid)) return; } catch { }
-  tourT = setTimeout(function go() { tourT = null; if (!S.me) return; if ($('#modal').classList.contains('on') || S.spinning) { tourT = setTimeout(go, 3000); return; } openTour(); }, 1200);
+  try { if (localStorage.getItem('angelito:tour2:' + S.uid)) return; } catch { }
+  tourT = setTimeout(function go() { tourT = null; if (!S.me) return; if ($('#modal').classList.contains('on') || S.spinning || S.forcePin || $('#tourx')) { tourT = setTimeout(go, 3000); return; } openTour(); }, 1200);
 }
 /* ---------- lo que te toca ahora (cambia según el momento) ---------- */
 function renderNext() {
