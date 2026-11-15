@@ -87,11 +87,11 @@ const isRevealed = () => !!S.event.revealNow || (!!S.event.revealAt && Date.now(
 const guessesOpen = () => !!S.event.guessesOpen;
 const MODS = { ruleta: ['🎡', 'Ruleta'], deseos: ['🎁', 'Lista de deseos'], agenda: ['📅', 'Agenda de actividades'], anonimos: ['💌', 'Preguntas anónimas'], buzon: ['💡', 'Sugerencias'], chat: ['💬', 'Chat'],
   asistencia: ['🎉', 'Confirmar asistencia y aporte'], estado: ['🛍️', 'Estado del regalo'], adivinanza: ['🔮', '¿Qué crees que te van a regalar?'], reglas: ['📜', 'Reglas y normas'],
-  pistas: ['💌', 'Pistas secretas'], adivinaAngel: ['🕵️', '¿Quién es mi angelito? + gran revelación'], perfil: ['👕', 'Perfil de gustos'], gracias: ['💛', 'Recibí mi regalo + agradecimiento'], fotos: ['📸', 'Fotos de la fiesta'], juegos: ['🎮', 'Juegos (dominó, X y O, ahorcado)'] };
+  pistas: ['💌', 'Pistas secretas'], adivinaAngel: ['🕵️', '¿Quién es mi angelito? + gran revelación'], perfil: ['👕', 'Perfil de gustos'], gracias: ['💛', 'Recibí mi regalo + agradecimiento'], juegos: ['🎮', 'Juegos (dominó, X y O, ahorcado)'] };
 const mod = k => (S.event.modules || {})[k] !== false;
 const TAB_MOD = { ruleta: 'ruleta', deseos: 'deseos', actividades: 'agenda', actividad: 'agenda', anonimos: 'anonimos', juegos: 'juegos' };
 const BUZ_MOD = { s: 'buzon', c: 'chat', f: 'fotos' };
-const viewOn = v => v === 'buzon' ? (mod('buzon') || mod('chat') || mod('fotos')) : v === 'actividades' ? (mod('agenda') || mod('anonimos')) : !(TAB_MOD[v] && !mod(TAB_MOD[v]));
+const viewOn = v => v === 'buzon' ? (mod('buzon') || mod('chat')) : v === 'actividades' ? (mod('agenda') || mod('anonimos')) : !(TAB_MOD[v] && !mod(TAB_MOD[v]));
 function setBuz(b) {
   if (!mod(BUZ_MOD[b])) b = ['c', 's', 'f'].find(x => mod(BUZ_MOD[x])) || 'c';
   S.buz = b;
@@ -831,7 +831,7 @@ function route() {
   if (curView) tabScroll[curView] = scrollY;
   let v = location.hash.slice(1);
   if (v === 'chat') { v = 'buzon'; S.buz = 'c'; }
-  if (v === 'fotos') { v = 'buzon'; S.buz = 'f'; }
+  if (v === 'fotos') { v = 'buzon'; S.buz = 'c'; } // la sección de fotos se quitó: las fotos van por el chat
   if (v === 'sugerencias') { v = 'buzon'; S.buz = 's'; }
   if (v.startsWith('juego-')) v = 'juegos';
   if (v.startsWith('actividad-')) { S.actId = v.slice(10); v = 'actividad'; renderActDetail(); }
@@ -843,7 +843,7 @@ function route() {
   const tv = v === 'actividad' || v === 'anonimos' ? 'actividades' : v === 'buzon' && S.buz === 's' ? 'sugerencias' : v;
   $$('.tab').forEach(el => el.classList.toggle('on', el.dataset.v === tv));
   document.body.classList.toggle('ideas-on', v === 'buzon' && S.buz === 's');
-  $('#v-buzon .sec-title').textContent = v === 'buzon' && S.buz === 's' ? 'Ideas' : v === 'buzon' && S.buz === 'f' ? 'Fotos' : 'Grupo';
+  $('#v-buzon .sec-title').textContent = v === 'buzon' && S.buz === 's' ? 'Ideas' : 'Chat';
   try { renderHelper(); } catch { }
   document.body.classList.toggle('adm-view', v === 'admin');
   $('#gear').style.background = v === 'admin' ? 'var(--cream)' : '';
@@ -855,7 +855,7 @@ function route() {
   if (!same) requestAnimationFrame(() => { scrollTo({ top: v === 'actividad' || (v === 'buzon' && S.buz === 'c') || (v === 'juegos' && location.hash.includes('juego-')) ? 0 : (tabScroll[v] || 0) }); fitChat(); });
 }
 document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) location.hash = g.dataset.go; });
-$$('.tab').forEach(t => t.addEventListener('click', () => { if (t.dataset.v === 'buzon') S.buz = mod('chat') ? 'c' : 'f'; if (t.dataset.v === 'sugerencias') S.buz = 's'; if (location.hash === '#' + t.dataset.v) route(); else location.hash = t.dataset.v; }));
+$$('.tab').forEach(t => t.addEventListener('click', () => { if (t.dataset.v === 'buzon') S.buz = 'c'; if (t.dataset.v === 'sugerencias') S.buz = 's'; if (location.hash === '#' + t.dataset.v) route(); else location.hash = t.dataset.v; }));
 $('#gear').addEventListener('click', () => { location.hash = 'admin'; });
 $('#h-sug').addEventListener('click', e => { if (location.hash === '#sugerencias') { e.preventDefault(); route(); } });
 let logoTaps = [];
@@ -869,7 +869,7 @@ addEventListener('hashchange', route);
 let rq = false;
 function render() { if (rq) return; rq = true; requestAnimationFrame(() => { rq = false; renderAll(); }); }
 function applyMods() {
-  $$('.tab').forEach(t => { const v = t.dataset.v; t.style.display = (v === 'sugerencias' ? mod('buzon') : v === 'buzon' ? (mod('chat') || mod('fotos')) : viewOn(v)) ? '' : 'none'; });
+  $$('.tab').forEach(t => { const v = t.dataset.v; t.style.display = (v === 'sugerencias' ? mod('buzon') : v === 'buzon' ? mod('chat') : viewOn(v)) ? '' : 'none'; });
   const cur = location.hash.slice(1).startsWith('actividad-') ? 'actividad' : location.hash.slice(1);
   if (!viewOn(cur)) route();
   if ($('#v-buzon').classList.contains('on')) setBuzQuiet();
