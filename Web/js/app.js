@@ -4562,8 +4562,10 @@ function goTab(dir) { // dir: +1 siguiente, -1 anterior
   document.addEventListener('touchend', end, { passive: true }); document.addEventListener('touchcancel', () => { if (st) reset(st.view, true); st = null; }, { passive: true });
   // Ventanas (hojas de abajo): arrastrar hacia abajo para cerrar
   let sd = null; const sh = $('#sheet');
-  sh.addEventListener('touchstart', e => { sd = null; if (S.spinning || S.forcePin || sh.scrollTop > 2 || e.target.closest('input,textarea,select,.wheel,canvas')) return; sd = { y: e.touches[0].clientY, dy: 0 }; }, { passive: true });
-  sh.addEventListener('touchmove', e => { if (!sd) return; sd.dy = Math.max(0, e.touches[0].clientY - sd.y); if (sd.dy > 6) { sh.style.transition = 'none'; sh.style.transform = `translateY(${sd.dy}px)`; sh.style.opacity = String(Math.max(.4, 1 - sd.dy / 500)); } }, { passive: true });
+  // ¿El dedo está sobre una lista que se puede subir? Entonces se sube la lista, no se arrastra la ventana
+  const innerScrolled = t => { for (let n = t; n && n !== sh; n = n.parentElement) { if (n.scrollHeight > n.clientHeight + 2 && /(auto|scroll)/.test(getComputedStyle(n).overflowY) && n.scrollTop > 2) return true; } return false; };
+  sh.addEventListener('touchstart', e => { sd = null; if (S.spinning || S.forcePin || sh.scrollTop > 2 || innerScrolled(e.target) || e.target.closest('input,textarea,select,.wheel,canvas')) return; sd = { y: e.touches[0].clientY, x: e.touches[0].clientX, dy: 0 }; }, { passive: true });
+  sh.addEventListener('touchmove', e => { if (!sd) return; if (innerScrolled(e.target) || Math.abs(e.touches[0].clientX - sd.x) > Math.abs(e.touches[0].clientY - sd.y)) { sh.style.transform = sh.style.opacity = ''; sd = null; return; } sd.dy = Math.max(0, e.touches[0].clientY - sd.y); if (sd.dy > 6) { sh.style.transition = 'none'; sh.style.transform = `translateY(${sd.dy}px)`; sh.style.opacity = String(Math.max(.4, 1 - sd.dy / 500)); } }, { passive: true });
   sh.addEventListener('touchend', () => {
     if (!sd) return; const dy = sd.dy; sd = null; sh.style.transition = 'transform .22s ease, opacity .22s ease';
     if (dy > 110) { sh.style.transform = 'translateY(100%)'; sh.style.opacity = '0'; setTimeout(() => { if (history.state?.sheet) history.back(); else closeModal(); sh.style.transform = sh.style.opacity = ''; }, 200); }
