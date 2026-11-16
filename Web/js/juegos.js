@@ -945,9 +945,9 @@ export function initGames(X) {
     const R = g.result, why = { pase: '¡Pase! Llegó a la meta', domino: '¡Dominó!', capicua: '¡Capicúa! (+25)', tranque: '¡Tranque! Gana quien tiene menos puntos en fichas', 'tranque-empate': '¡Tranque con empate! Gana quien trancó', empate: 'Tranque empatado' };
     const winnerTxt = R ? (R.team < 0 ? why.empate : `${g.mode === 'parejas' ? 'Pareja ' + (R.team ? 'B' : 'A') : esc(seatName(g.players[R.team]))} gana ${R.pts} puntos · ${why[R.why]}`) : '';
     return `${sc}${seatsHTML(g)}
-      <div class="mesa" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth(), g.last?.root || 0))}</div>
+      <div class="mesa" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth(), g.last?.root || 0))}${g.handOver ? `<div class="mesa-show ${G.peek === g.seq ? 'peek' : ''}" data-gact="peek">${handsHTML(g)}<small class="ms-tip">${G.peek === g.seq ? 'Toca para ver las fichas' : 'Toca para ver cómo quedó la mesa'}</small></div>` : ''}</div>
       <p class="glog ${B ? 'bonus' : ''}">${last}${bonusTxt}${g.status !== 'playing' || mySeat < 0 ? emoChip(g) : ''}</p>
-      ${g.handOver ? `<div class="card center hover"><div style="font-size:36px">${R?.team < 0 ? '🤝' : /tranque/.test(R?.why || '') ? '🔒' : '🎉'}</div><b>${winnerTxt}</b>${handsHTML(g)}
+      ${g.handOver ? `<div class="card center hover"><div style="font-size:36px">${R?.team < 0 ? '🤝' : /tranque/.test(R?.why || '') ? '🔒' : '🎉'}</div><b>${winnerTxt}</b>
           ${g.status === 'done' ? `<p style="margin-top:8px">🏆 ${(g.winners || []).length ? 'Ganan ' + g.winners.map(s => esc(seatName(s))).join(' y ') : 'Ganaron los 🤖'}</p>` : ''}
           ${againHTML(g, g.status === 'done' ? '🔁 Otra partida' : '')}${g.status !== 'done' ? `<div class="qa" style="justify-content:center">${mySeat >= 0 ? `<button class="btn gold" data-gact="next" ${g.want && g.host !== me() ? 'disabled' : ''}>Siguiente mano ▶️</button>` : ''}</div><p class="muted small" style="margin-top:6px">Sale ${esc(seatName(g.players[R?.seat ?? 0]))} · sigue sola en unos segundos</p>` : ''}</div>` : ''}
       ${mySeat >= 0 && g.status === 'playing' ? `<div class="myhand ${myTurn ? 'turn' : ''}"><div class="mh-h"><b>${myTurn ? '<span class="mh-go">👉</span> ¡Te toca!' : `<span class="mh-av">${esc(seatEmoji(g.players[g.turn]))}</span> Turno de ${esc(seatName(g.players[g.turn]).replace('🤖 ', ''))}`}</b>${myTurn && !can.length && !g.handOver && G.hand.length ? '<span class="autopass">🙅 No llevas · pasando…</span>' : ''}${emoChip(g)}</div>${myTurn && !g.handOver ? `<div class="tline">${clockBar()}</div>` : ''}
@@ -957,7 +957,7 @@ export function initGames(X) {
   function handsHTML(g) {
     const sh = g.shown || {}, R = g.result || {}, tr = /tranque/.test(R.why || ''), par = g.mode === 'parejas';
     const row = (s, k) => { const t = sh[s] && sh[s] !== '-' ? String(sh[s]).split(',') : null, p = (g.pips || [])[k] || 0;
-      return `<div class="hs-row ${teamOf(g, k) === R.team ? 'win' : ''}"><span class="hs-who">${esc(s === me() ? 'Tú' : seatName(s))}</span><span class="hs-tiles">${t ? t.map(x => tileHTML(x, 'mini')).join('') : sh[s] === '-' ? '<i class="muted small">sin fichas</i>' : '<i class="muted small">enseñando…</i>'}</span><b class="hs-pts">${p}</b></div>`; };
+      return `<div class="hs-row ${teamOf(g, k) === R.team ? 'win' : ''}"><span class="hs-who">${esc(s === me() ? 'Tú' : seatName(s))}</span><span class="hs-tiles">${t ? t.map(x => tileHTML(x)).join('') : sh[s] === '-' ? '<i class="muted small">sin fichas</i>' : '<i class="muted small">enseñando…</i>'}</span><b class="hs-pts">${p}</b></div>`; };
     let cmp = '';
     if (par) { const tp = [0, 0]; (g.pips || []).forEach((p, k) => tp[teamOf(g, k)] += p); cmp = `<div class="hs-cmp"><span class="${R.team === 0 ? 'win' : ''}">Pareja A <b>${tp[0]}</b></span><i>vs</i><span class="${R.team === 1 ? 'win' : ''}">Pareja B <b>${tp[1]}</b></span></div>`; }
     return `<div class="hshow">${tr ? '<p class="hs-t">🔒 Juego trancado: se cuentan los puntos de las fichas. Gana quien tiene <b>menos</b>.</p>' : '<p class="hs-t">Lo que le quedó a cada quien:</p>'}
@@ -1057,6 +1057,7 @@ export function initGames(X) {
     if (a === 'del') return del();
     if (a === 'pass') return playDomino(me(), null);
     if (a === 'emo') return emotePicker();
+    if (a === 'peek') { G.peek = G.peek === G.cur?.seq ? -1 : G.cur?.seq; return renderView(); }
     if (a === 'snd') {
       const s2 = openModal(`<h3>🔊 Sonido del juego</h3><div class="stack" style="margin-top:12px">
         <div class="switch"><div><b>🎶 Música de fondo</b><div class="muted small">Ritmo de merengue en el dominó; campanitas en los demás.</div></div><button class="tg ${SND.pref.m ? 'on' : ''}" data-snd="m" aria-label="Música"></button></div>
