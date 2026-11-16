@@ -244,7 +244,7 @@ let unsubCore = [], coreT = null;
 function coreRetry(what) { return e => { console.warn(what, e); if (SYNC.tries >= 6) { SYNC.people = false; return; } if (coreT) return; /* agotado: el vigilante lo retoma y avisa */ coreT = setTimeout(() => { coreT = null; SYNC.tries++; startCoreSubs(); }, 1500 * (SYNC.tries + 1)); }; }
 function startCoreSubs() {
   unsubCore.forEach(u => { try { u(); } catch { } }); unsubCore = [];
-  unsubCore.push(onSnapshot(doc(db, 'config', 'event'), s => { S.event = s.exists() ? s.data() : {}; syncQuestions(); syncGuesses(); render(); checkRelogin(); }, coreRetry('event')));
+  unsubCore.push(onSnapshot(doc(db, 'config', 'event'), s => { S.event = s.exists() ? s.data() : {}; syncQuestions(); syncGuesses(); render(); checkRefresh(); checkRelogin(); }, coreRetry('event')));
   unsubCore.push(onSnapshot(doc(db, 'config', 'draw'), s => { S.drawMeta = s.exists() ? s.data() : null; render(); }, coreRetry('draw')));
   unsubCore.push(onSnapshot(collection(db, 'participants'), { includeMetadataChanges: true }, s => { // avisa también cuando el servidor confirma
     if (fromServer(s)) { SYNC.people = true; SYNC.tries = 0; }
@@ -2648,6 +2648,7 @@ function renderAdmin() {
   $('#d-gen').classList.toggle('danger', !!hasDraw);
   renderHistory();
   $('#q-count').textContent = `${nMsg(S.qCount)} en el buzón · ${isRevealed() ? 'abiertos ahora' : 'se abren el ' + (revealWhen() || 'día del evento')}`;
+  $('#refresh-last').textContent = S.event.refreshAt ? 'Último refresco: ' + new Date(ms(S.event.refreshAt)).toLocaleString('es-DO', { dateStyle: 'medium', timeStyle: 'short' }) : '';
   $('#relog-last').textContent = S.event.reloginAt ? 'Último pedido: ' + new Date(ms(S.event.reloginAt)).toLocaleString('es-DO', { dateStyle: 'medium', timeStyle: 'short' }) : '';
   if (![$('#q-date'), $('#q-time')].includes(document.activeElement) && !syncCfgBar.qEdit) { $('#q-date').value = revealDay() || ''; $('#q-time').value = S.event.revealTime || '00:00'; }
   { const ra = S.event.revealAt ? ms(S.event.revealAt) : 0; $('#q-left').textContent = isRevealed() ? '🔓 Abiertos' : ra > Date.now() ? '⏳ ' + leftTo(ra) : ''; }
@@ -4376,6 +4377,23 @@ async function saveMemories() {
     cover: photos.slice(0, 6).map(p => p.thumb).filter(t => String(t).length < 80000), at: serverTimestamp() };
   try { await setDoc(doc(adb, 'memories', year), mem); toast(`📖 Recuerdos ${year} guardados`); confetti(80); } catch (err) { toast(authErr(err)); }
 }
+// 🔄 Refrescar la app de todos: cada teléfono se recarga una vez con la última versión (sin cerrar sesión)
+const BOOT_AT = Date.now();
+function checkRefresh() {
+  const at = ms(S.event?.refreshAt); if (!at) return;
+  let done = 0; try { done = +localStorage.getItem('angelito:refreshed') || 0; } catch { }
+  if (at <= done) return;
+  if (at < BOOT_AT - 5000) { try { localStorage.setItem('angelito:refreshed', String(at)); } catch { } return; } // abrió la app después del pedido: ya está al día
+  const busy = S.spinning || (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) && document.activeElement.value) || $('#modal').classList.contains('on') || $('#tourx');
+  if (busy) { clearTimeout(checkRefresh.t); checkRefresh.t = setTimeout(checkRefresh, 5000); return; }
+  try { localStorage.setItem('angelito:refreshed', String(at)); } catch { }
+  toast('🔄 Refrescando la app…');
+  (swReg?.update() || Promise.resolve()).catch(() => { }).finally(() => setTimeout(() => location.reload(), 900));
+}
+$('#refresh-go').addEventListener('click', async () => {
+  if (!(await confirmBox('¿Refrescar la app de todos?', 'A cada persona se le recargará la app con la última versión. Nadie pierde nada ni tiene que volver a entrar.', 'Refrescar'))) return;
+  if (await saveEvent({ refreshAt: Timestamp.now() })) toast('🔄 Listo: la app de todos se va a refrescar');
+});
 $('#relog-go').addEventListener('click', async () => {
   if (!(await confirmBox('¿Pedir a todos que vuelvan a entrar?', 'A cada persona se le cerrará la sesión la próxima vez que abra la app y le pediremos entrar de nuevo, activar los avisos e instalar la app. Tú no sales.', 'Sí, pedirlo'))) return;
   if (await saveEvent({ reloginAt: Timestamp.now() })) toast('Listo: todos volverán a entrar 📲');
