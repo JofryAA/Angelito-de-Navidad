@@ -1116,3 +1116,28 @@ body.touring #helper{display:none!important}
 .mesa-show.peek .hshow{opacity:0}
 .ms-tip{display:block;text-align:center;margin-top:6px;font-size:.72rem;color:var(--muted)}
 .mesa-show.peek .ms-tip{position:absolute;bottom:8px;left:0;right:0;color:#fff;text-shadow:0 1px 4px #000}
+/* 🃏 fichas viradas en cada lado de la mesa (sin panel) */
+.mesa-show{display:none!important}
+.mesa.ended{padding-top:46px!important;padding-bottom:46px!important}
+.mesa.ended .mt-side~*{}
+.mt-side{position:absolute;z-index:3;display:flex;align-items:center;gap:6px;pointer-events:none}
+.mt-side.bot{left:50%;bottom:8px;transform:translateX(-50%);flex-direction:row}
+.mt-side.top{left:50%;top:8px;transform:translateX(-50%);flex-direction:row}
+.mt-side.left{left:8px;top:50%;transform:translateY(-50%);flex-direction:column}
+.mt-side.right{right:8px;top:50%;transform:translateY(-50%);flex-direction:column}
+.mt-tag{font-size:.7rem;font-weight:700;color:#e9f6ee;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,.35);white-space:nowrap}
+.mt-tag b{font-size:.8rem}
+.mt-side.win .mt-tag{background:rgba(60,207,131,.85);color:#06281a}
+.mt-tiles{display:flex;gap:3px}
+.mt-side.left .mt-tiles,.mt-side.right .mt-tiles{flex-direction:column}
+.mt-tiles .dmn{animation:msTile .5s calc(var(--k,0)*90ms + .2s) backwards;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.mt-side.left .mt-tiles .dmn,.mt-side.right .mt-tiles .dmn{flex-direction:row}
+.mt-tiles i{font-size:.7rem;color:rgba(255,255,255,.7);font-style:normal}
+.mesa.ended .snake,.mesa.ended>.ch,.mesa.ended>:not(.mt-side){opacity:.75}
+.hs-line{margin:6px 0 0;font-size:.88rem;color:var(--muted)}.hs-line b{color:#fff}
+.mt-tiles .dmn{flex-direction:row!important;padding:1px!important;border-radius:4px!important}
+.mt-tiles .dmn .dh{grid-template-columns:repeat(3,3.5px)!important;grid-template-rows:repeat(3,3.5px)!important;gap:1.2px!important;padding:1.5px!important}
+.mt-tiles .dmn b{width:1.2px!important;height:auto!important;margin:2px 1px!important}
+.mt-side.top{top:10px}.mt-side.bot{bottom:10px}
+.mesa.ended{min-height:200px}
+.mesa.ended .snake{margin:34px 0}

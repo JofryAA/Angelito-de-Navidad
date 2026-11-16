@@ -945,13 +945,28 @@ export function initGames(X) {
     const R = g.result, why = { pase: '¡Pase! Llegó a la meta', domino: '¡Dominó!', capicua: '¡Capicúa! (+25)', tranque: '¡Tranque! Gana quien tiene menos puntos en fichas', 'tranque-empate': '¡Tranque con empate! Gana quien trancó', empate: 'Tranque empatado' };
     const winnerTxt = R ? (R.team < 0 ? why.empate : `${g.mode === 'parejas' ? 'Pareja ' + (R.team ? 'B' : 'A') : esc(seatName(g.players[R.team]))} gana ${R.pts} puntos · ${why[R.why]}`) : '';
     return `${sc}${seatsHTML(g)}
-      <div class="mesa" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth(), g.last?.root || 0))}${g.handOver ? `<div class="mesa-show ${G.peek === g.seq ? 'peek' : ''}" data-gact="peek">${handsHTML(g)}<small class="ms-tip">${G.peek === g.seq ? 'Toca para ver las fichas' : 'Toca para ver cómo quedó la mesa'}</small></div>` : ''}</div>
+      <div class="mesa ${g.handOver ? 'ended' : ''}" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth(), g.last?.root || 0))}${g.handOver ? handsOnTable(g) : ''}</div>
       <p class="glog ${B ? 'bonus' : ''}">${last}${bonusTxt}${g.status !== 'playing' || mySeat < 0 ? emoChip(g) : ''}</p>
-      ${g.handOver ? `<div class="card center hover"><div style="font-size:36px">${R?.team < 0 ? '🤝' : /tranque/.test(R?.why || '') ? '🔒' : '🎉'}</div><b>${winnerTxt}</b>
+      ${g.handOver ? `<div class="card center hover"><div style="font-size:36px">${R?.team < 0 ? '🤝' : /tranque/.test(R?.why || '') ? '🔒' : '🎉'}</div><b>${winnerTxt}</b>${handsCmp(g)}
           ${g.status === 'done' ? `<p style="margin-top:8px">🏆 ${(g.winners || []).length ? 'Ganan ' + g.winners.map(s => esc(seatName(s))).join(' y ') : 'Ganaron los 🤖'}</p>` : ''}
           ${againHTML(g, g.status === 'done' ? '🔁 Otra partida' : '')}${g.status !== 'done' ? `<div class="qa" style="justify-content:center">${mySeat >= 0 ? `<button class="btn gold" data-gact="next" ${g.want && g.host !== me() ? 'disabled' : ''}>Siguiente mano ▶️</button>` : ''}</div><p class="muted small" style="margin-top:6px">Sale ${esc(seatName(g.players[R?.seat ?? 0]))} · sigue sola en unos segundos</p>` : ''}</div>` : ''}
       ${mySeat >= 0 && g.status === 'playing' ? `<div class="myhand ${myTurn ? 'turn' : ''}"><div class="mh-h"><b>${myTurn ? '<span class="mh-go">👉</span> ¡Te toca!' : `<span class="mh-av">${esc(seatEmoji(g.players[g.turn]))}</span> Turno de ${esc(seatName(g.players[g.turn]).replace('🤖 ', ''))}`}</b>${myTurn && !can.length && !g.handOver && G.hand.length ? '<span class="autopass">🙅 No llevas · pasando…</span>' : ''}${emoChip(g)}</div>${myTurn && !g.handOver ? `<div class="tline">${clockBar()}</div>` : ''}
         <div class="hand">${G.hand.map(t => tileHTML(t, `big ${myTurn && can.includes(t) ? 'ok' : 'no'}`, `data-tile="${esc(t)}"`)).join('')}</div></div>` : ''}`;
+  }
+  // 🃏 Al terminar, cada quien «vira» sus fichas en su lado de la mesa, como en la vida real: tú abajo, los demás arriba y a los lados
+  function handsOnTable(g) {
+    const sh = g.shown || {}, R = g.result || {}, n = g.players.length, meI = Math.max(0, g.players.indexOf(me()));
+    const POS = n === 2 ? ['bot', 'top'] : n === 3 ? ['bot', 'right', 'left'] : ['bot', 'right', 'top', 'left'];
+    return g.players.map((s, k) => {
+      const pos = POS[(k - meI + n) % n], t = sh[s] && sh[s] !== '-' ? String(sh[s]).split(',') : null, p = (g.pips || [])[k] || 0, win = teamOf(g, k) === R.team;
+      return `<div class="mt-side ${pos} ${win ? 'win' : ''}"><span class="mt-tag">${esc(s === me() ? 'Tú' : seatName(s).replace('🤖 ', '🤖'))} · <b>${p}</b></span><span class="mt-tiles">${t ? t.map((x, j) => tileHTML(x, '', `style="--k:${j}"`)).join('') : sh[s] === '-' ? '<i>sin fichas</i>' : '<i>…</i>'}</span></div>`;
+    }).join('');
+  }
+  // Debajo, en la tarjeta del ganador: la cuenta (en parejas, la suma de cada pareja)
+  function handsCmp(g) {
+    const R = g.result || {}, tr = /tranque/.test(R.why || '');
+    if (g.mode === 'parejas') { const tp = [0, 0]; (g.pips || []).forEach((p, k) => tp[teamOf(g, k)] += p); return `<p class="hs-line">${tr ? '🔒 Gana la que tiene menos: ' : ''}Pareja A <b>${tp[0]}</b> · Pareja B <b>${tp[1]}</b></p>`; }
+    return tr ? '<p class="hs-line">🔒 Gana quien tiene menos puntos en sus fichas (están viradas en la mesa)</p>' : '';
   }
   // 🃏 Las fichas que le quedaron a cada quien y la cuenta de puntos (en el tranque gana el que menos tiene)
   function handsHTML(g) {
