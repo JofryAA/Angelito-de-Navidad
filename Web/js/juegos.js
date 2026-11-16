@@ -440,8 +440,36 @@ export function initGames(X) {
       const prev = G.cur; G.cur = srv;
       onGameChange(prev); render();
     }, () => { G.cur = { id, gone: true }; render(); });
+    if (!isLoc(id)) G.subEmo = onSnapshot(collection(db, 'games', id, 'emotes'), s => s.docs.forEach(d => showEmote(d.id, d.data())), () => { });
+  }
+  /* ----- 😂 reacciones y frases rápidas en la mesa (como en el parchís) ----- */
+  const EMOTES = ['😂', '😎', '🔥', '👏', '😱', '🙏', '😤', '🎉', '¡Buena jugada!', '¡Apúrate!', '¡Te tengo!', '¡Qué suerte!', 'Juega ya 🙄', '¡Esa no me la esperaba!', '¡Somos los mejores!', '¡Otra partida!'];
+  function showEmote(seat, d) {
+    const k = +d?.k, ts = +d?.ts || 0; if (!(k >= 0 && k < EMOTES.length) || Date.now() - ts > 9000) return;
+    const key = seat + ts; G.emoSeen ||= new Set(); if (G.emoSeen.has(key)) return; G.emoSeen.add(key);
+    const root = document.getElementById('g-root'); if (!root) return;
+    let box = document.getElementById('g-emos'); if (!box) { box = document.createElement('div'); box.id = 'g-emos'; document.body.appendChild(box); }
+    const txt = EMOTES[k], big = k < 8, el = document.createElement('div');
+    el.className = 'gemo' + (big ? ' big' : '') + (seat === me() ? ' mine' : '');
+    el.innerHTML = `<span class="ge-who">${esc(seat === me() ? 'Tú' : String(seatName(seat)))}</span><span class="ge-t">${esc(txt)}</span>`;
+    box.appendChild(el); try { SND.fx('pop'); } catch { }
+    setTimeout(() => el.classList.add('out'), 3200); setTimeout(() => el.remove(), 3700);
+  }
+  async function sendEmote(k) {
+    const g = G.cur; if (!g || !g.players?.includes(me())) return toast('Solo los que están en la mesa pueden reaccionar');
+    if (Date.now() - (G.emoT || 0) < 1500) return; G.emoT = Date.now();
+    const d = { k, ts: Date.now() };
+    showEmote(me(), d); // tú lo ves al instante
+    if (isLoc(g.id)) return; // contra 🤖 se queda en tu teléfono
+    try { await setDoc(doc(db, 'games', g.id, 'emotes', me()), d); } catch (e) { toast(X.authErr(e)); }
+  }
+  function emotePicker() {
+    const s2 = openModal(`<h3>😄 Reaccionar</h3><div class="emo-grid">${EMOTES.slice(0, 8).map((e, k) => `<button type="button" data-emo="${k}">${e}</button>`).join('')}</div>
+      <div class="emo-phr">${EMOTES.slice(8).map((e, k) => `<button type="button" data-emo="${k + 8}">${esc(e)}</button>`).join('')}</div>`);
+    s2.onclick = e => { const b = e.target.closest('[data-emo]'); if (!b) return; closeModal(); sendEmote(+b.dataset.emo); };
   }
   function closeGame() {
+    G.subEmo?.(); G.subEmo = null;
     [G.sub, G.subHand, ...Object.values(G.subBots)].forEach(u => u && u()); clearTimeout(G.botT); clearTimeout(G.clockT); clearTimeout(G.dogT); clearTimeout(G.nextT);
     Object.assign(G, { sub: null, subHand: null, subBots: {}, cur: null, hand: [], botHands: {}, turnKey: '', srv: null, srvHand: [], srvBots: {}, pend: 0, okSeq: 0 });
   }
@@ -951,7 +979,8 @@ export function initGames(X) {
   function renderGame(g) {
     if (g.loading) return '<div class="card empty"><span class="spin-dots"></span></div>';
     if (g.gone) return '<div class="card empty"><span class="e">🫥</span>Esta mesa ya no existe.<div class="qa" style="justify-content:center"><a class="btn" href="#juegos">Volver</a></div></div>';
-    const head = `<div class="ghead"><a class="backbtn" href="#juegos"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Juegos</a><b>${GINFO[g.type]?.e || ''} ${esc(g.title || GINFO[g.type]?.name)}</b><button class="iconbtn gsnd ${SND.pref.m || SND.pref.f ? '' : 'off'}" data-gact="snd" aria-label="Sonido">${SND.pref.m || SND.pref.f ? '🔊' : '🔇'}</button>${g.host === me() || X.can('moderar') ? '<button class="iconbtn gdel" data-gact="del" aria-label="Cerrar mesa"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg></button>' : '<span style="width:42px"></span>'}</div>`;
+    const emoBtn = g.players?.includes(me()) && (g.status === 'playing' || g.status === 'done') ? '<button type="button" class="iconbtn gsnd gemo-btn" data-gact="emo" aria-label="Reaccionar">😄</button>' : '';
+    const head = `<div class="ghead"><a class="backbtn" href="#juegos"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Juegos</a><b>${GINFO[g.type]?.e || ''} ${esc(g.title || GINFO[g.type]?.name)}</b>${emoBtn}<button class="iconbtn gsnd ${SND.pref.m || SND.pref.f ? '' : 'off'}" data-gact="snd" aria-label="Sonido">${SND.pref.m || SND.pref.f ? '🔊' : '🔇'}</button>${g.host === me() || X.can('moderar') ? '<button class="iconbtn gdel" data-gact="del" aria-label="Cerrar mesa"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg></button>' : '<span style="width:42px"></span>'}</div>`;
     if (g.status === 'lobby') return head + lobbyHTML(g);
     if (g.status !== 'lobby' && !g.players.includes(me()) && g.max <= 2) return head + `<div class="card empty"><span class="e">🔒</span>Esta partida es solo de ${g.players.map(s => esc(seatName(s))).join(' y ')}<div class="qa" style="justify-content:center"><a class="btn" href="#juegos">Volver</a></div></div>`;
     return head + (g.type === 'domino' ? dominoHTML(g) : g.type === 'ttt' ? tttHTML(g) : g.type === 'c4' ? c4HTML(g) : hangHTML(g));
@@ -1006,6 +1035,7 @@ export function initGames(X) {
     if (a === 'lobby') return rematch();
     if (a === 'del') return del();
     if (a === 'pass') return playDomino(me(), null);
+    if (a === 'emo') return emotePicker();
     if (a === 'snd') {
       const s2 = openModal(`<h3>🔊 Sonido del juego</h3><div class="stack" style="margin-top:12px">
         <div class="switch"><div><b>🎶 Música de fondo</b><div class="muted small">Ritmo de merengue en el dominó; campanitas en los demás.</div></div><button class="tg ${SND.pref.m ? 'on' : ''}" data-snd="m" aria-label="Música"></button></div>

@@ -191,6 +191,14 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if signedIn() && (resource.data.to == me() || resource.data.from == me() || isOwner());
     }
+    // 😂 reacciones rápidas en la mesa: cada jugador tiene su último gesto
+    match /games/{gid}/emotes/{uid} {
+      allow read: if member();
+      allow write: if isParticipant() && me() == uid && exists(/databases/$(database)/documents/games/$(gid))
+        && me() in get(/databases/$(database)/documents/games/$(gid)).data.players
+        && request.resource.data.keys().hasOnly(['k', 'ts']) && request.resource.data.k is int && request.resource.data.k >= 0 && request.resource.data.k < 16
+        && request.resource.data.ts is int && request.resource.data.ts > request.time.toMillis() - 900000 && request.resource.data.ts < request.time.toMillis() + 900000;
+    }
     match /games/{gid} {
       allow read: if member();
       // La hora que manda el teléfono debe ser real (±30 min): así nadie marca una mesa ajena como "abandonada" para borrarla.
