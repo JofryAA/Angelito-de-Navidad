@@ -1083,3 +1083,22 @@ body.touring #helper{display:none!important}
 .gemo.mine{border-color:rgba(60,207,131,.5)}
 @keyframes gemoIn{from{opacity:0;transform:translateY(16px) scale(.8)}}
 .gemo-btn{margin-right:0}.gemo-btn+.gsnd{margin-left:6px}
+/* 😄 reaccionar junto al turno */
+.emo-chip{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:50%;font-size:20px;background:rgba(236,188,92,.18);border:1px solid rgba(236,188,92,.45);margin-left:auto;flex-shrink:0;vertical-align:middle}
+.emo-chip:active{transform:scale(.9)}
+.myhand .mh-h{display:flex;align-items:center;gap:8px}
+.glog .emo-chip{width:32px;height:32px;font-size:17px;margin:0 8px 0 0}
+/* 🃏 fichas de cada quien al terminar la mano */
+.hshow{margin-top:12px;text-align:left;display:flex;flex-direction:column;gap:6px}
+.hs-t{margin:0 0 4px;font-size:.88rem;color:var(--muted);text-align:center}
+.hs-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06)}
+.hs-row.win{background:rgba(60,207,131,.12);border-color:rgba(60,207,131,.4)}
+.hs-who{width:84px;flex-shrink:0;font-size:.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hs-tiles{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:3px}
+.hs-tiles .dmn.mini{padding:1px;border-radius:4px}.hs-tiles .dmn.mini .dh{grid-template-columns:repeat(3,4px);grid-template-rows:repeat(3,4px);gap:1.5px;padding:2px}.hs-tiles .dmn.mini b{margin:1px 0}
+.hs-pts{min-width:34px;text-align:right;font-size:1.1rem}
+.hs-row.win .hs-pts{color:#8ff0bd}
+.hs-cmp{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:4px;font-size:.9rem}
+.hs-cmp span{padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.06)}.hs-cmp span.win{background:rgba(60,207,131,.18);color:#8ff0bd}
+.hs-cmp i{color:var(--muted);font-style:normal}
+.hs-sum{margin:6px 0 0;text-align:center;font-size:.88rem}

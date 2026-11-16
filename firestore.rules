@@ -223,7 +223,7 @@ service cloud.firestore {
               // solo campos de jugada: no puede cambiar el título, el cupo ni la meta
               && changed().hasOnly(['seq', 'updatedAt', 'idle', 'turn', 'status', 'result', 'winners', 'want', 'round', 'starter',
                    'board', 'lastCell', 'guessed', 'scores', 'errors', 'word', 'wcat',
-                   'passes', 'last', 'chain', 'counts', 'pips', 'mustOpen', 'locker', 'handOver', 'nextStarter']))
+                   'passes', 'last', 'chain', 'counts', 'pips', 'mustOpen', 'locker', 'handOver', 'nextStarter', 'shown']))
           // en la sala de espera: sentarse, levantarse o cambiarse de lado (reordenar los mismos asientos)
           || (resource.data.status == 'lobby' && changed().hasOnly(['players', 'seq', 'updatedAt'])
               && ((!(me() in resource.data.players) && request.resource.data.players == resource.data.players.concat([me()]))
