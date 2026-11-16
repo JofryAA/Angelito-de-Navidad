@@ -504,7 +504,8 @@ function viewImage(src) { openModal(`<img src="${src || ''}" alt="" style="width
 const personHead = (p, sub) => `<div class="wm-h who-card" style="display:flex;gap:12px;align-items:center"><span class="av">${esc(p.emoji)}</span><div><div class="muted small">${esc(sub)}</div><b>${esc(p.name)}</b></div></div>`;
 // Pestañas en forma de chips (ayuda, reacciones, asistencia): [clave, texto, número?]
 const chipTabs = (list, cur, attr) => `<div class="ctabs" data-noswipe>${list.map(([k, l, n]) => `<button type="button" class="${k === cur ? 'on' : ''}" data-${attr}="${esc(k)}">${l}${n != null ? `<i>${n}</i>` : ''}</button>`).join('')}</div>`;
-function closeModal() { $('#modal').classList.remove('on'); $('#sheet').onclick = null; }
+function closeModal() {
+  setTimeout(() => { try { fitChat(); } catch { } }, 260); $('#modal').classList.remove('on'); $('#sheet').onclick = null; }
 // En computadora, la tecla Esc cierra la ventanita abierta (como tocar fuera o el botón atrás en el teléfono).
 addEventListener('keydown', e => {
   if (e.key !== 'Escape' || PARTY) return;
@@ -1975,10 +1976,16 @@ function fitChat() {
   if (!document.body.classList.contains('chat-on')) return;
   const l = $('#c-list'), d = $('#c-dock'); if (!l || !d || !l.offsetParent) return;
   // el chat termina 12px arriba de la barra de escribir (medido sobre la barra real: nunca se tocan)
-  const h = Math.max(96, Math.round(d.getBoundingClientRect().top - l.getBoundingClientRect().top - 12));
+  // si en ese momento algo de la pantalla está difuminado o animándose, la barra «se ve» en otro sitio: se usa dónde DEBE estar
+  const vh = visualViewport?.height || innerHeight, should = vh - (parseFloat(getComputedStyle(d).bottom) || 0) - d.offsetHeight, seen = d.getBoundingClientRect().top;
+  const top = Math.abs(seen - should) > 40 ? should : seen;
+  const h = Math.max(Math.round(vh * .3), Math.round(top - l.getBoundingClientRect().top - 12));
   if (Math.abs((parseFloat(l.style.height) || 0) - h) > 1) l.style.height = h + 'px';
 }
 addEventListener('resize', () => requestAnimationFrame(fitChat));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) [80, 400, 1200].forEach(t => setTimeout(fitChat, t)); });
+addEventListener('scroll', () => requestAnimationFrame(fitChat), { passive: true }); // si la página se movió, el chat se vuelve a medir
+addEventListener('hashchange', () => [60, 350, 900].forEach(t => setTimeout(fitChat, t))); // al entrar al chat se mide de nuevo cuando todo ya está en su sitio
 visualViewport?.addEventListener('resize', () => requestAnimationFrame(fitChat));
 document.addEventListener('focusin', () => setTimeout(fitChat, 60)); document.addEventListener('focusout', () => setTimeout(fitChat, 200));
 const scrollChat = force => { fitChat(); const l = $('#c-list'); if (l && (force || S.chatStick)) l.scrollTop = l.scrollHeight; };
