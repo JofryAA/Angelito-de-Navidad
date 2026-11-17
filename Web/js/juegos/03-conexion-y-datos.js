@@ -78,7 +78,7 @@ export function initGames(X) {
 
   const qOut = () => !!window.__quota?.out();
   function ensure() {
-    if (!S.me) return; clearTimeout(G.offT2);
+    if (!S.me) return; clearTimeout(G.offT2); tournSub();
     if (!G.subList) { const mix = () => { G.list = [...localGames(), ...(G.remote || [])].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)); }; if (!G.lHook) { G.lHook = () => { mix(); render(); }; lListSubs.add(G.lHook); } mix(); G.subList = RT.onValue(RT.query(rr('games'), RT.orderByChild('updatedAt'), RT.limitToLast(25)), s => { const v = s.val() || {}; G.remote = Object.keys(v).map(id => ({ id, ...sane(v[id] || {}) })); mix(); creditWins(); cleanupStale(); render(); }, e => { console.warn('games', e); G.subList = null; }); }
     if (!G.subWins) {
       // campeones: todos en Realtime Database (los de antes los copió el servidor una sola vez)

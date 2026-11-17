@@ -94,6 +94,28 @@
           ".validate": "newData.isNumber()"
         }
       }
+    },
+    "tourn": {
+      ".read": "root.child('members/'+auth.uid).val() == true",
+      ".write": "auth != null && root.child('members/'+auth.uid).val() == true && ((!data.exists() && newData.child('by').val() == auth.uid && newData.child('status').val() == 'insc') || (data.exists() && data.child('by').val() == auth.uid && (!newData.exists() || newData.child('by').val() == auth.uid)) || (data.exists() && !newData.exists() && (data.child('status').val() == 'done' || data.child('at').val() < now - 259200000)))",
+      "entrants": {
+        "$uid": {
+          ".write": "auth != null && auth.uid == $uid && root.child('members/'+auth.uid).val() == true && root.child('tourn/status').val() == 'insc'",
+          ".validate": "newData.isNumber()"
+        }
+      },
+      "rounds": {
+        "$r": {
+          "$i": {
+            "gid": {
+              ".write": "auth != null && root.child('members/'+auth.uid).val() == true && !data.exists() && newData.isString() && (data.parent().child('t/0/0').val() == auth.uid || data.parent().child('t/0/1').val() == auth.uid || data.parent().child('t/1/0').val() == auth.uid || data.parent().child('t/1/1').val() == auth.uid)"
+            }
+          }
+        }
+      },
+      "title": {
+        ".validate": "newData.isString() && newData.val().length <= 60"
+      }
     }
   }
 }

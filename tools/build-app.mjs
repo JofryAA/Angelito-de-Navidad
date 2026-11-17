@@ -6,7 +6,7 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 for (const name of ['app', 'juegos']) {
   const dir = new URL(`../Web/js/${name}/`, import.meta.url), out = new URL(`../Web/js/${name}.js`, import.meta.url);
-  const files = readdirSync(dir).filter(f => /^\d\d-.*\.js$/.test(f)).sort();
+  const files = readdirSync(dir).filter(f => /^\d\d[a-z]?-.*\.js$/.test(f)).sort();
   writeFileSync(out, files.map(f => readFileSync(new URL(f, dir), 'utf8')).join(''));
   console.log(`${name}.js armado con ${files.length} partes.`);
 }

@@ -18,6 +18,7 @@
     const nOpen = t => open.filter(g => g.type === t).length;
     const card = (t, cls, art, name, sub, tag) => `<button class="gc2 ${cls}" data-gpick="${t}"><span class="gc2-art">${art}</span><span class="gc2-tx"><b>${name}</b><span>${sub}</span></span><span class="gc2-ft"><span class="gc2-tag">${tag}</span>${nOpen(t) ? `<span class="gc2-live">${nOpen(t)} esperando</span>` : ''}<span class="gc2-go">Jugar ▸</span></span></button>`;
     return `<div class="ghero"><div class="ghero-t"><small>Sala de juegos</small><b>¿Quién se atreve?</b><span>Gana partidas, suma puntos y llega a la cima de la tabla 🏆</span></div><div class="ghero-art">${tileHTML('66', 'hero1')}${tileHTML('65', 'hero2')}</div></div>
+      ${tournHTML()}
       <div class="gcreate2">
         ${card('domino', 'g-dom', tileHTML('63'), 'Dominó', 'En parejas o cada quien', '+3 pts')}
         ${card('ahorcado', 'g-hang', '<span class="gc2-letters"><i>A</i><i>_</i><i>O</i></span>', 'Ahorcado', 'Cultura, Biblia y más', '+2 pts')}

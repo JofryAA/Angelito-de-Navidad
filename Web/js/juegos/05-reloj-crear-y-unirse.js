@@ -157,6 +157,7 @@
     const g = G.cur; if (g.host !== me() || G.starting) return; G.starting = true; setTimeout(() => { G.starting = false; }, 2000);
     if (g.type === 'domino') {
       let players = g.players.slice();
+      if (g.tm && Array.isArray(g.tm.order) && g.tm.order.every(u => players.includes(u))) players = g.tm.order.slice(); // torneo: cada pareja en asientos alternos
       if (g.mode === 'parejas') { while (players.length < 4) players.push(['bot1', 'bot2', 'bot3'].find(x => !players.includes(x))); }
       if (players.length < 2) { players.push('bot1'); }
       if (isLoc(g.id)) while (players.length < (g.max || 4)) players.push(['bot1', 'bot2', 'bot3'].find(x => !players.includes(x)));

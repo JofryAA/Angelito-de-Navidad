@@ -81,6 +81,29 @@ if (!st.memAt || now - st.memAt > 1800e3 || (memN >= 0 && memN !== st.memN)) {
     await stateRef.set({ memAt: now, memN: ids.length }, { merge: true }); st.memAt = now; st.memN = ids.length;
   } catch (e) { console.log('Miembros de juegos: no se pudieron copiar.'); }
 }
+// 🏆 Torneo: el servidor mira quién ganó cada mesa del torneo, arma la ronda siguiente y corona al campeón
+try {
+  const rdb = getDatabase(), tr = rdb.ref('tourn'), T = (await tr.get()).val();
+  if (T?.status === 'play' && Array.isArray(T.rounds)) {
+    const rs = T.rounds, U = {};
+    for (let r = 0; r < rs.length; r++) for (let i = 0; i < (rs[r] || []).length; i++) {
+      const m = rs[r][i]; if (!m || m.w != null) continue;
+      if (!m.t?.[1]) { m.w = 0; U[`rounds/${r}/${i}/w`] = 0; continue; }
+      if (!m.gid) continue;
+      const g = (await rdb.ref('games/' + m.gid).get()).val();
+      if (!g) { U[`rounds/${r}/${i}/gid`] = null; continue; } // la mesa se cerró sin terminar: se puede volver a jugar
+      const wins = Array.isArray(g.winners) ? g.winners : Object.values(g.winners || {});
+      if (g.status === 'done' && wins.length) { const k = (m.t[0] || []).includes(wins[0]) ? 0 : (m.t[1] || []).includes(wins[0]) ? 1 : -1; if (k >= 0) { m.w = k; U[`rounds/${r}/${i}/w`] = k; } }
+    }
+    const last = rs[rs.length - 1] || [];
+    if (last.length && last.every(m => m?.w != null)) {
+      const adv = last.map(m => m.t[m.w]);
+      if (adv.length === 1) { U.status = 'done'; U.champ = adv[0]; U.end = now; }
+      else { const nr = []; for (let i = 0; i < adv.length; i += 2) nr.push(adv[i + 1] ? { t: [adv[i], adv[i + 1]] } : { t: [adv[i], null], w: 0 }); U[`rounds/${rs.length}`] = nr; }
+    }
+    if (Object.keys(U).length) { await tr.update(U); console.log('Torneo actualizado.'); }
+  }
+} catch (e) { console.log('Torneo: no se pudo revisar.'); }
 // 🧹 Mesas de juego abandonadas: las cierra el servidor (aunque nadie abra la app). A los ganadores que aún no
 // anotaron su victoria se la anota antes de borrar. Sala 20 min · partida 2 h · terminada 10 min · vacía: al momento.
 try {
