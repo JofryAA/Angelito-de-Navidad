@@ -790,3 +790,14 @@ $('#q-adm').addEventListener('click', async e => {
   } catch (err) { toast(authErr(err)); }
 });
 
+// 🐞 Errores recientes de la app (los anota cada teléfono, sin datos personales)
+document.addEventListener('click', async e => {
+  if (!e.target.closest('#err-load')) return;
+  const box = $('#err-list'); box.innerHTML = '<p class="muted small"><span class="spin-dots"></span> Cargando…</p>';
+  try {
+    const s = await rtGet(rtQuery(rtRef(ardb, 'errs'), rtOrderByChild('ts'), rtLimitToLast(60))), by = new Map();
+    s.forEach(c => { const v = c.val() || {}, k = (v.m || '') + '|' + (v.s || ''); const o = by.get(k) || { ...v, n: 0, last: 0 }; o.n++; o.last = Math.max(o.last, +v.ts || 0); by.set(k, o); });
+    const L = [...by.values()].sort((a, b) => b.last - a.last);
+    box.innerHTML = L.length ? L.map(o => `<div class="item" style="align-items:flex-start"><span>🐞</span><div class="grow"><div class="t" style="word-break:break-word">${esc(o.m)}</div><div class="muted small">${esc(o.s || '')} · ${esc(o.p || '')} · v${esc(o.v || '')}</div><div class="muted small">${o.n} ${o.n === 1 ? 'vez' : 'veces'} · última ${new Date(o.last).toLocaleString('es-DO', { dateStyle: 'short', timeStyle: 'short' })}</div></div></div>`).join('') : '<p class="muted small">✅ No hay errores anotados. ¡Todo bien!</p>';
+  } catch (err) { box.innerHTML = `<p class="muted small">No se pudieron cargar (${esc(err?.code || err?.message || 'error')}).</p>`; }
+});

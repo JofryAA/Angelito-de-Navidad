@@ -12,6 +12,22 @@ on:
         description: 'Hacer YA el ajuste (switch) del sorteo'
         type: boolean
         default: false
+      copia:
+        description: 'Hacer YA una copia de seguridad'
+        type: boolean
+        default: false
+      restaurar:
+        description: 'Restaurar la copia de esta fecha (AAAA-MM-DD). ¡Reemplaza los datos!'
+        type: string
+        default: ''
+      colecciones:
+        description: 'Solo estas colecciones, separadas por coma (vacío = todas)'
+        type: string
+        default: ''
+      confirmar:
+        description: 'Para restaurar escribe RESTAURAR'
+        type: string
+        default: ''
 concurrency: { group: push, cancel-in-progress: false }  # nunca dos a la vez: si llega otro, espera su turno
 jobs:
   enviar:
@@ -30,3 +46,7 @@ jobs:
           FIREBASE_ADMIN_KEY: ${{ secrets.FIREBASE_ADMIN_KEY }}
           PRUEBA: ${{ inputs.prueba && '1' || '' }}
           AJUSTE: ${{ inputs.ajuste && '1' || '' }}
+          COPIA: ${{ inputs.copia && '1' || '' }}
+          RESTAURAR: ${{ inputs.restaurar }}
+          COLECCIONES: ${{ inputs.colecciones }}
+          CONFIRMAR: ${{ inputs.confirmar }}

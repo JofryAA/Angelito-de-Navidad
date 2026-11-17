@@ -74,6 +74,16 @@
           ".validate": "newData.child('t').isString() && newData.child('t').val().length > 0 && newData.child('t').val().length <= 200 && newData.child('ts').isNumber()"
         }
       }
+    },
+    "errs": {
+      ".read": "auth != null && auth.token.email == 'admin@angelito.app'",
+      "$id": {
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.child('m').isString() && newData.child('m').val().length <= 300 && newData.child('s').isString() && newData.child('s').val().length <= 160 && newData.child('v').isString() && newData.child('v').val().length <= 40 && newData.child('p').isString() && newData.child('p').val().length <= 30 && newData.child('ts').isNumber() && newData.child('ts').val() <= now + 600000"
+      },
+      ".indexOn": [
+        "ts"
+      ]
     }
   }
 }

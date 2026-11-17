@@ -6,6 +6,7 @@ import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import { getDatabase } from 'firebase-admin/database';
+import { nightlyBackup, restoreBackup } from './backup.mjs';
 
 const key = process.env.FIREBASE_ADMIN_KEY;
 if (!key) { console.log('Falta el secreto FIREBASE_ADMIN_KEY: no se envía nada.'); process.exit(0); }
@@ -52,6 +53,24 @@ if (hourL >= 9 && hourL < 20 && evDay) {
 }
 const remKey = k => `${k}:${evDay}`;
 const remDue = dueRem.filter(k => !remSent.has(remKey(k)));
+// 🗄️ Restaurar una copia (solo a mano, con confirmación escrita)
+if (process.env.RESTAURAR) {
+  if (process.env.CONFIRMAR !== 'RESTAURAR') { console.log('Para restaurar escribe RESTAURAR en «confirmar».'); process.exit(0); }
+  await restoreBackup({ db, rdb: getDatabase(), sa: SA, day: process.env.RESTAURAR.trim(), cols: (process.env.COLECCIONES || '').split(',').map(x => x.trim()).filter(Boolean) });
+  process.exit(0);
+}
+// 🗄️ Copia de seguridad de cada noche
+try { await nightlyBackup({ db, rdb: getDatabase(), sa: SA, st, stateRef, now, force: process.env.COPIA === '1' }); } catch (e) { console.log('Copia de seguridad: falló (' + String(e?.message || e).slice(0, 80) + ').'); }
+// 🐞 Errores de la app: cada hora se resume en el registro (solo el mensaje técnico) y se borran los de más de 7 días
+if (!st.errAt || now - st.errAt > 3600e3) {
+  try {
+    const r = getDatabase().ref('errs'), all = (await r.orderByChild('ts').startAt(now - 7 * 864e5).get()).val() || {}, by = {};
+    for (const v of Object.values(all)) if ((+v.ts || 0) > (st.errAt || now - 3600e3)) { const k = String(v.m).slice(0, 90) + ' @ ' + String(v.s || '').slice(0, 60); by[k] = (by[k] || 0) + 1; }
+    for (const [k, n] of Object.entries(by)) console.log(`🐞 ${n}× ${k}`);
+    const old = (await r.orderByChild('ts').endAt(now - 7 * 864e5).get()).val() || {}; if (Object.keys(old).length) await r.update(Object.fromEntries(Object.keys(old).map(k => [k, null])));
+    await stateRef.set({ errAt: now }, { merge: true });
+  } catch (e) { console.log('Errores: no se pudieron revisar.'); }
+}
 // 🎮 Quién puede usar la base de juegos: copia de los participantes (al momento en que alguien entra o sale; y cada 30 min por si acaso)
 // En cada vuelta solo se CUENTA a los participantes (cuesta 1 lectura): si alguien entró o salió, se copia la lista al momento.
 let memN = -1; try { memN = (await db.collection('participants').count().get()).data().count; } catch { }

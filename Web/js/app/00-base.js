@@ -118,6 +118,19 @@ let db; try { db = initializeFirestore(app, { localCache: persistentLocalCache({
 // 🎮 Los juegos van en Realtime Database: no cuenta lecturas/escrituras (solo datos descargados), así no gastan la cuota de Firestore
 const rdb = getDatabase(app, firebaseConfig.databaseURL || `https://${firebaseConfig.projectId}-default-rtdb.firebaseio.com`);
 const adminApp = initializeApp(firebaseConfig, 'organizador'); // sesión separada para el admin
+// 🐞 Reporte de errores: si la app falla en algún teléfono queda anotado (sin nombres ni datos personales) para arreglarlo.
+const RTURL = firebaseConfig.databaseURL || `https://${firebaseConfig.projectId}-default-rtdb.firebaseio.com`, ardb = getDatabase(adminApp, RTURL);
+let errN = 0; const errSeen = new Set();
+function reportErr(msg, src) {
+  try {
+    msg = String(msg || '').slice(0, 300); if (!msg || errN >= 6 || errSeen.has(msg) || /ResizeObserver|Script error|extension:\/\/|NetworkError|Failed to fetch|Load failed|AbortError/i.test(msg)) return;
+    if (!auth.currentUser) return; errSeen.add(msg); errN++;
+    const k = rtPush(rtRef(rdb, 'errs')).key;
+    rtUpdate(rtRef(rdb), { ['errs/' + k]: { m: msg, s: String(src || '').replace(/^.*\/(js\/)/, '$1').slice(0, 160), v: APP_VERSION, p: location.hash.slice(0, 30) || '#', ts: Date.now() } }).catch(() => { });
+  } catch { }
+}
+addEventListener('error', e => reportErr(e.message, e.filename ? `${e.filename}:${e.lineno}:${e.colno}` : ''));
+addEventListener('unhandledrejection', e => { const r = e.reason; if (r?.code && /permission|unavailable|resource-exhausted|network/i.test(r.code)) return; reportErr(r?.message || r, (r?.stack || '').split('\n')[1]?.trim()); });
 const adminAuth = getAuth(adminApp);
 setPersistence(adminAuth, browserSessionPersistence).catch(() => { }); // el modo organizador se cierra al cerrar la app (teléfonos prestados)
 const adbOwn = getFirestore(adminApp);
