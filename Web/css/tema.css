@@ -1371,3 +1371,12 @@ body.logged .hero p.cdmsg:not([hidden]){display:block;margin:10px 0 0;max-width:
 .snd-v input{flex:1;accent-color:#e3ae4b;height:28px}.snd-v b{min-width:30px;text-align:right;font-size:.82rem;color:#ffd77e}
 #v-juegos .pq-cmp span.w,#v-juegos .mt-side.win .mt-tag{background:#3ccf83;color:#06281a}
 #v-juegos .pq-cmp span:not(.w),#v-juegos .mt-tag{color:#e9f6ee}
+/* elegir lado EN la mesa (sin ventana que la tape) */
+#v-juegos .mesa.picking .snake .dmt:not(.pickend){opacity:.55}
+#v-juegos .dmt.pickend{cursor:pointer;z-index:3;box-shadow:0 0 0 3px #ffd77e,0 0 22px 6px rgba(255,215,126,.7)!important;animation:pickPulse 1s ease-in-out infinite}
+#v-juegos .hand .dmn.picked{transform:translateY(-14px)!important;box-shadow:0 0 0 3px #3ccf83,0 0 20px rgba(60,207,131,.6),0 12px 18px rgba(0,0,0,.5)!important}
+.pickbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;margin:0 0 8px;padding:6px 8px;border-radius:12px;background:#2c2410;border:1px solid #6a5628;font-size:.78rem;font-weight:700;color:#ffe2a3}
+.pickbar>div{display:flex;gap:6px}
+.pk-b{border:0;border-radius:999px;padding:6px 12px;font-weight:800;font-size:.8rem;color:#2a1a05;background:linear-gradient(180deg,#ffd77e,#e3ae4b)}
+.pk-x{border:0;width:30px;height:30px;border-radius:50%;background:#3a3122;color:#ffe2a3;font-weight:800}
+@keyframes pickPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}

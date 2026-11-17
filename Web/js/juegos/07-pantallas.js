@@ -98,11 +98,11 @@
     const R = g.result, why = { pase: '¡Pase! Llegó a la meta', domino: '¡Dominó!', capicua: '¡Capicúa! (+25)', tranque: '¡Tranque! Gana quien tiene menos puntos en fichas', 'tranque-empate': '¡Tranque con empate! Gana quien trancó', empate: 'Tranque empatado' };
     const winnerTxt = R ? (R.team < 0 ? why.empate : `${g.mode === 'parejas' ? 'Pareja ' + (R.team ? 'B' : 'A') : esc(seatName(g.players[R.team]))} gana ${R.pts} puntos · ${why[R.why]}`) : '';
     return `${sc}${seatsHTML(g)}
-      <div class="mesa ${g.handOver ? 'ended' : ''}" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth(), g.last?.root || 0))}${g.handOver ? handsOnTable(g) + plaqueHTML(g, R, winnerTxt, mySeat) : ''}</div>
+      <div class="mesa ${g.handOver ? 'ended' : ''} ${myTurn && G.pick ? 'picking' : ''}" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth(), g.last?.root || 0, myTurn && G.pick))}${g.handOver ? handsOnTable(g) + plaqueHTML(g, R, winnerTxt, mySeat) : ''}</div>
       <p class="glog ${B ? 'bonus' : ''}">${last}${bonusTxt}${g.status !== 'playing' || mySeat < 0 ? emoChip(g) : ''}</p>
       ${g.status === 'done' ? againHTML(g, '🔁 Otra partida') : ''}
       ${mySeat >= 0 && g.status === 'playing' && !g.handOver ? `<div class="myhand ${myTurn ? 'turn' : ''}"><div class="mh-h"><b>${myTurn ? '<span class="mh-go">👉</span> ¡Te toca!' : `<span class="mh-av">${esc(seatEmoji(g.players[g.turn]))}</span> Turno de ${esc(seatName(g.players[g.turn]).replace('🤖 ', ''))}`}</b>${myTurn && !can.length && !g.handOver && G.hand.length ? '<span class="autopass">🙅 No llevas · pasando…</span>' : ''}${emoChip(g)}</div>${myTurn && !g.handOver ? `<div class="tline">${clockBar()}</div>` : ''}
-        <div class="hand">${G.hand.map(t => tileHTML(t, `big ${myTurn && can.includes(t) ? 'ok' : 'no'}`, `data-tile="${esc(t)}"`)).join('')}</div></div>` : ''}`;
+        ${myTurn && G.pick ? (e2 => `<div class="pickbar"><span>👆 Toca en la mesa la punta donde la pones</span><div><button class="pk-b" data-side="l">⬅ al ${e2.l}</button><button class="pk-b" data-side="r">al ${e2.r} ➡</button><button class="pk-x" data-side="x" aria-label="Cancelar">✕</button></div></div>`)(ends(chain)) : ''}<div class="hand">${G.hand.map(t => tileHTML(t, `big ${myTurn && can.includes(t) ? 'ok' : 'no'} ${G.pick === t ? 'picked' : ''}`, `data-tile="${esc(t)}"`)).join('')}</div></div>` : ''}`;
   }
   // 🏁 El resultado va EN la mesa (como en la vida real: se viran las fichas y se cuenta ahí mismo), sin paneles aparte
   function plaqueHTML(g, R, winnerTxt, mySeat) {

@@ -137,6 +137,7 @@
   }
   function onGameChange(prev) {
     const g = G.cur;
+    if (G.pick && (!g || g.players?.[g.turn] !== me() || g.handOver || !G.hand.includes(G.pick))) G.pick = null; // ya no te toca: se cancela la elección de lado
     if (g && prev && !prev.loading && prev.players && !prev.players.includes(me()) && g.players?.includes(me())) { toast('🙋 ¡Te tocó! Entraste a la mesa'); try { navigator.vibrate?.([80, 40, 80]); SND.fx('pop'); } catch { } } armClock(); sounds(prev, g); autoPass(); showTiles();
     fx(prev); hostDuties();
     if (!g || g.type !== 'domino') { maybeBot(); return; }

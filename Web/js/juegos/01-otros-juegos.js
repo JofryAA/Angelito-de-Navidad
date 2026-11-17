@@ -100,10 +100,10 @@ const GINFO = {
 const PIPS = { 0: [], 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
 const half = v => `<span class="dh">${Array.from({ length: 9 }, (_, k) => `<i class="${PIPS[v].includes(k) ? 'on' : ''}"></i>`).join('')}</span>`;
 const halfS = v => `<span class="dmh">${Array.from({ length: 9 }, (_, k) => `<i class="${PIPS[v].includes(k) ? 'on' : ''}"></i>`).join('')}</span>`;
-function snakeHTML(chain, width, root) {
+function snakeHTML(chain, width, root, pick) { // pick: se está eligiendo el lado → las puntas de la mesa se pueden tocar
   if (!chain.length) return '<span class="mesa-empty">La mesa está vacía · sale la primera ficha</span>';
   const S = Math.max(26, Math.min(46, Math.floor(width / 13))), cols = Math.floor(width / S);
   const { tiles, rows } = snakeLayout(chain, cols, root), off = Math.max(0, (width - cols * S) / 2);
-  return `<div class="snake" style="height:${rows * S}px;--s:${S}px">${tiles.map(o => `<span class="dmt ${o.v ? 'v' : 'h'} ${o.k === 0 || o.k === chain.length - 1 ? 'end' : ''} ${o.k === LAST.k ? 'new' : ''} ${o.k === root ? 'root' : ''}" style="left:${off + o.x * S}px;top:${o.y * S}px;width:${o.w * S - 3}px;height:${o.h * S - 3}px">${halfS(o.a)}<b></b>${halfS(o.b)}</span>`).join('')}</div>`;
+  return `<div class="snake" style="height:${rows * S}px;--s:${S}px">${tiles.map(o => `<span ${pick && chain.length > 1 && (o.k === 0 || o.k === chain.length - 1) ? `data-side="${o.k === 0 ? 'l' : 'r'}"` : ''} class="dmt ${o.v ? 'v' : 'h'} ${o.k === 0 || o.k === chain.length - 1 ? 'end' : ''} ${pick && chain.length > 1 && (o.k === 0 || o.k === chain.length - 1) ? 'pickend' : ''} ${o.k === LAST.k ? 'new' : ''} ${o.k === root ? 'root' : ''}" style="left:${off + o.x * S}px;top:${o.y * S}px;width:${o.w * S - 3}px;height:${o.h * S - 3}px">${halfS(o.a)}<b></b>${halfS(o.b)}</span>`).join('')}</div>`;
 }
 const LAST = { k: -1 };

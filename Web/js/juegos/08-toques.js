@@ -53,6 +53,9 @@
     const hl = e.target.closest('[data-hl]'); if (hl && !hl.disabled) return hangLetter(hl.dataset.hl);
     const c = e.target.closest('[data-ttt]'); if (c && !c.disabled) { if (G.pend || G.busy || Date.now() - (G.tapAt || 0) < 350) return; G.tapAt = Date.now(); return playTTT(me(), +c.dataset.ttt); }
     const c4 = e.target.closest('[data-c4]'); if (c4 && !c4.disabled) { if (G.pend || G.busy || Date.now() - (G.tapAt || 0) < 350) return; G.tapAt = Date.now(); return playC4(me(), +c4.dataset.c4); }
+    const sd = e.target.closest('[data-side]');
+    if (sd && G.pick && G.cur?.type === 'domino') { const t = G.pick, side = sd.dataset.side; G.pick = null; if (side === 'x') return renderView(); return playDomino(me(), t, side); }
+    if (G.pick && !e.target.closest('[data-tile],.pickbar,.gfab,#gq-tray,#gchat-panel')) { G.pick = null; renderView(); }
     const tl = e.target.closest('[data-tile]');
     if (tl && G.cur.type === 'domino') {
       const g = G.cur, t = tl.dataset.tile, chain = g.chain || [];
@@ -60,11 +63,10 @@
       if (!playable(G.hand, chain, g.mustOpen).includes(t)) { tl.classList.remove('shake'); void tl.offsetWidth; tl.classList.add('shake'); return toast(g.mustOpen && !chain.length ? `Tienes que salir con el doble ${g.mustOpen[0]}` : 'Esa no cabe'); }
       const sides = sidesFor(t, chain);
       if (chain.length && sides.length === 2 && ends(chain).l !== ends(chain).r) {
-        const e2 = ends(chain);
-        const s2 = openModal(`<h3>¿Dónde la pones?</h3><div class="center" style="margin:12px 0">${tileHTML(t, 'big')}</div><div class="actions" style="justify-content:center"><button class="btn gold" data-a="l">⬅️ Al ${e2.l}</button><button class="btn gold" data-a="r">Al ${e2.r} ➡️</button></div>`);
-        s2.onclick = ev => { const b = ev.target.closest('[data-a]')?.dataset.a; if (!b) return; closeModal(); playDomino(me(), t, b); };
-        return;
+        // cabe por los dos lados: sin ventana encima; las dos puntas de la mesa se iluminan para tocarlas (o los botones del atril)
+        G.pick = G.pick === t ? null : t; renderView(); return;
       }
+      G.pick = null;
       return playDomino(me(), t, sides[0] || 'r');
     }
   });
