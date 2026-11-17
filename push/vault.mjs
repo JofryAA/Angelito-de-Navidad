@@ -20,8 +20,22 @@ import { FieldValue } from 'firebase-admin/firestore';
 const b64 = b => Buffer.from(b).toString('base64'), unb64 = s => Buffer.from(String(s || ''), 'base64');
 const INFO_BOX = 'angelito-caja-v1';
 
-export function makeVault(sa) {
-  const root = Buffer.from(hkdfSync('sha256', Buffer.from(sa.private_key), Buffer.from('angelito'), Buffer.from('caja-fuerte-v1'), 64));
+// 🔑 Llave de la caja: VAULT_KEY (secreto propio de GitHub, generado sin que nadie lo viera). Si no está, se usa la
+// derivada de la cuenta de servicio (versión 1). Con VAULT_KEY, la v1 solo sirve para abrir lo viejo durante la migración 3.
+export function makeVault(sa, vaultKey) {
+  if (vaultKey && String(vaultKey).trim().length >= 32) { // cualquier texto largo y al azar sirve
+    const v2 = core(Buffer.from(hkdfSync('sha256', Buffer.from(String(vaultKey).trim()), Buffer.from('angelito'), Buffer.from('caja-fuerte-v2'), 64)));
+    const v1 = core(Buffer.from(hkdfSync('sha256', Buffer.from(sa.private_key), Buffer.from('angelito'), Buffer.from('caja-fuerte-v1'), 64)));
+    const V = { ...v2, kv: 2, legacy: true,
+      seal: obj => ({ ...v2.seal(obj), kv: 2 }),
+      open: v => v?.kv === 2 ? v2.open(v) : V.legacy ? v1.open(v) : (() => { throw new Error('vault v1'); })(),
+      openFromApp: box => { try { return v2.openFromApp(box); } catch { return v1.openFromApp(box); } } }; // autor enviado desde una página abierta antes del cambio de llave
+    V.openFor = (g, v) => { const x = V.open(v); if (x.g !== undefined && x.g !== g) throw new Error('vault ajeno'); return x; };
+    return V;
+  }
+  return { ...core(Buffer.from(hkdfSync('sha256', Buffer.from(sa.private_key), Buffer.from('angelito'), Buffer.from('caja-fuerte-v1'), 64))), kv: 1 };
+}
+function core(root) {
   const K = root.subarray(0, 32);                                       // llave simétrica de la caja (solo servidor)
   const ecdh = createECDH('prime256v1'); ecdh.setPrivateKey(root.subarray(32, 64)); // llave del servidor
   const pub = ecdh.getPublicKey();                                      // 65 bytes; se publica en config/vault
@@ -79,10 +93,10 @@ export function drawPlan(ids, pairs) {
 }
 
 /* ---------------- tareas que corre push/send.mjs en cada vuelta ---------------- */
-export async function vaultTasks({ db, sa, now, log = console.log }) {
-  const V = makeVault(sa), did = [], alerts = []; let revealedNow = false;
+export async function vaultTasks({ db, sa, vaultKey, now, log = console.log }) {
+  const V = makeVault(sa, vaultKey), did = [], alerts = []; let revealedNow = false, migrated3 = false;
   const cfg = db.doc('config/vault'), cv = (await cfg.get()).data() || {};
-  if (cv.pub !== V.pubB64) { await cfg.set({ pub: V.pubB64, v: 1, at: now }, { merge: true }); did.push('llave'); }
+  if (cv.pub !== V.pubB64 && !(V.kv === 2 && (cv.mig || 0) < 3)) { await cfg.set({ pub: V.pubB64, v: 1, kv: V.kv, at: now }, { merge: true }); did.push('llave'); } // con llave nueva, la publica la migración 3
 
   // 1) Migración única: parejas en claro → cifradas (y se borra el texto en claro)
   if (!cv.migrated) {
@@ -92,6 +106,19 @@ export async function vaultTasks({ db, sa, now, log = console.log }) {
     for (const c of ['questionAuthors', 'suggestionAuthors']) for (const d of (await db.collection(c).get()).docs) { const u = d.data().uid; if (u) b.set(d.ref, { sealed: V.seal({ uid: u }), uid: FieldValue.delete() }, { merge: true }); }
     b.set(cfg, { migrated: now }, { merge: true }); await b.commit(); did.push(`migración (${n})`);
   }
+
+  // 1c) Migración 3 (una vez, al activar VAULT_KEY): todo lo cifrado con la llave vieja se vuelve a cifrar con la nueva.
+  //     Las cajitas de los teléfonos no cambian (van cifradas para cada teléfono, no con la llave del servidor).
+  if (V.kv === 2 && (cv.mig || 0) >= 2 && (cv.mig || 0) < 3) {
+    const ops = []; let n = 0;
+    for (const d of (await db.collection('assignments').get()).docs) { const v = d.data().vault; if (!v || v.kv === 2) continue; const x = V.open(v); ops.push(b => b.set(d.ref, { vault: V.seal(x) }, { merge: true })); n++; }
+    for (const c of ['questionAuthors', 'suggestionAuthors']) for (const d of (await db.collection(c).get()).docs) { const x = d.data(); try {
+      if (x.box && !x.box.kv) { ops.push(b => b.set(d.ref, { box: { ...V.boxFor(V.pubB64, V.openFromApp(x.box)), kv: 2 } }, { merge: true })); n++; }
+      else if (x.sealed && x.sealed.kv !== 2) { ops.push(b => b.set(d.ref, { sealed: V.seal(V.open(x.sealed)) }, { merge: true })); n++; } } catch { } }
+    for (let i = 0; i < ops.length; i += 400) { const b = db.batch(); ops.slice(i, i + 400).forEach(f => f(b)); await b.commit(); }
+    await cfg.set({ mig: 3, pub: V.pubB64, kv: 2, at: now }, { merge: true }); cv.mig = 3; did.push(`migración 3 (${n})`); migrated3 = true;
+  }
+  if (V.kv === 2 && (cv.mig || 0) >= 3) V.legacy = false; // las parejas ya no se abren con la llave vieja
 
   // 1b) Migración 2: atar cada pareja a quien regala, y borrar lo que delataba parejas (wishPick, hintsSent, conteo de restricciones)
   if ((cv.mig || 0) < 2) {
@@ -171,7 +198,7 @@ export async function vaultTasks({ db, sa, now, log = console.log }) {
   if (!draw?.ids?.length && !cv.akClean) { await wipe(db, PAIR_COLS); await db.doc('config/vault').set({ akClean: now }, { merge: true }); }
   if (draw?.ids?.length && cv.akClean) await cfg.set({ akClean: FieldValue.delete() }, { merge: true });
   if (did.length) log('Caja fuerte: ' + did.join(', ') + '.');
-  return { V, alerts, revealedNow };
+  return { V, alerts, revealedNow, migrated3 };
 }
 
 const PAIR_COLS = ['angelKey', 'giftIncoming', 'hints', 'thanksFor', 'revealLog'];

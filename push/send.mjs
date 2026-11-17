@@ -20,8 +20,8 @@ const now = Date.now();
 const stateRef = db.doc('push/state');
 const st = (await stateRef.get()).data() || {};
 // 🔐 Caja fuerte (parejas y autores cifrados): ver push/vault.mjs y SEGURIDAD.md
-let V = makeVault(SA), VT = {};
-try { VT = await vaultTasks({ db, sa: SA, now: Date.now() }); V = VT.V || V; } catch (e) { console.log('Caja fuerte: falló (' + String(e?.message || e).slice(0, 80) + ').'); }
+let V = makeVault(SA, process.env.VAULT_KEY), VT = {};
+try { VT = await vaultTasks({ db, sa: SA, vaultKey: process.env.VAULT_KEY, now: Date.now() }); V = VT.V || V; } catch (e) { console.log('Caja fuerte: falló (' + String(e?.message || e).slice(0, 80) + ').'); }
 // la primera vez solo mira los últimos 10 minutos; nunca más de 1 hora atrás (si GitHub se atrasó)
 const since = Math.max(st.last || now - 10 * 60e3, now - 60 * 60e3);
 const ms = t => !t ? 0 : typeof t === 'number' ? t : t.toMillis ? t.toMillis() : 0;
@@ -65,8 +65,10 @@ if (process.env.RESTAURAR) {
 }
 // 🔐 Una sola vez tras activar la caja fuerte: se borran las copias de seguridad viejas (tenían las parejas sin cifrar)
 if (!st.bkPurged) { try { const cv = (await db.doc('config/vault').get()).data(); if (cv?.migrated) { await getDatabase().ref('backups').remove(); await stateRef.set({ bkPurged: Date.now(), bkDay: '' }, { merge: true }); console.log('Copias viejas (sin cifrar) borradas.'); } } catch (e) { console.log('No se pudieron borrar las copias viejas.'); } }
+// 🔐 Tras pasar a VAULT_KEY: las copias viejas tenían las parejas cifradas con la llave anterior → se borran y se hace una nueva
+if (VT.migrated3) { try { await getDatabase().ref('backups').remove(); await stateRef.set({ bkDay: '' }, { merge: true }); st.bkDay = ''; console.log('Copias con la llave anterior borradas.'); } catch { console.log('No se pudieron borrar las copias anteriores.'); } }
 // 🗄️ Copia de seguridad de cada noche
-try { await nightlyBackup({ db, rdb: getDatabase(), sa: SA, st, stateRef, now, force: process.env.COPIA === '1' }); } catch (e) { console.log('Copia de seguridad: falló (' + String(e?.message || e).slice(0, 80) + ').'); }
+try { await nightlyBackup({ db, rdb: getDatabase(), sa: SA, st, stateRef, now, force: process.env.COPIA === '1' || !!VT.migrated3 }); } catch (e) { console.log('Copia de seguridad: falló (' + String(e?.message || e).slice(0, 80) + ').'); }
 // 🐞 Errores de la app: cada hora se resume en el registro (solo el mensaje técnico) y se borran los de más de 7 días
 if (!st.errAt || now - st.errAt > 3600e3 || process.env.ERRORES === '1') {
   try {

@@ -16,8 +16,12 @@ dueño del proyecto de Firebase, pueda ver esa información en la base de datos 
 | Las parejas en claro | `reveal/main`, solo **después** de que el organizador pide la revelación | Todos, en la fiesta |
 
 ### Las llaves
-- **Llave del servidor**: se deriva (HKDF-SHA256) de la cuenta de servicio de Firebase, que existe **solo** como secreto
-  cifrado de GitHub (`FIREBASE_ADMIN_KEY`). No está en la base de datos ni en el código.
+- **Llave del servidor**: se deriva (HKDF-SHA256, info `caja-fuerte-v2`) del secreto de GitHub `VAULT_KEY`, que no tiene
+  nada que ver con Firebase: tener la cuenta de servicio o ser dueño del proyecto de Firebase **no** basta para abrir la caja.
+  Un secreto de GitHub no se puede volver a leer una vez guardado (ni por el dueño del repositorio); solo lo recibe la
+  tarea del servidor. Al activarla, la «migración 3» volvió a cifrar todo con ella y borró las copias de seguridad
+  anteriores. (Antes de `VAULT_KEY`, la llave salía de la cuenta de servicio: versión 1.)
+  ⚠️ Si `VAULT_KEY` se borra o se cambia, las parejas cifradas no se pueden recuperar.
   De ella salen una llave simétrica (para `vault`) y un par ECDH P-256 cuya parte pública se publica en `config/vault`.
 - **Llave de cada teléfono**: la crea el navegador con WebCrypto (ECDH P-256, `extractable: false`) y se guarda en IndexedDB.
   La parte privada no se puede exportar, ni siquiera desde la propia app. Solo la pública sube a `devkeys/`.
@@ -52,11 +56,11 @@ Ningún sistema puede impedir esto del todo a quien controla el código; por eso
 1. **Cambiar el código del servidor** para que imprima las parejas. → Queda en el historial de Git (fecha, autor, cambio)
    y en los registros de GitHub Actions. Revisa los cambios a `push/vault.mjs`, `push/send.mjs` y `.github/workflows/`.
 2. **Cambiar la app** para mandar tu persona a otro lado cuando giras. → Queda en el historial de `Web/js/`.
-3. **Usar la cuenta de servicio** fuera de GitHub. ⚠️ Es el riesgo principal: quien tenga el JSON de la cuenta de servicio
+3. **Usar la cuenta de servicio** fuera de GitHub. Antes de `VAULT_KEY` era el riesgo principal: quien tenga el JSON de la cuenta de servicio
    puede derivar la llave del servidor y descifrar todo. Hoy solo está en los secretos de GitHub, pero el dueño del proyecto
    de Firebase puede crear otra llave en la consola de Google. → Se puede rotar, y Google registra la creación de llaves
-   y su uso (Cloud Audit Logs). Mejora prevista: una llave propia de la caja fuerte (`VAULT_KEY`) generada dentro de GitHub
-   sin que nadie la vea.
+   y su uso (Cloud Audit Logs). Con `VAULT_KEY` activa, esa cuenta ya no abre las parejas: haría falta además cambiar el
+   código del servidor para que imprima la llave, y eso queda en el historial de Git.
 4. **Desplegar fuera de Git** (`firebase deploy` desde su computadora) una app o reglas distintas. → Firebase Hosting
    guarda el historial de versiones con fecha; compara con los despliegues de GitHub Actions.
 5. **Adelantar la revelación** cambiando la fecha del evento. → Queda en `revealLog` y todos reciben el aviso.

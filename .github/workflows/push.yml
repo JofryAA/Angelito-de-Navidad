@@ -48,6 +48,7 @@ jobs:
         working-directory: push
         env:
           FIREBASE_ADMIN_KEY: ${{ secrets.FIREBASE_ADMIN_KEY }}
+          VAULT_KEY: ${{ secrets.VAULT_KEY }}
           PRUEBA: ${{ inputs.prueba && '1' || '' }}
           AJUSTE: ${{ inputs.ajuste && '1' || '' }}
           COPIA: ${{ inputs.copia && '1' || '' }}
