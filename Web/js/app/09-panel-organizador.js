@@ -437,7 +437,7 @@ function fixBanner() {
 }
 function fixTerms(f) {
   return new Promise(res => {
-    const items = ['Entiendo que el sorteo tuvo un ajuste y que todos vuelven a girar', 'No voy a comentar ni comparar mi resultado con nadie', 'Mi persona definitiva es la que salga ahora'];
+    const items = ['Entiendo que el sorteo tuvo un ajuste y que todos vuelven a girar', 'No voy a comentar ni comparar mi resultado con nadie', 'Estoy en un lugar seguro y nadie está mirando mi pantalla'];
     const s = openModal(`<div class="pg"><div class="pg-ic">🔀</div><h3>Ajuste del sorteo</h3>
       <p class="muted small">Para que todo quedara justo se hizo un switch. No se dice a quiénes ni cuántos: así nadie tiene pistas y la sorpresa se mantiene. Acepta para girar:</p>
       <div class="pg-list">${items.map((t, i) => `<button type="button" class="pg-it" style="--d:${i * 80}ms"><span class="pg-ck">${ic('check', 16)}</span><span>${t}</span></button>`).join('')}</div>

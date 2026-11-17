@@ -83,10 +83,12 @@ $('#spinBtn').addEventListener('click', async () => {
   if (S.spinning || !S.me || !S.assignment) return;
   const a = S.assignment, rid = a.recipient;
   if (fixOf()?.status === 'running') return toast('🔀 El ajuste se está aplicando. Espera un momento…');
-  const fd = fixDone(); if (fd && !a.revealed && !fixAccepted(fd) && !(await fixTerms(fd))) return;
+  // Tras un ajuste, los términos y la privacidad van en UNA sola ventana (no dos listas seguidas)
+  const fd = fixDone(), terms = fd && !a.revealed && !fixAccepted(fd); if (terms && !(await fixTerms(fd))) return;
   // Siempre (al girar y cada vez que quiera volver a verlo): confirmar privacidad + PIN
-  if (!(await privacyGate(a.revealed))) return;
+  if (!terms && !(await privacyGate(a.revealed))) return;
   if (!(await askPin(`Hola, ${S.me.first} 👋`, a.revealed ? 'Confirma tu PIN para ver de nuevo a quién te tocó.' : 'Confirma tu PIN para girar la ruleta.'))) return;
+  openSecret(); // ya puso su PIN: en Inicio y Deseos se ve su persona 2 minutos sin pedirlo otra vez
   if (!a.revealed) {
     try { await setDoc(doc(db, 'assignments', S.uid), { revealed: true, revealedAt: serverTimestamp(), spunEver: true }, { merge: true }); /* spunEver: ningún ajuste lo borra */ }
     catch (e) { toast(authErr(e)); return; }
