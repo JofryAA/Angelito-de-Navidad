@@ -47,12 +47,13 @@ service cloud.firestore {
     function tsOk(d) { return !('at' in d) || d.at is timestamp; }
     function okId(id) { return id.matches('^[A-Za-z0-9_-]{1,80}$'); }
     function str(v, max) { return v is string && v.size() <= max; }
+    function revealedPairs() { return exists(/databases/$(database)/documents/reveal/main) && get(/databases/$(database)/documents/reveal/main).data.keys().hasAny(['pairs']); }
     function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
 
     // El organizador principal puede leer y corregir cualquier dato (por ejemplo, al restablecer un PIN).
     // El organizador principal puede todo, MENOS leer quién escribió cada anónimo (eso tiene su propia regla abajo).
     match /{col}/{rest=**} {
-      allow read, write: if isOwner() && !(col in ['questionAuthors', 'suggestionAuthors', 'angelKey', 'thanksFor', 'vaultOps', 'devkeys', 'assignments', 'giftIncoming', 'hints', 'revealLog']);
+      allow read, write: if isOwner() && !(col in ['questionAuthors', 'suggestionAuthors', 'angelKey', 'thanksFor', 'vaultOps', 'devkeys', 'assignments', 'giftIncoming', 'hints', 'revealLog', 'vaultLog', 'config', 'reveal']);
       // 🔐 assignments, giftIncoming y pistas tienen su propia regla: el organizador no puede escribir parejas ni leer lo que recibe cada quien
     }
 
@@ -68,7 +69,9 @@ service cloud.firestore {
     // los anónimos ni las adivinanzas antes de tiempo.
     match /config/{id} {
       allow read: if true;
-      allow write: if isOwner();
+      // 🔐 vault (llave pública), draw (sorteo) y revealGate los escribe solo el servidor; el organizador solo puede borrar el sorteo
+      allow write: if isOwner() && !(id in ['vault', 'draw', 'revealGate']);
+      allow delete: if isOwner() && id == 'draw';
       // Forma válida del evento (para que nadie, ni por error, guarde algo que rompa la app de todos).
       function eventOk(d) {
         // sin lista cerrada de campos (el evento real puede traer campos de versiones anteriores), pero con tamaños y tipos
@@ -474,7 +477,7 @@ service cloud.firestore {
         && str(request.resource.data.text, 200) && request.resource.data.text.size() > 0 && request.resource.data.ts is int
         && request.resource.data.to is string && request.resource.data.k is string && request.resource.data.k.size() < 80
         && hashing.sha256(request.resource.data.k) == get(/databases/$(database)/documents/angelKey/$(request.resource.data.to)).data.h
-        && !exists(/databases/$(database)/documents/reveal/main) && ev('angelLocked', false) == false;
+        && !revealedPairs() && ev('angelLocked', false) == false;
     }
     // Copia privada de las pistas que yo mandé.
     match /hintsSent/{uid} {
@@ -507,16 +510,21 @@ service cloud.firestore {
     // ---------- ¿quién es mi angelito? ----------
     // Secreto hasta la gran revelación; después ya no se puede cambiar.
     match /angelGuess/{uid} {
-      allow read: if (signedIn() && me() == uid) || (member() && exists(/databases/$(database)/documents/reveal/main));
+      allow read: if (signedIn() && me() == uid) || (member() && revealedPairs());
       allow create, update: if isParticipant() && me() == uid
         && request.resource.data.keys().hasOnly(['guess', 'at']) && tsOk(request.resource.data) && str(request.resource.data.guess, 128)
         && request.resource.data.guess != me()
-        && !exists(/databases/$(database)/documents/reveal/main) && ev('angelLocked', false) == false;
+        && !revealedPairs() && ev('angelLocked', false) == false;
     }
     // Gran revelación (la escribe el organizador principal en la fiesta).
     match /reveal/{id} {
       allow read: if member();
+      // el organizador solo PIDE la revelación; las parejas las escribe la caja fuerte. Puede ocultarla (borrar).
+      allow create, update: if isOwner() && id == 'main' && request.resource.data.keys().hasOnly(['want', 'at']) && request.resource.data.want == true;
+      allow delete: if isOwner();
     }
+    // 🔐 registro público de la caja fuerte (sorteos, ajustes, cambios de PIN, revelaciones): lo escribe solo el servidor
+    match /vaultLog/{id} { allow read: if member(); allow write: if false; }
 
     // ---------- chat ----------
     // 🟢 quién está en línea (la app avisa «sigo aquí» cada minuto mientras está abierta)

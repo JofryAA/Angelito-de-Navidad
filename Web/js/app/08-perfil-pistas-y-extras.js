@@ -297,7 +297,7 @@ $('#s-formbox').addEventListener('submit', async e => {
     const b = writeBatch(db), ref = doc(collection(db, 'suggestions')); S.myCreated.add(ref.id);
     const ts = Math.floor(Date.now() / 3600e3) * 3600e3; // hora redondeada: no delata quién la escribió
     b.set(ref, signed ? { text, signed: true, uid: S.uid, status: 'nueva', ts } : { text, signed: false, status: 'nueva', ts });
-    b.set(doc(db, 'suggestionAuthors', ref.id), { box: await CF.sealForServer({ uid: S.uid, col: 'suggestionAuthors', id: ref.id }) }); // 🔐 cifrado: ni el organizador lo puede leer
+    b.set(doc(db, 'suggestionAuthors', ref.id), { box: await CF.sealForServer({ uid: S.uid, col: 'suggestionAuthors', id: ref.id, tok: await auth.currentUser.getIdToken() }) }); // 🔐 cifrado: ni el organizador lo puede leer
     await b.commit(); $('#s-text').value = ''; toast('¡Gracias por tu sugerencia! 💡');
   } catch (err) { toast(authErr(err)); }
   busy(btn, false, label);

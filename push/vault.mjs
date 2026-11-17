@@ -63,7 +63,17 @@ function core(root) {
 export const sha256 = s => createHash('sha256').update(String(s)).digest();
 export const newToken = () => randomBytes(24).toString('base64url');
 export const MIN_OPC = n => Math.max(2, Math.ceil((n - 1) / 3)); // cada quien debe poder recibir al menos 1/3 del grupo: así nadie puede «forzar» el sorteo con restricciones
-export function optsOK(ids, pairs) { const bad = new Set(); for (const r of pairs || []) { bad.add(r.a + '>' + r.b); if (r.both) bad.add(r.b + '>' + r.a); } const m = MIN_OPC(ids.length); return ids.every(x => ids.filter(y => y !== x && !bad.has(x + '>' + y)).length >= m); }
+export function optsOK(ids, pairs) { const bad = new Set(); for (const r of pairs || []) { bad.add(r.a + '>' + r.b); if (r.both) bad.add(r.b + '>' + r.a); } const m = MIN_OPC(ids.length); return ids.every(x => ids.filter(y => y !== x && !bad.has(x + '>' + y)).length >= m && ids.filter(y => y !== x && !bad.has(y + '>' + x)).length >= m); } // a quién puede regalar Y de quién puede recibir: así nadie queda con un solo angelito posible
+// Ajuste (switch): quienes ya giraron conservan su persona (keep) y el resto se sortea DE NUEVO al azar entre lo que queda.
+// El resultado no depende de las parejas viejas de quienes no han girado (no sirve para averiguarlas).
+export function fixPlan(ids, pairs, keep) {
+  const bad = new Set(); for (const r of pairs || []) { bad.add(r.a + '>' + r.b); if (r.both) bad.add(r.b + '>' + r.a); }
+  const ok = (x, y) => x !== y && !bad.has(x + '>' + y), taken = new Set(Object.values(keep));
+  const G = ids.filter(g => !(g in keep)), R = ids.filter(r => !taken.has(r)), match = {};
+  const aug = (x, seen) => { for (const y of shuffle(R.filter(y => ok(x, y)))) { if (seen.has(y)) continue; seen.add(y); if (!match[y] || aug(match[y], seen)) { match[y] = x; return true; } } return false; };
+  for (const x of shuffle([...G])) if (!aug(x, new Set())) return null;
+  return { ...keep, ...Object.fromEntries(Object.entries(match).map(([y, x]) => [x, y])) };
+}
 
 /* ---------------- sorteo (misma lógica que la app: una sola cadena si se puede; si no, emparejamiento exacto) ---------------- */
 const rnd = n => { const a = new Uint32Array(1); globalThis.crypto.getRandomValues(a); return a[0] % n; };
@@ -93,8 +103,10 @@ export function drawPlan(ids, pairs) {
 }
 
 /* ---------------- tareas que corre push/send.mjs en cada vuelta ---------------- */
-export async function vaultTasks({ db, sa, vaultKey, now, log = console.log }) {
-  const V = makeVault(sa, vaultKey), did = [], alerts = []; let revealedNow = false, migrated3 = false;
+export async function vaultTasks({ db, sa, vaultKey, auth, now, log = console.log }) {
+  const V = makeVault(sa, vaultKey), did = [], alerts = [], remaps = []; let revealedNow = false, migrated3 = false;
+  // 🔐 registro público (todos lo ven en la app; solo el servidor escribe): sorteos, cambios de PIN, revelaciones, teléfonos nuevos
+  const vlog = (t, extra = {}) => db.collection('vaultLog').add({ t, at: FieldValue.serverTimestamp(), ...extra });
   const cfg = db.doc('config/vault'), cv = (await cfg.get()).data() || {};
   if (cv.pub !== V.pubB64 && !(V.kv === 2 && (cv.mig || 0) < 3)) { await cfg.set({ pub: V.pubB64, v: 1, kv: V.kv, at: now }, { merge: true }); did.push('llave'); } // con llave nueva, la publica la migración 3
 
@@ -131,12 +143,12 @@ export async function vaultTasks({ db, sa, vaultKey, now, log = console.log }) {
   // 2) Pedidos del organizador: sortear / cambiar el uid de alguien (al restablecer su PIN)
   for (const op of (await db.collection('vaultOps').get()).docs) {
     const o = op.data(); try {
-      if (o.op === 'draw') await doDraw(db, V, o.ids || []);
+      if (o.op === 'draw') { await doDraw(db, V, o.ids || []); await vlog('draw'); }
       if (o.op === 'remap' && o.from && o.to) {
         // el cambio de ficha del cliente llega al final: si todavía no llegó, se espera (hasta 15 min)
         const young = now - (o.at?.toMillis?.() ?? now) < 15 * 60e3;
         if (young && (await db.doc('participants/' + o.from).get()).exists) continue;
-        await doRemap(db, V, o.from, o.to);
+        await doRemap(db, V, o.from, o.to); remaps.push(o.to); await vlog('remap');
       }
       did.push(o.op);
     } catch (e) { await db.doc('adminState/draw').set({ err: String(e.message || e).slice(0, 120), at: now }, { merge: true }); log('Caja fuerte: un pedido no se pudo hacer.'); }
@@ -153,9 +165,9 @@ export async function vaultTasks({ db, sa, vaultKey, now, log = console.log }) {
       for (const dk of devs) {
         if (!draw.ids.includes(dk.uid) || !/^[a-z0-9]{6,16}$/.test(dk.dev)) continue;
         const a = (await db.doc('assignments/' + dk.uid).get()).data(); if (!a?.vault || a.boxes?.[dk.dev]?.for === dk.pub.slice(0, 16)) continue;
-        const others = Object.keys(a.boxes || {}).filter(x => x !== dk.dev);
+        const others = Object.keys(a.boxes || {}).filter(x => x !== dk.dev), replaced = !!a.boxes?.[dk.dev]; // mismo teléfono con OTRA llave también se avisa
         if (others.length >= 4) continue; // máximo 4 teléfonos por persona
-        try { await db.doc('assignments/' + dk.uid).set({ boxes: { [dk.dev]: { ...V.boxFor(dk.pub, V.openFor(dk.uid, a.vault)), for: dk.pub.slice(0, 16) } } }, { merge: true }); n++; if (others.length) alerts.push(dk.uid); } catch { }
+        try { await db.doc('assignments/' + dk.uid).set({ boxes: { [dk.dev]: { ...V.boxFor(dk.pub, V.openFor(dk.uid, a.vault)), for: dk.pub.slice(0, 16) } } }, { merge: true }); n++; if (others.length || replaced) { alerts.push(dk.uid); await vlog('device'); } } catch { }
       }
       if (n) did.push(`cajitas (${n})`);
     }
@@ -169,6 +181,24 @@ export async function vaultTasks({ db, sa, vaultKey, now, log = console.log }) {
   }
   await cfg.set({ thxAt: now }, { merge: true });
 
+  // 5b) Autores de anónimos: el teléfono manda, cifrado, quién es + su credencial de Firebase (vale 1 hora).
+  //     Aquí se comprueba que la credencial sea de esa persona y se guarda sellado con la llave de la caja.
+  //     Así nadie puede escribir un anónimo «a nombre de» otra persona. (Los de antes de esto quedan como estaban: migración 4.)
+  if ((cv.mig || 0) >= 3 && (cv.mig || 0) < 4) {
+    const b = db.batch(); let n = 0;
+    for (const c of ['questionAuthors', 'suggestionAuthors']) for (const d of (await db.collection(c).get()).docs) { const x = d.data(); if (x.uid) continue; try {
+      const o = x.box ? V.openFromApp(x.box) : V.open(x.sealed);
+      b.set(d.ref, { sealed: V.seal({ uid: o.uid, col: o.col ?? c, id: o.id ?? d.id, ok: true, legacy: true }), box: FieldValue.delete() }, { merge: true }); n++; } catch { } }
+    b.set(cfg, { mig: 4 }, { merge: true }); await b.commit(); cv.mig = 4; did.push(`migración 4 (${n})`);
+  }
+  if ((cv.mig || 0) >= 4) for (const c of ['questionAuthors', 'suggestionAuthors']) for (const d of (await db.collection(c).where('box', '!=', null).get()).docs) { // solo los nuevos (casi nunca hay)
+    const x = d.data(); if (!x.box || x.uid) continue; let rec = { uid: null, ok: false };
+    try { const o = V.openFromApp(x.box);
+      if (o.col === c && o.id === d.id && o.tok && auth) { const t = await auth.verifyIdToken(o.tok); if (t.uid === o.uid) rec = { uid: o.uid, col: c, id: d.id, ok: true }; } } catch { }
+    await d.ref.set({ sealed: V.seal(rec), box: FieldValue.delete() }, { merge: true });
+  }
+  if (cv.pubLogged !== V.pubB64 && (cv.mig || 0) >= 3) { log('Caja fuerte: llave pública ' + V.pubB64); await cfg.set({ pubLogged: V.pubB64 }, { merge: true }); } // es pública: para fijarla en el código de la app
+
   // 6) Revelación: el organizador la pide (reveal/main con want) → aquí se abren las parejas y los autores de anónimos
   const rv = db.doc('reveal/main'), rd = (await rv.get()).data();
   const ev = (await db.doc('config/event').get()).data() || {};
@@ -176,11 +206,11 @@ export async function vaultTasks({ db, sa, vaultKey, now, log = console.log }) {
   if (rd && !rd.pairs && rd.want) {
     // solo el día del angelito (desde 3 h antes de la hora del evento) o pasada la fecha de revelación; queda anotado para siempre y se avisa a todos
     const okTime = (msOf(ev.eventAt) && now >= msOf(ev.eventAt) - 3 * 3600e3) || (msOf(ev.revealAt) && now >= msOf(ev.revealAt));
-    if (!okTime) { await rv.delete(); await db.doc('config/revealGate').set({ denied: now }, { merge: true }); did.push('revelación rechazada (todavía no es el día)'); }
+    if (!okTime) { await rv.delete(); await db.doc('config/revealGate').set({ denied: now }, { merge: true }); await vlog('revealDenied'); did.push('revelación rechazada (todavía no es el día)'); }
     else {
       const pairs = []; for (const d of (await db.collection('assignments').get()).docs) { const v = d.data().vault; if (v) try { pairs.push({ g: d.id, r: V.openFor(d.id, v).r }); } catch { } }
       await rv.set({ pairs, at: FieldValue.serverTimestamp(), want: FieldValue.delete() }, { merge: true });
-      await db.collection('revealLog').add({ at: FieldValue.serverTimestamp(), n: pairs.length });
+      await db.collection('revealLog').add({ at: FieldValue.serverTimestamp(), n: pairs.length }); await vlog('reveal');
       revealedNow = true; did.push('revelación');
     }
   }
@@ -189,7 +219,7 @@ export async function vaultTasks({ db, sa, vaultKey, now, log = console.log }) {
     await cfg.set({ authAt: now }, { merge: true });
     const b = db.batch(); let n = 0;
     for (const d of (await db.collection('questionAuthors').get()).docs) { const x = d.data(); if (x.uid) continue; try {
-      let u = null; if (x.box) { const o = V.openFromApp(x.box); if (o.col === 'questionAuthors' && o.id === d.id) u = o.uid; } else if (x.sealed) u = V.open(x.sealed).uid; // el autor va atado a ESTE mensaje
+      let u = null; if (x.sealed) { const o = V.open(x.sealed); if (o.ok && (o.col === undefined || (o.col === 'questionAuthors' && o.id === d.id))) u = o.uid; } // solo autores comprobados y atados a ESTE mensaje
       if (u) { b.set(d.ref, { uid: u }, { merge: true }); n++; } } catch { } }
     if (n) { await b.commit(); did.push(`autores (${n})`); }
   }
@@ -198,7 +228,7 @@ export async function vaultTasks({ db, sa, vaultKey, now, log = console.log }) {
   if (!draw?.ids?.length && !cv.akClean) { await wipe(db, PAIR_COLS); await db.doc('config/vault').set({ akClean: now }, { merge: true }); }
   if (draw?.ids?.length && cv.akClean) await cfg.set({ akClean: FieldValue.delete() }, { merge: true });
   if (did.length) log('Caja fuerte: ' + did.join(', ') + '.');
-  return { V, alerts, revealedNow, migrated3 };
+  return { V, alerts, remaps, revealedNow, migrated3 };
 }
 
 const PAIR_COLS = ['angelKey', 'giftIncoming', 'hints', 'thanksFor', 'revealLog'];
@@ -237,6 +267,7 @@ async function doRemap(db, V, from, to) {
   const gi = await db.doc('giftIncoming/' + from).get(); if (gi.exists) { b.set(db.doc('giftIncoming/' + to), gi.data()); b.delete(gi.ref); }
   for (const h of (await db.collection('hints').where('to', '==', from).get()).docs) b.update(h.ref, { to });
   if (ids.includes(from)) b.set(db.doc('config/draw'), { ids: ids.map(x => x === from ? to : x) }, { merge: true });
+  const rvd = (await db.doc('reveal/main').get()).data(); if (rvd?.pairs) b.set(db.doc('reveal/main'), { pairs: rvd.pairs.map(x => ({ g: x.g === from ? to : x.g, r: x.r === from ? to : x.r })) }, { merge: true });
   b.set(db.doc('config/vault'), { boxAt: 0 }, { merge: true });
   await b.commit();
 }

@@ -195,6 +195,7 @@ async function resetPin(pid, tempPin) {
     if (snap && snap.exists()) { const data = snap.data(); if ('uid' in data) data.uid = nid; put(R(c, nid), data); del(R(c, pid)); }
   }
   // 🔐 a quién le toca está cifrado: la caja fuerte cambia pid → nid adentro de las parejas
+  // (config/draw y la revelación también los actualiza el servidor)
   put(doc(collection(adb, 'vaultOps')), { op: 'remap', from: pid, to: nid, at: serverTimestamp() });
   (await q('questions', 'to', pid)).forEach(d => put(d.ref, { ...d.data(), to: nid }));
   for (const c of ['wishes', 'wishImg', 'chatImg', 'activitySignups', 'suggestions', 'suggestionAuthors'] /* los autores de anónimos están sellados: no se tocan */)
@@ -215,10 +216,8 @@ async function resetPin(pid, tempPin) {
     if (m.replyTo?.uid === pid) { o.replyTo = { ...m.replyTo, uid: nid }; ch = true; }
     if (m.r && pid in m.r) { o.r = { ...m.r, [nid]: m.r[pid] }; delete o.r[pid]; ch = true; }
     if (ch) put(d.ref, o); });
-  if (S.reveal?.pairs?.some(x => x.g === pid || x.r === pid)) put(R('reveal', 'main'), { ...S.reveal, pairs: S.reveal.pairs.map(x => ({ g: x.g === pid ? nid : x.g, r: x.r === pid ? nid : x.r })) });
   if (S.event.guessWinner === pid) put(R('config', 'event'), { guessWinner: nid });
   (await q('angelGuess', 'guess', pid)).forEach(d => { if (d.id !== pid) put(d.ref, { ...d.data(), guess: nid }); });
-  if (S.drawMeta?.ids?.includes(pid)) fin.set(R('config', 'draw'), { ...S.drawMeta, ids: S.drawMeta.ids.map(x => x === pid ? nid : x) });
   S.activities.filter(a => Array.isArray(a.results) && a.results.some(r => r.key === pid))
     .forEach(a => put(R('activities', a.id), { results: a.results.map(r => r.key === pid ? { ...r, key: nid } : r) }));
   // permisos de administrador, puntos de los juegos y mesas en las que está sentada
@@ -305,7 +304,7 @@ async function fullLogout() {
   toast('Cerrando sesión…');
   try { await signOut(auth); } catch { }
   window.__dead = true; try { await terminate(db); await clearIndexedDbPersistence(db); } catch (e) { console.warn(e); }  // borra la copia local de esta persona
-  for (const k of Object.keys(localStorage)) if (/^angelito:(remind|ms|chatSeen|sugSeen|lg|tour\d?):/.test(k)) try { localStorage.removeItem(k); } catch { } // en un teléfono prestado no queda nada tuyo
+  for (const k of Object.keys(localStorage)) if (/^angelito:(remind|ms|chatSeen|sugSeen|lg|tour\d?|wishPick|hintsSent):/.test(k)) try { localStorage.removeItem(k); } catch { } // en un teléfono prestado no queda nada tuyo
   try { sessionStorage.clear(); } catch { }
   location.reload();
 }
@@ -349,6 +348,20 @@ function askPin(title, body) {
     s.onclick = e => { const a = e.target.closest('[data-a]')?.dataset.a; if (a === 'no') { closeModal(); res(false); } if (a === 'ok') ok(); };
   });
 }
+// 🔐 Caja fuerte: qué teléfonos pueden abrir tu persona y el registro público (lo escribe solo el servidor; nadie lo puede borrar desde la app)
+async function openVaultInfo() {
+  const T = { draw: '🎲 Sorteo hecho', fix: '🔀 Ajuste del sorteo (switch)', remap: '🔑 Se restableció el PIN de una persona', reveal: '🎁 Revelación abierta', revealDenied: '⛔ Revelación pedida antes de tiempo (rechazada)', device: '📱 Una persona agregó otro teléfono' };
+  let log = []; try { log = (await getDocs(query(collection(db, 'vaultLog'), orderBy('at', 'desc'), limit(15)))).docs.map(d => d.data()); } catch { }
+  const mine = S.myBoxes || [], others = mine.filter(x => x !== DEV), when = x => x?.toDate ? x.toDate().toLocaleString('es-DO', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+  const okHere = !S.myBoxFor || S.myBoxFor === (await CF.pubB64().catch(() => '')).slice(0, 16);
+  openModal(`<h3>🔐 Caja fuerte</h3>
+    <p class="muted small">Tu persona secreta va cifrada. Solo se abre en los teléfonos de esta lista; ni el organizador la puede ver.</p>
+    <div class="card" style="margin:10px 0"><b>📱 Teléfonos que pueden abrir tu persona: ${mine.length || 0}</b>
+      <div class="muted small" style="margin-top:4px">${mine.includes(DEV) ? (okHere ? '✅ Este teléfono' : '⚠️ La cajita de este teléfono no es para su llave: avisa al organizador') : 'Este teléfono todavía no tiene su cajita'}${others.length ? ` · ${others.length} otro${others.length > 1 ? 's' : ''}. Si no reconoces ${others.length > 1 ? 'esos teléfonos' : 'ese teléfono'}, avisa al organizador.` : ''}</div></div>
+    <b>Registro</b><div class="muted small" style="margin:4px 0 6px">Lo escribe solo el servidor; nadie lo puede borrar desde la app.</div>
+    ${log.length ? log.map(e => `<div class="mrow" style="cursor:default"><span class="grow">${esc(T[e.t] || e.t)}</span><span class="muted small">${esc(when(e.at))}</span></div>`).join('') : '<p class="muted small">Todavía no hay nada anotado.</p>'}
+    <div class="actions"><button class="btn gold" data-a="close">Listo</button></div>`).onclick = e => { if (e.target.closest('[data-a=close]')) closeModal(); };
+}
 function userMenu() {
   const row = (a, e, t, d, x = '') => `<button class="mrow" data-a="${a}"><span class="me-e">${SVGI[e] ? ic(e, 22) : e}</span><span class="grow"><b>${t}</b>${d ? `<span class="muted small">${d}</span>` : ''}</span>${x}<span class="chev">›</span></button>`;
   const pd = profDone();
@@ -360,6 +373,7 @@ function userMenu() {
       ${row('notif', 'bell', 'Notificaciones', 'Elige qué avisos recibir')}
       ${row('install', 'phone', isInstalled() ? 'Reinstalar o reparar la app' : 'Descargar la app', isInstalled() ? 'Si te da algún error, aquí se arregla' : 'Ábrela desde tu pantalla de inicio')}
       ${row('help', 'help', 'Ayuda', 'Guía, preguntas frecuentes y soluciones')}
+      ${row('vault', '🔐', 'Caja fuerte', 'Tus teléfonos y el registro de seguridad')}
     </div>
     <div class="actions"><button class="btn ghost" data-a="out">Cerrar sesión</button><button class="btn gold" data-a="close">Listo</button></div>`);
   s.onclick = async e => {
@@ -368,6 +382,7 @@ function userMenu() {
     if (a === 'icon') return openIconPicker();
     if (a === 'prof') return openProfile();
     if (a === 'help') return openHelp();
+    if (a === 'vault') return openVaultInfo();
     if (a === 'admin') { location.hash = 'admin'; return; }
     if (a === 'notif') return openNotifPrefs();
     if (a === 'install') return appSheet();

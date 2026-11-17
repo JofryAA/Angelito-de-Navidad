@@ -495,10 +495,12 @@ function drawCheck(ids = S.participants.map(p => p.id)) {
     if (!msgs.length) msgs.push(['err', 'Con estas restricciones no hay forma de sortear.']);
   } else {
     if (!plan.cycle) msgs.push(['warn', 'Se puede sortear, pero no en una sola cadena: algunos se regalarán entre ellos en grupitos. Sigue siendo válido.']);
-    const tight = ids.filter(x => plan.outs[x].length <= 2 && ids.length > 3);
-    if (tight.length) msgs.push(['warn', `Pocas opciones: a ${tight.map(x => `${nm(x)} (${plan.outs[x].length})`).join(', ')} casi le podrían adivinar quién le toca.`]);
+    // 🔐 igual que la caja fuerte (optsOK): cada quien debe poder regalar a m personas Y recibir de m personas
+    const m = Math.max(2, Math.ceil((ids.length - 1) / 3)), inN = x => ids.filter(y => y !== x && plan.outs[y].includes(x)).length;
+    const tight = ids.filter(x => plan.outs[x].length < m || inN(x) < m);
+    if (tight.length) msgs.push(['err', `Demasiadas restricciones sobre ${tight.map(nm).join(', ')}: cada quien debe poder regalarle a ${m} personas o más y recibir de ${m} o más. Así nadie puede forzar ni adivinar una pareja.`]);
   }
-  return { ok: !!plan.next, msgs };
+  return { ok: !!plan.next && !msgs.some(m => m[0] === 'err'), msgs };
 }
 function renderDrawRules() {
   if (!S.isOwner || !$('#x-list')) return;
@@ -595,6 +597,7 @@ $('#d-gen').addEventListener('click', async () => {
   // Una sola cadena: A→B→C→…→A. Nadie se toca a sí mismo, no hay parejas que se regalen mutuamente
   // y se respetan las restricciones del organizador ("a X no le puede salir Y").
   const next = drawRing(ids);
+  { const ck = drawCheck(ids); if (next && !ck.ok) return toast('🚫 ' + ck.msgs.find(m => m[0] === 'err')[1]); }
   if (!next) return toast('🚫 ' + (drawCheck(ids).msgs[0]?.[1] || 'Con estas restricciones no hay forma de sortear.') + ' Revisa las restricciones.');
   const perm = ids.map(x => next[x]);
   try {
