@@ -75,8 +75,9 @@ let groupUn = null, groupOffT = 0;
 function liveGroup(on) {
   clearTimeout(groupOffT);
   if (on && !groupUn && S.me && !quotaOut()) {
-    const a = onSnapshot(collection(db, 'presence'), s => { S.presence = Object.fromEntries(s.docs.map(d => [d.id, { ts: +d.data().ts || 0, on: !!d.data().on }])); try { renderChat(); } catch { } }, quotaCheck);
-    const b = onSnapshot(collection(db, 'chatSeen'), s => { S.chatSeenAll = Object.fromEntries(s.docs.map(d => [d.id, +d.data().ts || 0])); try { renderChat(); renderBadges(); } catch { } }, quotaCheck);
+    const err = e => { quotaCheck(e); groupUn?.(); groupUn = null; }; // si falla, se suelta para volver a abrirse
+    const a = onSnapshot(collection(db, 'presence'), s => { S.presence = Object.fromEntries(s.docs.map(d => [d.id, { ts: +d.data().ts || 0, on: !!d.data().on }])); try { renderChat(); } catch { } }, err);
+    const b = onSnapshot(collection(db, 'chatSeen'), s => { S.chatSeenAll = Object.fromEntries(s.docs.map(d => [d.id, +d.data().ts || 0])); try { renderChat(); renderBadges(); } catch { } }, err);
     groupUn = () => { a(); b(); };
   } else if (!on && groupUn) { groupUn(); groupUn = null; }
 }

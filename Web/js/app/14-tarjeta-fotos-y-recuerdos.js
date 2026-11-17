@@ -261,7 +261,7 @@ $('#ny-go').addEventListener('click', async () => {
       for (const c of cols) { if (c === 'questionAuthors') continue; const ds = (await getDocs(collection(adb, c))).docs; if (c === 'questions') await commitOps(ds.map(d => ['del', doc(adb, 'questionAuthors', d.id)])); await commitOps(ds.map(d => ['del', d.ref])); }
       const b = writeBatch(adb);
       b.set(doc(adb, 'stats', 'questions'), { count: 0 });
-      b.set(doc(adb, 'config', 'event'), { eventDate: '', eventAt: null, revealDate: '', revealAt: null, rsvpDeadline: '', revealNow: false, guessesOpen: false, guessesLocked: false, guessWinner: '', angelLocked: false, registrationOpen: true }, { merge: true });
+      b.set(doc(adb, 'config', 'event'), { fix: deleteField(), eventDate: '', eventAt: null, revealDate: '', revealAt: null, rsvpDeadline: '', revealNow: false, guessesOpen: false, guessesLocked: false, guessWinner: '', angelLocked: false, registrationOpen: true }, { merge: true });
       await b.commit(); closeModal(); toast('🔁 ¡Listo! Nuevo año, nuevo angelito 🎄'); confetti(120);
     } catch (err) { $('#ny-err', s2).textContent = authErr(err); busy(btn, false); }
   };

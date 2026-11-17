@@ -83,7 +83,7 @@ function quotaBanner() {
   b.innerHTML = '⏳ Mucha actividad hoy: la app está en pausa unos minutos para no pasarse del límite gratis. Lo que ya ves sigue aquí y los juegos contra 🤖 funcionan.';
 }
 window.__quota = { out: quotaOut, check: quotaCheck };
-if (quotaOut()) setTimeout(quotaBanner, 1500);
+if (quotaOut()) { setTimeout(quotaBanner, 1500); setTimeout(() => { quotaBanner(); try { beat(true); } catch { } }, quotaUntil - Date.now() + 500); } // al terminar la pausa el aviso se quita solo
 const ufail = what => e => {
   console.warn(what, e);
   if (quotaCheck(e)) return; // sin cuota no se reintenta: se reanuda solo cuando pase el freno

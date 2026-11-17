@@ -1142,3 +1142,32 @@ body.touring #helper{display:none!important}
 .mesa.ended{min-height:200px}
 .mesa.ended .snake{margin:34px 0}
 .tx-x{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:inherit;font-size:15px;font-weight:700;display:grid;place-items:center;cursor:pointer;transition:background .2s,transform .2s}.tx-x:active{transform:scale(.9);background:rgba(255,255,255,.18)}
+/* 🏁 resultado de la mano EN la mesa (sin panel aparte) */
+.mesa.ended .snake{opacity:.35!important;filter:saturate(.6)}
+.mesa.ended>.pq{opacity:1!important}
+.pq{position:absolute;z-index:4;left:50%;top:50%;transform:translate(-50%,-50%);min-width:190px;max-width:calc(100% - 40px);display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 16px 12px;border-radius:18px;text-align:center;
+  background:radial-gradient(120% 140% at 50% 0%,rgba(255,236,190,.16),rgba(0,0,0,0) 60%),rgba(6,34,21,.82);border:1px solid rgba(236,188,92,.45);box-shadow:0 12px 30px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:pqIn .55s cubic-bezier(.2,1.4,.4,1) .35s backwards}
+.pq.lock{border-color:rgba(255,206,120,.7)}
+.pq.fin{border-color:rgba(255,215,110,.9);box-shadow:0 0 0 3px rgba(255,215,110,.15),0 14px 34px rgba(0,0,0,.5)}
+.pq-ic{font-size:30px;line-height:1;animation:pqIc 1.6s ease-in-out .9s infinite}
+.pq-h{font-family:var(--serif,Georgia,serif);font-size:1.25rem;color:#ffe2a3;letter-spacing:.01em}
+.pq-pts{font-size:.86rem;color:#e9f6ee}.pq-pts b{color:#8ff0bd;font-size:1rem}
+.pq-cmp{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px;margin-top:2px;font-size:.82rem}
+.pq-cmp span{padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.08);color:#e9f6ee}.pq-cmp span.w{background:rgba(60,207,131,.85);color:#06281a}
+.pq-cmp i{font-style:normal;color:rgba(255,255,255,.5)}
+.pq-rule{font-size:.7rem;color:rgba(255,255,255,.6)}
+.pq-next{margin-top:6px;border:0;border-radius:999px;padding:8px 16px;font-weight:800;font-size:.86rem;color:#2a1a05;background:linear-gradient(180deg,#ffd77e,#e3ae4b);box-shadow:0 4px 12px rgba(227,174,75,.35);cursor:pointer}
+.pq-next:disabled{opacity:.6}
+.pq-sub{font-size:.68rem;color:rgba(255,255,255,.6)}
+.mesa.ended{min-height:260px}
+@keyframes pqIn{from{opacity:0;transform:translate(-50%,-50%) scale(.7)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes pqIc{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.pq{font-family:"DM Sans",system-ui,sans-serif;padding:8px 14px 9px;gap:2px;min-width:170px;max-width:min(78%,300px)}
+.pq-ic{font-size:22px}.pq-h{font-family:"DM Sans",system-ui,sans-serif;font-weight:800;font-size:1.08rem}
+.pq-next{padding:6px 14px;font-size:.8rem;margin-top:4px}
+.mesa.ended{min-height:330px!important}
+.mesa.ended .mt-side{z-index:5}
+.mesa.ended{min-height:380px!important}
+.pq-cmp{flex-wrap:nowrap}.pq-cmp span{white-space:nowrap;padding:2px 8px}
+.pq-rule{margin-top:-2px}

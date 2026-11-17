@@ -401,7 +401,7 @@ function renderFixAdmin() {
   const def = new Date(Date.now() + 864e5); def.setHours(21, 0, 0, 0);
   const loc = d => new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
   box.innerHTML = `<div class="fx-card ${live ? 'on' : ''}"><div class="fx-hd"><span class="fx-ic">🔀</span><div class="grow"><b>Ajuste del sorteo</b><small>${f?.status === 'scheduled' ? 'Programado para el ' + esc(fixWhen(f)) : f?.status === 'running' ? 'Aplicando ahora…' : f?.status === 'failed' ? 'El último intento no se pudo aplicar. Prográmalo otra vez.' : bad ? 'Hay ' + bad + (bad === 1 ? ' pareja que no cumple' : ' parejas que no cumplen') + ' las restricciones' : 'El sorteo cumple las restricciones'}</small></div></div>
-    ${live ? `<p class="muted small">A esa hora el sistema hace los cambios al azar (respetando todas las restricciones) y todos vuelven a girar. Los cambios se hacen primero con quienes aún no han girado. Nadie sabrá cuántos ni cuáles cambiaron.</p>${drops.length ? `<p class="muted small">👋 Sale del sorteo: <b>${esc(drops.join(', '))}</b></p>` : ''}${f.status === 'scheduled' ? '<div class="actions"><button class="btn sm" id="fx-cancel">Cancelar ajuste</button></div>' : ''}`
+    ${live ? `<p class="muted small">A esa hora el sistema hace los cambios al azar (respetando todas las restricciones) y todos vuelven a girar. Los cambios se hacen primero con quienes aún no han girado. Nadie sabrá cuántos ni cuáles cambiaron.</p>${drops.length ? `<p class="muted small">👋 Sale del sorteo: <b>${esc(drops.join(', '))}</b></p>` : ''}${f.status === 'scheduled' || (f.status === 'running' && Date.now() - +f.at > 15 * 60e3) ? '<div class="actions"><button class="btn sm" id="fx-cancel">Cancelar ajuste</button></div>' : ''}`
     : `<p class="muted small">Elige cuándo se hace. Se avisa a todos que habrá un <b>switch</b> (sin decir cuántos ni por qué) y luego cada quien vuelve a girar su ruleta.</p>
     <label class="field" style="margin-top:8px"><span>Sacar a alguien del sorteo (opcional)</span><select class="in" id="fx-drop"><option value="">Nadie</option>${inDraw.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${S.assignments?.[p.id]?.revealed ? '' : ' · no ha girado'}</option>`).join('')}</select></label>
     <label class="field" style="margin-top:8px"><span>Fecha y hora del ajuste</span><input class="in" type="datetime-local" id="fx-at" value="${loc(def)}"></label>
@@ -427,12 +427,12 @@ document.addEventListener('click', async e => {
   }
 });
 // Del lado de cada persona: aviso en la ruleta + términos antes de volver a girar + el mismo mensaje para todos.
-const fixDone = () => { const f = fixOf(); return f?.status === 'done' ? f : null; };
+const fixDone = () => { const f = fixOf(); return f?.status === 'done' && !f.noop ? f : null; };
 const fixAccepted = f => { try { return localStorage.getItem('angelito:fixok') === f.id; } catch { return false; } };
 function fixBanner() {
   const f = fixOf(); if (!f || !S.drawMeta?.ids?.includes(S.uid)) return '';
   if (f.status === 'scheduled' || f.status === 'running') return `<div class="fx-note"><span>🔀</span><div><b>Habrá un ajuste en el sorteo</b><small>${f.status === 'running' ? 'Se está aplicando ahora mismo…' : 'El ' + esc(fixWhen(f))} · Para que todo quede justo se hará un switch. Cuando esté listo, todos vuelven a girar. 🤫</small></div></div>`;
-  if (f.status === 'done' && !S.assignment?.revealed) return `<div class="fx-note go"><span>🔀</span><div><b>El ajuste del sorteo ya está listo</b><small>Todos vuelven a girar su ruleta para ver su persona definitiva.</small></div></div>`;
+  if (f.status === 'done' && !f.noop && !S.assignment?.revealed) return `<div class="fx-note go"><span>🔀</span><div><b>El ajuste del sorteo ya está listo</b><small>Todos vuelven a girar su ruleta para ver su persona definitiva.</small></div></div>`;
   return '';
 }
 function fixTerms(f) {
@@ -613,7 +613,7 @@ $('#d-gen').addEventListener('click', async () => {
     // 3) el sorteo nuevo completo en UNA sola escritura: o queda todo o no queda nada
     const b = writeBatch(adb);
     ids.forEach((id, i) => b.set(doc(adb, 'assignments', id), { recipient: perm[i], revealed: false, at: serverTimestamp() }));
-    b.set(doc(adb, 'config', 'event'), { registrationOpen: false, angelLocked: false, guessesOpen: false, guessesLocked: false, guessWinner: deleteField() }, { merge: true });
+    b.set(doc(adb, 'config', 'event'), { fix: deleteField(), registrationOpen: false, angelLocked: false, guessesOpen: false, guessesLocked: false, guessWinner: deleteField() }, { merge: true });
     b.set(doc(adb, 'config', 'draw'), { ids, n: ids.length, at: serverTimestamp() });
     await b.commit(); toast('¡Sorteo generado! 🎉 Ya pueden girar.'); confetti(60);
   } catch (err) { toast(authErr(err) + ' · Vuelve a tocar Sortear'); }

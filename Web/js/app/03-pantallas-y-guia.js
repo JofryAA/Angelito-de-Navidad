@@ -331,7 +331,7 @@ function maybeTour() {
 let secT = 0;
 const secretOpen = () => Date.now() < (S.secretUntil || 0);
 function openSecret() { S.secretUntil = Date.now() + 120e3; clearTimeout(secT); secT = setTimeout(lockSecret, 120e3); }
-function lockSecret() { if (!S.secretUntil) return; S.secretUntil = 0; clearTimeout(secT); render(); }
+function lockSecret() { if (!S.secretUntil) return; S.secretUntil = 0; clearTimeout(secT); if (S.wishPid && S.wishPid === S.assignment?.recipient) S.wishPid = S.uid; render(); } // al ocultarse, Deseos vuelve a tu lista
 async function unlockSecret() {
   if (!(await askPin('🤫 Ver tu persona', 'Confirma tu PIN. Se oculta sola en 2 minutos o al salir de la app.'))) return false;
   openSecret(); render(); return true;

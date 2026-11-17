@@ -196,7 +196,7 @@ async function resetPin(pid, tempPin) {
   }
   (await q('assignments', 'recipient', pid)).forEach(d => { if (d.id !== pid) put(d.ref, { ...d.data(), recipient: nid }); });
   (await q('questions', 'to', pid)).forEach(d => put(d.ref, { ...d.data(), to: nid }));
-  for (const c of ['wishes', 'wishImg', 'chatImg', 'activitySignups', 'suggestions', 'questionAuthors', 'suggestionAuthors'])
+  for (const c of ['wishes', 'wishImg', 'chatImg', 'activitySignups', 'suggestions', 'suggestionAuthors'] /* los autores de anónimos están sellados: no se tocan */)
     (await q(c, 'uid', pid).catch(() => ({ forEach() { } }))).forEach(d => put(d.ref, { ...d.data(), uid: nid })); // los autores de anónimos están sellados: si no se pueden leer, se dejan
   (await q('activityPicks', 'uid', pid)).forEach(d => { put(R('activityPicks', `${d.data().act}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
   (await q('votes', 'uid', pid)).forEach(d => { put(R('votes', `${d.data().act}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });

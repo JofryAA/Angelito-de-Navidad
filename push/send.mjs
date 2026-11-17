@@ -52,6 +52,14 @@ if (hourL >= 9 && hourL < 20 && evDay) {
 }
 const remKey = k => `${k}:${evDay}`;
 const remDue = dueRem.filter(k => !remSent.has(remKey(k)));
+// 🎮 Quién puede usar la base de juegos: copia de los participantes (cada 30 min; quien sale del grupo pierde el acceso)
+if (!st.memAt || now - st.memAt > 1800e3) {
+  try {
+    const ids = (await db.collection('participants').select().get()).docs.map(d => d.id);
+    await getDatabase().ref('members').set(Object.fromEntries(ids.map(id => [id, true])));
+    await stateRef.set({ memAt: now }, { merge: true }); st.memAt = now;
+  } catch (e) { console.log('Miembros de juegos: no se pudieron copiar.'); }
+}
 // 🏆 Una sola vez: la tabla de campeones de antes (Firestore) se copia a Realtime Database, donde viven los juegos ahora
 if (!st.winsMig) {
   try {
@@ -100,8 +108,8 @@ async function runFix(fx) {
   for (const d of drop) {
     const g = Object.keys(rec).find(k => rec[k] === d);
     // si su asignación ya se había borrado, su persona es la que quedó sin angelito
-    const r = rec[d] || draw.ids.find(x => !drop.includes(x) && !Object.values(rec).includes(x) && x !== g);
-    if (g) rec[g] = r; delete rec[d];
+    const r = rec[d] || draw.ids.find(x => !drop.includes(x) && !Object.values(rec).includes(x)); // si queda «a sí mismo», los cambios de abajo lo arreglan
+    if (g) { if (!r) throw new Error('cadena'); rec[g] = r; } delete rec[d];
   }
   const pairs = (await db.doc('drawRules/main').get()).data()?.pairs || [], blocked = new Set();
   for (const r of pairs) { blocked.add(r.a + '>' + r.b); if (r.both) blocked.add(r.b + '>' + r.a); }
@@ -121,19 +129,21 @@ async function runFix(fx) {
     swap(v, [y]); // segundo cambio: así nadie puede deducir la pareja nueva a partir de la vieja
   }
   if (givers.some(g => !ok(g, rec[g]))) throw new Error('incumple');
+  if (!drop.length && givers.every(g => rec[g] === orig[g])) { await evRef.set({ fix: { ...fx, status: 'done', doneAt: Date.now(), noop: true } }, { merge: true }); return false; } // nada que cambiar: nadie tiene que volver a girar
   const changed = givers.filter(g => rec[g] !== before[g]);
   const touchedRec = new Set(changed.flatMap(g => [before[g], rec[g]]));
   const ops = [];
   for (const g of givers) ops.push(b => b.set(db.doc('assignments/' + g), { recipient: rec[g], revealed: false, revealedAt: FieldValue.delete(), ...(spun.has(g) ? { spunEver: true } : {}) }, { merge: true }));
   for (const g of changed) for (const c of ['giftStatus', 'wishPick', 'hintsSent']) ops.push(b => b.delete(db.doc(`${c}/${g}`)));
-  for (const r of touchedRec) ops.push(b => b.delete(db.doc('giftIncoming/' + r)));
+  for (const r of touchedRec) { ops.push(b => b.delete(db.doc('giftIncoming/' + r))); ops.push(b => b.delete(db.doc('thanks/' + r))); }
   for (const d of (await db.collection('hints').get()).docs) if (touchedRec.has(d.data().to)) ops.push(b => b.delete(d.ref));
   if (drop.length) {
     ops.push(b => b.set(db.doc('config/draw'), { ids, n: ids.length }, { merge: true }));
     for (const d of drop) {
       const pp = (await db.doc('participants/' + d).get()).data() || {};
       if (pp.nameKey) ops.push(b => b.delete(db.doc('names/' + pp.nameKey)));
-      for (const c of ['participants', 'assignments', 'attendance', 'profiles', 'staff', 'giftStatus', 'giftIncoming', 'guesses', 'angelGuess', 'wishPick', 'thanks', 'hintsSent', 'fcmTokens', 'presence', 'chatSeen']) ops.push(b => b.delete(db.doc(`${c}/${d}`)));
+      for (const t of (await db.collection('fcmTokens').where('uid', '==', d).get()).docs) ops.push(b => b.delete(t.ref));
+      for (const c of ['participants', 'assignments', 'attendance', 'profiles', 'staff', 'giftStatus', 'giftIncoming', 'guesses', 'angelGuess', 'wishPick', 'thanks', 'hintsSent', 'presence', 'chatSeen']) ops.push(b => b.delete(db.doc(`${c}/${d}`)));
       ops.push(b => b.set(db.doc('banned/' + d), { at: FieldValue.serverTimestamp() }));
       for (const c of ['wishes', 'wishImg', 'activitySignups', 'sugVotes', 'chatReacts', 'votes']) for (const w of (await db.collection(c).where('uid', '==', d).get()).docs) ops.push(b => b.delete(w.ref));
     }

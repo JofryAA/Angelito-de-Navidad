@@ -362,12 +362,16 @@ export function initGames(X) {
   const lmerge = (path, v) => lput(path, { ...(ls()[path] || {}), ...v });
   /* ----- 🎮 partidas en línea: Realtime Database (no gasta la cuota de lecturas de Firestore) -----
      Las fichas y las reacciones van en ramas aparte (hands/, emotes/) para que leer la lista de mesas nunca baje fichas ajenas. */
+  const gErr = e => e?.code === 'network' ? e.message : X.authErr(e);
   const RT = X.rt, rr = path => RT.ref(RT.db, path), ROOT = () => RT.ref(RT.db);
   const rPath = p => p[0] === 'games' && p[2] === 'hands' ? `hands/${p[1]}/${p[3]}` : p[0] === 'games' && p[2] === 'emotes' ? `emotes/${p[1]}/${p[3]}` : p[0] === 'gameWins' ? `wins/${p[1]}` : p.join('/');
   const rsnap = (path, s) => ({ id: path.split('/').pop(), exists: () => s.exists(), data: () => s.val() });
   const flat = (path, v) => Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).map(([k, x]) => [path + '/' + k, x]));
-  const rErr = e => { const m = String(e?.code || e?.message || ''); if (/permission/i.test(m)) { const x = new Error('permission-denied'); x.code = 'permission-denied'; return x; } return e; };
-  const rUpdate = U => RT.update(ROOT(), U).catch(e => { throw rErr(e); });
+  const rErr = e => { if (e?.code === 'network' || e?.code === 'permission-denied') return e; const m = String(e?.code || e?.message || ''); if (/permission/i.test(m)) { const x = new Error('permission-denied'); x.code = 'permission-denied'; return x; } if (/network|disconnect|offline/i.test(m)) return offErr(); return e; };
+  let RTon = null, RTseen = false; // null = todavía no se sabe (al abrir); false = se cayó la conexión
+  try { RT.onValue(rr('.info/connected'), s => { if (s.val()) { RTseen = true; RTon = true; } else RTon = RTseen ? false : null; }); } catch { }
+  const offErr = () => Object.assign(new Error('📡 Sin conexión: la jugada no se envió. Revisa tu internet.'), { code: 'network' });
+  const rUpdate = U => RTon === false ? Promise.reject(offErr()) : Promise.race([RT.update(ROOT(), U), new Promise((_, no) => setTimeout(() => no(offErr()), 9000))]).catch(e => { throw rErr(e); });
   const doc = (d, ...p) => (p[0] === 'games' && isLoc(p[1])) ? { __l: 1, path: p.join('/'), id: p[p.length - 1] } : { __r: 1, path: rPath(p), id: p[p.length - 1] };
   const onSnapshot = (ref, ...a) => {
     if (ref?.__r) { const [cb, err] = a.filter(x => typeof x === 'function'); return RT.onValue(rr(ref.path), s => cb(rsnap(ref.path, s)), e => err?.(rErr(e))); }
@@ -420,7 +424,7 @@ export function initGames(X) {
 
   const qOut = () => !!window.__quota?.out();
   function ensure() {
-    if (!S.me || qOut()) return; clearTimeout(G.offT2);
+    if (!S.me) return; clearTimeout(G.offT2);
     if (!G.subList) { const mix = () => { G.list = [...localGames(), ...(G.remote || [])].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)); }; if (!G.lHook) { G.lHook = () => { mix(); render(); }; lListSubs.add(G.lHook); } mix(); G.subList = RT.onValue(RT.query(rr('games'), RT.orderByChild('updatedAt'), RT.limitToLast(25)), s => { const v = s.val() || {}; G.remote = Object.keys(v).map(id => ({ id, ...sane(v[id] || {}) })); mix(); creditWins(); cleanupStale(); render(); }, e => { console.warn('games', e); G.subList = null; }); }
     if (!G.subWins) {
       // campeones: todos en Realtime Database (los de antes los copió el servidor una sola vez)
@@ -487,7 +491,7 @@ export function initGames(X) {
     const d = { k, ts: Date.now() };
     showEmote(me(), d); // tú lo ves al instante
     if (isLoc(g.id)) return; // contra 🤖 se queda en tu teléfono
-    try { await setDoc(doc(db, 'games', g.id, 'emotes', me()), d); } catch (e) { toast(X.authErr(e)); }
+    try { await setDoc(doc(db, 'games', g.id, 'emotes', me()), d); } catch (e) { toast(gErr(e)); }
   }
   // botoncito de reaccionar: va junto a «¡Te toca!» / el estado de la jugada, donde se mira durante el juego
   const emoChip = g => g?.players?.includes(me()) && (g.status === 'playing' || g.status === 'done') ? '<button type="button" class="emo-chip" data-gact="emo" aria-label="Reaccionar">😄</button>' : '';
@@ -627,7 +631,7 @@ export function initGames(X) {
     if (type === 'c4') Object.assign(base, { max: 2, board: C4EMPTY, title: '4 en línea' });
     if (type === 'ahorcado') Object.assign(base, { max: 6, cat: mode || 'mix', title: 'Ahorcado · ' + (WORD_CATS[mode]?.name || 'De todo') });
     if (mode === 'bot') base.title += ' contra 🤖'; // las reglas exigen crear la mesa solo con uno mismo; start() sienta al 🤖
-    try { await setDoc(doc(db, 'games', id), base); location.hash = 'juego-' + id; if (loc) { if (navigator.onLine === false) toast('📴 Sin internet: juegas contra 🤖 en este teléfono'); setTimeout(() => { if (G.cur?.id === id) start(); }, 400); } } catch (e) { toast(X.authErr(e)); }
+    try { await setDoc(doc(db, 'games', id), base); location.hash = 'juego-' + id; if (loc) { if (navigator.onLine === false) toast('📴 Sin internet: juegas contra 🤖 en este teléfono'); setTimeout(() => { if (G.cur?.id === id) start(); }, 400); } } catch (e) { toast(gErr(e)); }
   }
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const QUIET = ['No es tu turno', 'La mano no está en juego']; // llegan tarde por un doble toque o un turno que ya pasó: no molestan
@@ -637,10 +641,9 @@ export function initGames(X) {
     if (G.busy || G.cur?.id !== gid) return false; G.busy = true;
     try {
       if (isLoc(gid)) { const s = lsnap('games/' + gid); if (!s.exists()) throw new Error('La mesa ya no existe'); const ops = [], t = { get: async r => lsnap(r.path), update: (r, v) => ops.push(() => lmerge(r.path, v)), set: (r, v) => ops.push(() => lput(r.path, v)) }; await fn(t, { id: gid, ...sane(s.data()) }); ops.forEach(f => f()); return true; }
-      if (qOut()) { if (Date.now() - (G.offT || 0) > 8000) { G.offT = Date.now(); toast('⏳ Las partidas en línea están en pausa unos minutos (límite gratis de hoy). Contra 🤖 sí puedes jugar.'); } return false; }
       if (navigator.onLine === false) { if (Date.now() - (G.offT || 0) > 8000) { G.offT = Date.now(); toast('📡 Sin internet: esta partida es en línea. Al volver la conexión sigues jugando.'); } return false; }
       await rTx(gid, fn); return true; }
-    catch (e) { if (window.__quota?.check(e)) { toast('⏳ Las partidas en línea están en pausa unos minutos (límite gratis de hoy).'); return false; } const m = e?.code === 'permission-denied' ? 'No se pudo. Revisa que la hora de tu teléfono esté en automático.' : e?.code ? X.authErr(e) : (e.message || 'No se pudo'); if (!QUIET.includes(m)) toast(m); console.warn('juego', e); return false; }
+    catch (e) { if (window.__quota?.check(e)) { toast('⏳ Las partidas en línea están en pausa unos minutos (límite gratis de hoy).'); return false; } const m = e?.code === 'network' ? e.message : e?.code === 'permission-denied' ? 'No se pudo. Revisa que la hora de tu teléfono esté en automático.' : e?.code ? gErr(e) : (e.message || 'No se pudo'); if (!QUIET.includes(m)) toast(m); console.warn('juego', e); return false; }
     finally { G.busy = false; }
   }
   const upd = (t, g, patch) => t.update(doc(db, 'games', g.id), { ...patch, seq: (g.seq || 0) + 1, updatedAt: Date.now() });
@@ -710,9 +713,9 @@ export function initGames(X) {
       if (inv && !inv.classList.contains('sent')) {
         const to = inv.dataset.inv; inv.classList.add('sent'); inv.querySelector('.sp-s').textContent = 'Enviando…';
         try {
-          await rUpdate({ [`invites/${to}/${g.id}`]: { from: me(), game: g.id, type: g.type, title: g.title || 'una partida', ts: Date.now() } });
+          await rUpdate({ [`invites/${to}/${g.id}_${me()}`]: { from: me(), game: g.id, type: g.type, title: g.title || 'una partida', ts: Date.now() } });
           sent[g.id + to] = 1; inv.querySelector('.sp-s').textContent = '✓ Invitado'; toast(`📨 Invitación enviada a ${X.shortName(X.P(to))}`);
-        } catch (e) { inv.classList.remove('sent'); inv.querySelector('.sp-s').textContent = 'Invitar'; toast(X.authErr(e)); }
+        } catch (e) { inv.classList.remove('sent'); inv.querySelector('.sp-s').textContent = 'Invitar'; toast(gErr(e)); }
       }
     };
   }
@@ -724,7 +727,7 @@ export function initGames(X) {
     unsubInv = RT.onValue(rr(base), sn => {
       const seen = G.invSeen ||= new Set(), docs = []; sn.forEach(c => { docs.push({ id: c.key, ref: { __r: 1, path: base + '/' + c.key }, data: () => c.val() || {} }); });
       docs.forEach(d => {
-        if (seen.has(d.id)) return; seen.add(d.id); const ch = { doc: d }, v = d.data();
+        const ch = { doc: d }, v = d.data(), sk = d.id + ':' + (v.ts || 0); if (seen.has(sk)) return; seen.add(sk);
         if (Date.now() - (v.ts || 0) > 15 * 60e3) { deleteDoc(ch.doc.ref).catch(() => { }); return; } // vieja: se limpia
         if (location.hash === '#juego-' + v.game) { deleteDoc(ch.doc.ref).catch(() => { }); return; }
         // también como notificación del navegador (por si la app está en segundo plano o en otra pestaña)
@@ -772,10 +775,9 @@ export function initGames(X) {
   }
   // Reparte una mano: cada asiento recibe sus fichas en secreto y la mesa se actualiza, todo en una sola escritura
   async function deal(g, ng, players, extra) {
-    const { hands, patch } = dealHand(ng), b = writeBatch(db);
-    players.forEach(s => b.set(doc(db, 'games', g.id, 'hands', s), { tiles: hands[s] }));
-    b.update(doc(db, 'games', g.id), { ...patch, ...extra, seq: (g.seq || 0) + 1, updatedAt: Date.now() });
-    try { await b.commit(); } catch (e) { toast(X.authErr(e)); }
+    const { hands, patch } = dealHand(ng);
+    // en «transacción»: si alguien enseñó sus fichas en ese mismo instante, se reintenta con la mesa nueva (antes salía «sin permiso»)
+    return tx((t, gg) => { players.forEach(s => t.set(doc(db, 'games', g.id, 'hands', s), { tiles: hands[s] })); upd(t, gg, { ...patch, ...extra }); });
   }
   // "Otra partida": arranca de una vez con los mismos jugadores y sale quien ganó.
   async function again() {
@@ -805,7 +807,7 @@ export function initGames(X) {
   const askNext = () => tx((t, g) => { if (g.status === 'playing' && g.handOver && !g.want) upd(t, g, { want: 'next' }); });
   async function del() {
     if (!(await confirmBox('¿Cerrar esta mesa?', 'Se borra la partida para todos.', 'Cerrar mesa'))) return;
-    try { await dropGame(G.cur); location.hash = 'juegos'; } catch (e) { toast(X.authErr(e)); }
+    try { await dropGame(G.cur); location.hash = 'juegos'; } catch (e) { toast(gErr(e)); }
   }
 
   /* ----- jugadas ----- */
@@ -816,7 +818,6 @@ export function initGames(X) {
   function maybeBot() {
     const g0 = G.cur; clearTimeout(G.botT);
     if (!live(g0) || g0.host !== me()) return;
-    if (qOut() && !isLoc(g0.id)) return; // sin cuota los 🤖 de mesas en línea esperan (no reintentan en bucle)
     if (document.hidden) return; // si quien creó la mesa no la está viendo, los 🤖 esperan (no gastan nada)
     const seat0 = g0.players[g0.turn]; if (!isBot(seat0)) return;
     G.botT = setTimeout(() => {
@@ -918,7 +919,7 @@ export function initGames(X) {
       <span class="se">＋</span><span class="sn">${n + free > 2 ? 'Libre' : 'Asiento libre'}</span><span class="sc">${g.players.includes(me()) ? 'Invitar' : 'Esperando…'}</span>${pz ? `<span class="team t${i % 2}">${i % 2 ? 'B' : 'A'}</span>` : ''}</button>`; }).join('');
     return `<div class="seats ${n + free > 2 ? 'four' : 'two'}">${g.players.map((s, i) => `<div class="seat ${pz ? (i % 2 ? 'tb' : 'ta') : ''} ${g.status === 'playing' && !g.handOver && g.turn === i ? 'turn' : ''} ${s === me() ? 'me' : ''}" style="--d:${i * 60}ms">
       <span class="se">${esc(seatEmoji(s))}</span><span class="sn">${esc(s === me() ? 'Tú' : seatName(s).replace('🤖 ', ''))}</span>${live(g) && g.turn === i ? clockBar() : ''}
-      ${g.type === 'domino' && g.status !== 'lobby' ? `<span class="sc">${g.counts?.[i] ?? 7} fichas</span>` : ''}
+      ${g.type === 'domino' && g.status !== 'lobby' ? `<span class="sc">${(c => c + (c === 1 ? ' ficha' : ' fichas'))(g.counts?.[i] ?? 7)}</span>` : ''}
       ${g.type === 'domino' && g.mode === 'parejas' ? `<span class="team t${i % 2}">${i % 2 ? 'B' : 'A'}</span>` : ''}
       ${g.type === 'ahorcado' && g.scores ? `<span class="sc">${g.scores[i] || 0} pts</span>` : ''}
       ${g.type === 'ttt' ? `<span class="sc">${i === 0 ? '❌' : '⭕'}</span>` : ''}${g.type === 'c4' ? `<span class="sc">${i === 0 ? '🔴' : '🟡'}</span>` : ''}
@@ -973,13 +974,26 @@ export function initGames(X) {
     const R = g.result, why = { pase: '¡Pase! Llegó a la meta', domino: '¡Dominó!', capicua: '¡Capicúa! (+25)', tranque: '¡Tranque! Gana quien tiene menos puntos en fichas', 'tranque-empate': '¡Tranque con empate! Gana quien trancó', empate: 'Tranque empatado' };
     const winnerTxt = R ? (R.team < 0 ? why.empate : `${g.mode === 'parejas' ? 'Pareja ' + (R.team ? 'B' : 'A') : esc(seatName(g.players[R.team]))} gana ${R.pts} puntos · ${why[R.why]}`) : '';
     return `${sc}${seatsHTML(g)}
-      <div class="mesa ${g.handOver ? 'ended' : ''}" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth(), g.last?.root || 0))}${g.handOver ? handsOnTable(g) : ''}</div>
+      <div class="mesa ${g.handOver ? 'ended' : ''}" id="g-mesa">${(LAST.k = g.last?.tile ? (g.last.side === 'l' ? 0 : chain.length - 1) : -1, snakeHTML(chain, mesaWidth(), g.last?.root || 0))}${g.handOver ? handsOnTable(g) + plaqueHTML(g, R, winnerTxt, mySeat) : ''}</div>
       <p class="glog ${B ? 'bonus' : ''}">${last}${bonusTxt}${g.status !== 'playing' || mySeat < 0 ? emoChip(g) : ''}</p>
-      ${g.handOver ? `<div class="card center hover"><div style="font-size:36px">${R?.team < 0 ? '🤝' : /tranque/.test(R?.why || '') ? '🔒' : '🎉'}</div><b>${winnerTxt}</b>${handsCmp(g)}
-          ${g.status === 'done' ? `<p style="margin-top:8px">🏆 ${(g.winners || []).length ? 'Ganan ' + g.winners.map(s => esc(seatName(s))).join(' y ') : 'Ganaron los 🤖'}</p>` : ''}
-          ${againHTML(g, g.status === 'done' ? '🔁 Otra partida' : '')}${g.status !== 'done' ? `<div class="qa" style="justify-content:center">${mySeat >= 0 ? `<button class="btn gold" data-gact="next" ${g.want && g.host !== me() ? 'disabled' : ''}>Siguiente mano ▶️</button>` : ''}</div><p class="muted small" style="margin-top:6px">Sale ${esc(seatName(g.players[R?.seat ?? 0]))} · sigue sola en unos segundos</p>` : ''}</div>` : ''}
-      ${mySeat >= 0 && g.status === 'playing' ? `<div class="myhand ${myTurn ? 'turn' : ''}"><div class="mh-h"><b>${myTurn ? '<span class="mh-go">👉</span> ¡Te toca!' : `<span class="mh-av">${esc(seatEmoji(g.players[g.turn]))}</span> Turno de ${esc(seatName(g.players[g.turn]).replace('🤖 ', ''))}`}</b>${myTurn && !can.length && !g.handOver && G.hand.length ? '<span class="autopass">🙅 No llevas · pasando…</span>' : ''}${emoChip(g)}</div>${myTurn && !g.handOver ? `<div class="tline">${clockBar()}</div>` : ''}
+      ${g.status === 'done' ? againHTML(g, '🔁 Otra partida') : ''}
+      ${mySeat >= 0 && g.status === 'playing' && !g.handOver ? `<div class="myhand ${myTurn ? 'turn' : ''}"><div class="mh-h"><b>${myTurn ? '<span class="mh-go">👉</span> ¡Te toca!' : `<span class="mh-av">${esc(seatEmoji(g.players[g.turn]))}</span> Turno de ${esc(seatName(g.players[g.turn]).replace('🤖 ', ''))}`}</b>${myTurn && !can.length && !g.handOver && G.hand.length ? '<span class="autopass">🙅 No llevas · pasando…</span>' : ''}${emoChip(g)}</div>${myTurn && !g.handOver ? `<div class="tline">${clockBar()}</div>` : ''}
         <div class="hand">${G.hand.map(t => tileHTML(t, `big ${myTurn && can.includes(t) ? 'ok' : 'no'}`, `data-tile="${esc(t)}"`)).join('')}</div></div>` : ''}`;
+  }
+  // 🏁 El resultado va EN la mesa (como en la vida real: se viran las fichas y se cuenta ahí mismo), sin paneles aparte
+  function plaqueHTML(g, R, winnerTxt, mySeat) {
+    const tr = /tranque/.test(R?.why || ''), ic = R?.team < 0 ? '🤝' : tr ? '🔒' : R?.why === 'capicua' ? '🎯' : '🁫';
+    const head = R?.team < 0 ? 'Tranque empatado' : tr ? '¡Tranque!' : R?.why === 'capicua' ? '¡Capicúa!' : R?.why === 'pase' ? '¡Pase!' : '¡Dominó!';
+    let cmp = '';
+    if (tr) {
+      if (g.mode === 'parejas') { const tp = [0, 0]; (g.pips || []).forEach((p, k) => tp[teamOf(g, k)] += p); cmp = `<div class="pq-cmp"><span class="${R.team === 0 ? 'w' : ''}">A <b>${tp[0]}</b></span><i>vs</i><span class="${R.team === 1 ? 'w' : ''}">B <b>${tp[1]}</b></span></div>`; }
+      else cmp = `<div class="pq-cmp">${g.players.map((s, k) => `<span class="${teamOf(g, k) === R.team ? 'w' : ''}">${esc(s === me() ? 'Tú' : seatName(s).replace('🤖 ', ''))} <b>${(g.pips || [])[k] || 0}</b></span>`).join('<i>·</i>')}</div>`;
+    }
+    const who = R && R.team >= 0 ? (g.mode === 'parejas' ? 'Pareja ' + (R.team ? 'B' : 'A') : (g.players[R.team] === me() ? 'Tú' : seatName(g.players[R.team]))) : '';
+    const done = g.status === 'done';
+    return `<div class="pq ${tr ? 'lock' : ''} ${done ? 'fin' : ''}"><div class="pq-ic">${done ? '🏆' : ic}</div><b class="pq-h">${tr && !done && R?.team >= 0 ? '' : ''}${done ? ((g.winners || []).length ? '¡Ganan ' + g.winners.map(s => esc(s === me() ? 'tú' : seatName(s))).join(' y ') + '!' : '¡Ganaron los 🤖!') : head}</b>
+      ${tr && !done ? '<small class="pq-rule">gana el que tiene menos</small>' : ''}${who ? `<span class="pq-pts">${esc(who)} <b>+${R.pts || 0}</b></span>` : ''}${cmp}
+      ${!done && mySeat >= 0 ? `<button class="pq-next" data-gact="next" ${g.want && g.host !== me() ? 'disabled' : ''}>Siguiente mano ▶</button><small class="pq-sub">Sale ${esc(seatName(g.players[R?.seat ?? 0]))}</small>` : ''}</div>`;
   }
   // 🃏 Al terminar, cada quien «vira» sus fichas en su lado de la mesa, como en la vida real: tú abajo, los demás arriba y a los lados
   function handsOnTable(g) {
@@ -1044,7 +1058,7 @@ export function initGames(X) {
     if (g.loading) return '<div class="card empty"><span class="spin-dots"></span></div>';
     if (g.gone) return '<div class="card empty"><span class="e">🫥</span>Esta mesa ya no existe.<div class="qa" style="justify-content:center"><a class="btn" href="#juegos">Volver</a></div></div>';
     const emoBtn = g.players?.includes(me()) && (g.status === 'playing' || g.status === 'done') ? '<button type="button" class="iconbtn gsnd gemo-btn" data-gact="emo" aria-label="Reaccionar">😄</button>' : '';
-    const head = `<div class="ghead"><a class="backbtn" href="#juegos"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Juegos</a><b>${GINFO[g.type]?.e || ''} ${esc(g.title || GINFO[g.type]?.name)}</b><button class="iconbtn gsnd ${SND.pref.m || SND.pref.f ? '' : 'off'}" data-gact="snd" aria-label="Sonido">${SND.pref.m || SND.pref.f ? '🔊' : '🔇'}</button>${g.host === me() || X.can('moderar') ? '<button class="iconbtn gdel" data-gact="del" aria-label="Cerrar mesa"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg></button>' : '<span style="width:42px"></span>'}</div>`;
+    const head = `<div class="ghead"><a class="backbtn" href="#juegos"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Juegos</a><b>${GINFO[g.type]?.e || ''} ${esc(g.title || GINFO[g.type]?.name)}</b><button class="iconbtn gsnd ${SND.pref.m || SND.pref.f ? '' : 'off'}" data-gact="snd" aria-label="Sonido">${SND.pref.m || SND.pref.f ? '🔊' : '🔇'}</button>${g.host === me() ? '<button class="iconbtn gdel" data-gact="del" aria-label="Cerrar mesa"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg></button>' : '<span style="width:42px"></span>'}</div>`;
     if (g.status === 'lobby') return head + lobbyHTML(g);
     if (g.status !== 'lobby' && !g.players.includes(me()) && g.max <= 2) return head + `<div class="card empty"><span class="e">🔒</span>Esta partida es solo de ${g.players.map(s => esc(seatName(s))).join(' y ')}<div class="qa" style="justify-content:center"><a class="btn" href="#juegos">Volver</a></div></div>`;
     return head + (g.type === 'domino' ? dominoHTML(g) : g.type === 'ttt' ? tttHTML(g) : g.type === 'c4' ? c4HTML(g) : hangHTML(g));
@@ -1076,7 +1090,7 @@ export function initGames(X) {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) maybeBot(); });
   // Vigilante: si le toca a un 🤖 y nada está en camino (p. ej. se perdió una jugada por mala señal), lo despierta.
   setInterval(() => {
-    const g = G.cur; if (!live(g) || g.host !== me() || document.hidden || G.busy || G.pend || (qOut() && !isLoc(g.id))) return;
+    const g = G.cur; if (!live(g) || g.host !== me() || document.hidden || G.busy || G.pend) return;
     if (!isBot(g.players[g.turn])) { G.botWait = 0; return; }
     G.botWait = (G.botWait || 0) + 1; if (G.botWait >= 2) { G.botWait = 0; maybeBot(); }
   }, 1500);
