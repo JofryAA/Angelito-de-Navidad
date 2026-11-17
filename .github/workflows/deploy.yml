@@ -44,3 +44,12 @@ jobs:
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
           npx -y firebase-tools@14 deploy --only firestore:rules --project angelito-2026 --non-interactive
           rm -f "$RUNNER_TEMP/sa.json"
+      - name: Publicar reglas de Realtime Database (juegos)
+        continue-on-error: true
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx -y firebase-tools@14 deploy --only database --project angelito-2026 --non-interactive || echo "::warning::No se pudieron subir las reglas de Realtime Database"
+          rm -f "$RUNNER_TEMP/sa.json"

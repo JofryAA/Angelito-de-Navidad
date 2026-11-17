@@ -5,10 +5,12 @@
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
+import { getDatabase } from 'firebase-admin/database';
 
 const key = process.env.FIREBASE_ADMIN_KEY;
 if (!key) { console.log('Falta el secreto FIREBASE_ADMIN_KEY: no se envía nada.'); process.exit(0); }
-initializeApp({ credential: cert(JSON.parse(key)) });
+const SA = JSON.parse(key);
+initializeApp({ credential: cert(SA), databaseURL: process.env.RTDB_URL || `https://${SA.project_id}-default-rtdb.firebaseio.com` });
 const db = getFirestore(), fcm = getMessaging();
 const BASE = process.env.APP_URL || 'https://angelito-2026.web.app/';
 
@@ -26,7 +28,9 @@ const chatQ = await db.collection('chat').where('ts', '>', since).orderBy('ts').
 const noticesQ = await db.collection('notices').where('ts', '>', since).get();
 const actsQ = await db.collection('activities').where('at', '>', new Date(since)).get();
 const hintsQ = await db.collection('hints').where('ts', '>', since - 10 * 60e3).get();
-const invQ = await db.collection('gameInvites').where('ts', '>', since).get();
+// 🎮 las invitaciones a jugar viven en Realtime Database (invites/{a quién}/{mesa})
+const invs = [];
+try { const all = (await getDatabase().ref('invites').get()).val() || {}; for (const [to, m] of Object.entries(all)) for (const [game, v] of Object.entries(m || {})) if ((+v?.ts || 0) > since) invs.push({ to, game, ...v }); } catch (e) { console.log('Invitaciones: no se pudieron leer.'); }
 const draw = (await db.doc('config/draw').get()).data();
 const ev = (await db.doc('config/event').get()).data() || {};
 const open = !!ev.revealNow || (ev.revealAt && ms(ev.revealAt) <= now);
@@ -48,6 +52,15 @@ if (hourL >= 9 && hourL < 20 && evDay) {
 }
 const remKey = k => `${k}:${evDay}`;
 const remDue = dueRem.filter(k => !remSent.has(remKey(k)));
+// 🏆 Una sola vez: la tabla de campeones de antes (Firestore) se copia a Realtime Database, donde viven los juegos ahora
+if (!st.winsMig) {
+  try {
+    const ws = (await db.collection('gameWins').get()).docs, U = {};
+    for (const d of ws) { const v = d.data(); if (v.uid && v.gid) U[d.id.replace(/[.#$\[\]/]/g, '_')] = { uid: v.uid, gid: v.gid, type: v.type || '', at: +v.at || 0 }; }
+    if (Object.keys(U).length) await getDatabase().ref('wins').update(U);
+    await stateRef.set({ winsMig: true }, { merge: true }); console.log('Campeones copiados a la base de juegos.');
+  } catch (e) { console.log('Campeones: no se pudieron copiar todavía.'); }
+}
 // 🔀 Ajuste programado del sorteo (lo programa el organizador). Aquí NUNCA se escriben nombres ni parejas en el
 // registro: GitHub guarda estos registros y otras personas podrían leerlos.
 let fixReady = false;
@@ -129,7 +142,7 @@ async function runFix(fx) {
   for (let i = 0; i < ops.length; i += 400) { const b = db.batch(); ops.slice(i, i + 400).forEach(f => f(b)); await b.commit(); }
   return true;
 }
-const nothing = !PRUEBA && !fixReady && !remDue.length && invQ.empty && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
+const nothing = !PRUEBA && !fixReady && !remDue.length && !invs.length && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
   && !(open && st.revealSent !== openKey) && hintsQ.docs.every(d => seenH.has(d.id));
 if (nothing) { await stateRef.set({ last: now }, { merge: true }); console.log('Nada nuevo.'); process.exit(0); }
 
@@ -178,7 +191,7 @@ for (const d of hintsQ.docs) {
 }
 
 // 🎮 invitaciones a una mesa de juego
-for (const d of invQ.docs) { const v = d.data(); put(v.to, 'juegos', { title: `🎮 ${short(v.from)} te invitó a jugar`, body: `${v.title || 'Una partida'} · ¿te unes?`, url: `#juego-${v.game}`, kind: 'invite', game: v.game }); }
+for (const v of invs) { put(v.to, 'juegos', { title: `🎮 ${short(v.from)} te invitó a jugar`, body: `${v.title || 'Una partida'} · ¿te unes?`, url: `#juego-${v.game}`, kind: 'invite', game: v.game }); }
 
 // ⏰ recordatorios
 if (remDue.length) {

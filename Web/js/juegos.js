@@ -360,20 +360,41 @@ export function initGames(X) {
     setTimeout(() => { (lsubs.get(path) || []).forEach(f => f(lsnap(path))); lListSubs.forEach(f => f()); }, 0);
   }
   const lmerge = (path, v) => lput(path, { ...(ls()[path] || {}), ...v });
-  const doc = (d, ...p) => (p[0] === 'games' && isLoc(p[1])) ? { __l: 1, path: p.join('/'), id: p[p.length - 1] } : fsDoc(d, ...p);
+  /* ----- 🎮 partidas en línea: Realtime Database (no gasta la cuota de lecturas de Firestore) -----
+     Las fichas y las reacciones van en ramas aparte (hands/, emotes/) para que leer la lista de mesas nunca baje fichas ajenas. */
+  const RT = X.rt, rr = path => RT.ref(RT.db, path), ROOT = () => RT.ref(RT.db);
+  const rPath = p => p[0] === 'games' && p[2] === 'hands' ? `hands/${p[1]}/${p[3]}` : p[0] === 'games' && p[2] === 'emotes' ? `emotes/${p[1]}/${p[3]}` : p[0] === 'gameWins' ? `wins/${p[1]}` : p.join('/');
+  const rsnap = (path, s) => ({ id: path.split('/').pop(), exists: () => s.exists(), data: () => s.val() });
+  const flat = (path, v) => Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).map(([k, x]) => [path + '/' + k, x]));
+  const rErr = e => { const m = String(e?.code || e?.message || ''); if (/permission/i.test(m)) { const x = new Error('permission-denied'); x.code = 'permission-denied'; return x; } return e; };
+  const rUpdate = U => RT.update(ROOT(), U).catch(e => { throw rErr(e); });
+  const doc = (d, ...p) => (p[0] === 'games' && isLoc(p[1])) ? { __l: 1, path: p.join('/'), id: p[p.length - 1] } : { __r: 1, path: rPath(p), id: p[p.length - 1] };
   const onSnapshot = (ref, ...a) => {
+    if (ref?.__r) { const [cb, err] = a.filter(x => typeof x === 'function'); return RT.onValue(rr(ref.path), s => cb(rsnap(ref.path, s)), e => err?.(rErr(e))); }
     if (!ref?.__l) return fsSnap(ref, ...a);
     const cb = a.find(x => typeof x === 'function'), set = lsubs.get(ref.path) || new Set(); lsubs.set(ref.path, set); set.add(cb);
     setTimeout(() => { if (set.has(cb)) cb(lsnap(ref.path)); }, 0); return () => set.delete(cb);
   };
-  const setDoc = (ref, d, o) => ref?.__l ? (o?.merge ? lmerge(ref.path, d) : lput(ref.path, d), Promise.resolve()) : fsSet(ref, d, o);
-  function writeBatch(d) {
-    let rb = null; const L = [], R = () => rb ||= fsBatch(d);
-    const b = { set: (r, v, o) => { if (r.__l) L.push(() => o?.merge ? lmerge(r.path, v) : lput(r.path, v)); else R().set(r, v, o); return b; },
-      update: (r, v) => { if (r.__l) L.push(() => lmerge(r.path, v)); else R().update(r, v); return b; },
-      delete: r => { if (r.__l) L.push(() => lput(r.path, null)); else R().delete(r); return b; },
-      commit: async () => { L.forEach(f => f()); if (rb) await rb.commit(); } };
+  const setDoc = (ref, d, o) => ref?.__l ? (o?.merge ? lmerge(ref.path, d) : lput(ref.path, d), Promise.resolve()) : ref?.__r ? rUpdate(o?.merge ? flat(ref.path, d) : { [ref.path]: d }) : fsSet(ref, d, o);
+  // Varias escrituras juntas: en Realtime Database van en UNA sola actualización (todo o nada)
+  function writeBatch() {
+    const L = [], U = {};
+    const b = { set: (r, v, o) => { if (r.__l) L.push(() => o?.merge ? lmerge(r.path, v) : lput(r.path, v)); else if (o?.merge) Object.assign(U, flat(r.path, v)); else U[r.path] = v; return b; },
+      update: (r, v) => { if (r.__l) L.push(() => lmerge(r.path, v)); else Object.assign(U, flat(r.path, v)); return b; },
+      delete: r => { if (r.__l) L.push(() => lput(r.path, null)); else U[r.path] = null; return b; },
+      commit: async () => { L.forEach(f => f()); if (Object.keys(U).length) await rUpdate(U); } };
     return b;
+  }
+  // «Transacción»: lee la mesa, calcula la jugada y la sube junto con las fichas. Las reglas exigen seq = seq + 1,
+  // así que si otro jugó al mismo tiempo la escritura se rechaza y se vuelve a intentar con la mesa nueva.
+  async function rTx(gid, fn) {
+    for (let k = 0; ; k++) {
+      const s = await RT.get(rr('games/' + gid)).catch(e => { throw rErr(e); }); if (!s.exists()) throw new Error('La mesa ya no existe');
+      const U = {}, t = { get: async r => rsnap(r.path, await RT.get(rr(r.path))), update: (r, v) => { Object.assign(U, flat(r.path, v)); return t; }, set: (r, v) => { U[r.path] = v; return t; } };
+      await fn(t, { id: gid, ...sane(s.val()) });
+      if (!Object.keys(U).length) return;
+      try { await rUpdate(U); return; } catch (e) { if (k >= 2 || e?.code !== 'permission-denied') throw e; await sleep(120 + Math.random() * 200); }
+    }
   }
   const localGames = () => Object.entries(ls()).filter(([k]) => /^games\/L[^/]*$/.test(k)).map(([k, v]) => ({ id: k.slice(6), ...sane(v) }));
   const deleteDoc = ref => { const b = writeBatch(db); b.delete(ref); return b.commit(); };
@@ -400,11 +421,14 @@ export function initGames(X) {
   const qOut = () => !!window.__quota?.out();
   function ensure() {
     if (!S.me || qOut()) return; clearTimeout(G.offT2);
-    if (!G.subList) { const mix = () => { G.list = [...localGames(), ...(G.remote || [])].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)); }; if (!G.lHook) { G.lHook = () => { mix(); render(); }; lListSubs.add(G.lHook); } mix(); G.subList = onSnapshot(query(collection(db, 'games'), orderBy('updatedAt', 'desc'), limit(25)), s => { G.remote = s.docs.map(d => ({ id: d.id, ...sane(d.data()) })); mix(); creditWins(); cleanupStale(); render(); }, e => { console.warn('games', e); window.__quota?.check(e); G.subList = null; }); }
-    if (!G.subWins) G.subWins = onSnapshot(query(collection(db, 'gameWins'), limit(1000)), s => { G.wins = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, e => { console.warn('gameWins', e); window.__quota?.check(e); G.subWins = null; });
+    if (!G.subList) { const mix = () => { G.list = [...localGames(), ...(G.remote || [])].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)); }; if (!G.lHook) { G.lHook = () => { mix(); render(); }; lListSubs.add(G.lHook); } mix(); G.subList = RT.onValue(RT.query(rr('games'), RT.orderByChild('updatedAt'), RT.limitToLast(25)), s => { const v = s.val() || {}; G.remote = Object.keys(v).map(id => ({ id, ...sane(v[id] || {}) })); mix(); creditWins(); cleanupStale(); render(); }, e => { console.warn('games', e); G.subList = null; }); }
+    if (!G.subWins) {
+      // campeones: todos en Realtime Database (los de antes los copió el servidor una sola vez)
+      G.subWins = RT.onValue(rr('wins'), s => { const v = s.val() || {}; G.wins = Object.keys(v).map(id => ({ id, ...v[id] })); render(); }, e => { console.warn('wins', e); G.subWins = null; });
+    }
   }
   // Borra una mesa con las fichas de cada asiento
-  function dropGame(g) { const b = writeBatch(db); (g.players || []).forEach(s => b.delete(doc(db, 'games', g.id, 'hands', s))); b.delete(doc(db, 'games', g.id)); return b.commit(); }
+  function dropGame(g) { if (isLoc(g.id)) { const b = writeBatch(db); (g.players || []).forEach(s => b.delete(doc(db, 'games', g.id, 'hands', s))); b.delete(doc(db, 'games', g.id)); return b.commit(); } return rUpdate({ ['games/' + g.id]: null, ['hands/' + g.id]: null, ['emotes/' + g.id]: null }); }
   function stop() {
     SND.music(null); closeGame(); [G.subList, G.subWins].forEach(u => u && u());
     Object.assign(G, { subList: null, subWins: null, list: [], wins: [], seenTurn: '' }); G.credited.clear();
@@ -442,7 +466,7 @@ export function initGames(X) {
       const prev = G.cur; G.cur = srv;
       onGameChange(prev); render();
     }, () => { G.cur = { id, gone: true }; render(); });
-    if (!isLoc(id)) G.subEmo = onSnapshot(collection(db, 'games', id, 'emotes'), s => s.docs.forEach(d => showEmote(d.id, d.data())), () => { });
+    if (!isLoc(id)) G.subEmo = RT.onValue(rr('emotes/' + id), s => s.forEach(c => { showEmote(c.key, c.val()); }), () => { });
   }
   /* ----- 😂 reacciones y frases rápidas en la mesa (como en el parchís) ----- */
   const EMOTES = ['😂', '😎', '🔥', '👏', '😱', '🙏', '😤', '🎉', '¡Buena jugada!', '¡Apúrate!', '¡Te tengo!', '¡Qué suerte!', 'Juega ya 🙄', '¡Esa no me la esperaba!', '¡Somos los mejores!', '¡Otra partida!'];
@@ -596,7 +620,7 @@ export function initGames(X) {
   /* ----- crear / unirse ----- */
   async function create(type, mode) {
     if (G.creating) return; G.creating = true; setTimeout(() => { G.creating = false; }, 1500);
-    const loc = mode === 'bot' || navigator.onLine === false, id = loc ? 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) : fsDoc(collection(db, 'games')).id, now = Date.now();
+    const loc = mode === 'bot' || navigator.onLine === false, id = loc ? 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) : RT.push(rr('games')).key, now = Date.now();
     const base = { type, host: me(), players: [me()], status: 'lobby', createdAt: now, updatedAt: now, seq: 0, title: '' };
     if (type === 'domino') Object.assign(base, { mode, max: mode === 'parejas' ? 4 : 4, target: mode === 'parejas' ? 200 : 100, scores: mode === 'parejas' ? [0, 0] : [], title: mode === 'parejas' ? 'Dominó en parejas' : 'Dominó, cada quien solo' });
     if (type === 'ttt') Object.assign(base, { max: 2, board: '.........', title: 'X y O' });
@@ -615,7 +639,7 @@ export function initGames(X) {
       if (isLoc(gid)) { const s = lsnap('games/' + gid); if (!s.exists()) throw new Error('La mesa ya no existe'); const ops = [], t = { get: async r => lsnap(r.path), update: (r, v) => ops.push(() => lmerge(r.path, v)), set: (r, v) => ops.push(() => lput(r.path, v)) }; await fn(t, { id: gid, ...sane(s.data()) }); ops.forEach(f => f()); return true; }
       if (qOut()) { if (Date.now() - (G.offT || 0) > 8000) { G.offT = Date.now(); toast('⏳ Las partidas en línea están en pausa unos minutos (límite gratis de hoy). Contra 🤖 sí puedes jugar.'); } return false; }
       if (navigator.onLine === false) { if (Date.now() - (G.offT || 0) > 8000) { G.offT = Date.now(); toast('📡 Sin internet: esta partida es en línea. Al volver la conexión sigues jugando.'); } return false; }
-      await fsTx(db, async t => { const s = await t.get(doc(db, 'games', gid)); if (!s.exists()) throw new Error('La mesa ya no existe'); return fn(t, { id: s.id, ...sane(s.data()) }); }); return true; }
+      await rTx(gid, fn); return true; }
     catch (e) { if (window.__quota?.check(e)) { toast('⏳ Las partidas en línea están en pausa unos minutos (límite gratis de hoy).'); return false; } const m = e?.code === 'permission-denied' ? 'No se pudo. Revisa que la hora de tu teléfono esté en automático.' : e?.code ? X.authErr(e) : (e.message || 'No se pudo'); if (!QUIET.includes(m)) toast(m); console.warn('juego', e); return false; }
     finally { G.busy = false; }
   }
@@ -686,7 +710,7 @@ export function initGames(X) {
       if (inv && !inv.classList.contains('sent')) {
         const to = inv.dataset.inv; inv.classList.add('sent'); inv.querySelector('.sp-s').textContent = 'Enviando…';
         try {
-          await setDoc(doc(db, 'gameInvites', g.id + '_' + to), { to, from: me(), game: g.id, type: g.type, title: g.title || 'una partida', ts: Date.now() });
+          await rUpdate({ [`invites/${to}/${g.id}`]: { from: me(), game: g.id, type: g.type, title: g.title || 'una partida', ts: Date.now() } });
           sent[g.id + to] = 1; inv.querySelector('.sp-s').textContent = '✓ Invitado'; toast(`📨 Invitación enviada a ${X.shortName(X.P(to))}`);
         } catch (e) { inv.classList.remove('sent'); inv.querySelector('.sp-s').textContent = 'Invitar'; toast(X.authErr(e)); }
       }
@@ -696,9 +720,10 @@ export function initGames(X) {
   let unsubInv = null, invUid = null;
   function watchInvites() {
     if (invUid === me()) return; invUid = me(); if (unsubInv) { unsubInv(); unsubInv = null; } if (!me()) return;
-    unsubInv = onSnapshot(query(collection(db, 'gameInvites'), where('to', '==', me())), s => {
-      const seen = G.invSeen ||= new Set();
-      s.docs.forEach(d => {
+    const base = 'invites/' + me();
+    unsubInv = RT.onValue(rr(base), sn => {
+      const seen = G.invSeen ||= new Set(), docs = []; sn.forEach(c => { docs.push({ id: c.key, ref: { __r: 1, path: base + '/' + c.key }, data: () => c.val() || {} }); });
+      docs.forEach(d => {
         if (seen.has(d.id)) return; seen.add(d.id); const ch = { doc: d }, v = d.data();
         if (Date.now() - (v.ts || 0) > 15 * 60e3) { deleteDoc(ch.doc.ref).catch(() => { }); return; } // vieja: se limpia
         if (location.hash === '#juego-' + v.game) { deleteDoc(ch.doc.ref).catch(() => { }); return; }

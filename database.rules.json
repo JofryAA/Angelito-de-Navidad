@@ -1,0 +1,60 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "games": {
+      ".read": "auth != null",
+      ".indexOn": [
+        "updatedAt"
+      ],
+      "$gid": {
+        ".write": "auth != null && ((!data.exists() && newData.child('host').val() == auth.uid && newData.child('status').val() == 'lobby' && newData.child('seq').val() == 0 && newData.child('players/0').val() == auth.uid && !newData.child('players/1').exists() && newData.child('updatedAt').val() > now - 1800000 && newData.child('updatedAt').val() < now + 1800000) || (data.exists() && !newData.exists() && (data.child('host').val() == auth.uid || data.child('updatedAt').val() < now - (data.child('status').val() == 'done' ? 7200000 : 2700000))) || (data.exists() && newData.exists() && newData.child('host').val() == data.child('host').val() && newData.child('type').val() == data.child('type').val() && newData.child('seq').val() == data.child('seq').val() + 1 && newData.child('updatedAt').val() > now - 1800000 && newData.child('updatedAt').val() < now + 1800000 && (data.child('host').val() == auth.uid || data.child('players/0').val() == auth.uid || data.child('players/1').val() == auth.uid || data.child('players/2').val() == auth.uid || data.child('players/3').val() == auth.uid || data.child('players/4').val() == auth.uid || data.child('players/5').val() == auth.uid || data.child('status').val() == 'lobby')))",
+        "status": {
+          ".validate": "newData.isString() && (newData.val() == 'lobby' || newData.val() == 'playing' || newData.val() == 'done')"
+        },
+        "seq": {
+          ".validate": "newData.isNumber()"
+        },
+        "title": {
+          ".validate": "newData.isString() && newData.val().length <= 80"
+        }
+      }
+    },
+    "hands": {
+      "$gid": {
+        "$seat": {
+          ".read": "auth != null && (auth.uid == $seat || ($seat.beginsWith('bot') && root.child('games/'+$gid+'/host').val() == auth.uid))",
+          ".write": "auth != null && ((!newData.exists() && !newData.parent().parent().parent().child('games/'+$gid).exists()) || root.child('games/'+$gid+'/host').val() == auth.uid || auth.uid == $seat || root.child('games/'+$gid+'/players/0').val() == auth.uid || root.child('games/'+$gid+'/players/1').val() == auth.uid || root.child('games/'+$gid+'/players/2').val() == auth.uid || root.child('games/'+$gid+'/players/3').val() == auth.uid || root.child('games/'+$gid+'/players/4').val() == auth.uid || root.child('games/'+$gid+'/players/5').val() == auth.uid)",
+          ".validate": "!newData.exists() || newData.hasChildren(['tiles']) || newData.child('tiles').val() == null"
+        },
+        ".write": "auth != null && !newData.exists() && !newData.parent().parent().child('games/'+$gid).exists()"
+      }
+    },
+    "emotes": {
+      "$gid": {
+        ".read": "auth != null",
+        ".write": "auth != null && !newData.exists() && !newData.parent().parent().child('games/'+$gid).exists()",
+        "$uid": {
+          ".write": "auth != null && auth.uid == $uid",
+          ".validate": "!newData.exists() || (newData.child('k').isNumber() && newData.child('k').val() >= 0 && newData.child('k').val() < 16 && newData.child('ts').isNumber())"
+        }
+      }
+    },
+    "invites": {
+      "$to": {
+        ".read": "auth != null && auth.uid == $to",
+        "$id": {
+          ".write": "auth != null && (auth.uid == $to || (newData.child('from').val() == auth.uid && (!data.exists() || data.child('from').val() == auth.uid)))",
+          ".validate": "!newData.exists() || (newData.child('game').isString() && newData.child('ts').isNumber() && newData.child('title').isString() && newData.child('title').val().length <= 80)"
+        }
+      }
+    },
+    "wins": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && !data.exists() && newData.child('uid').val() == auth.uid && root.child('games/' + newData.child('gid').val() + '/status').val() == 'done' && (root.child('games/' + newData.child('gid').val() + '/winners/0').val() == auth.uid || root.child('games/' + newData.child('gid').val() + '/winners/1').val() == auth.uid || root.child('games/' + newData.child('gid').val() + '/winners/2').val() == auth.uid || root.child('games/' + newData.child('gid').val() + '/winners/3').val() == auth.uid)",
+        ".validate": "newData.hasChildren(['uid', 'gid', 'type', 'at'])"
+      }
+    }
+  }
+}
