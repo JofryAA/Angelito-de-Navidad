@@ -27,25 +27,40 @@ dueño del proyecto de Firebase, pueda ver esa información en la base de datos 
 ### El sorteo
 Lo hace el **servidor** (`push/vault.mjs → doDraw`), no el teléfono del organizador. El organizador solo deja un pedido
 en `vaultOps`. Las parejas en claro existen un instante en la memoria de la tarea de GitHub y se guardan ya cifradas.
-El «switch» (ajuste del sorteo) también corre en el servidor (`push/send.mjs → runFix`).
+El «switch» (ajuste del sorteo) también corre en el servidor (`push/send.mjs → runFix`) y **siempre hace lo mismo**
+(recifra todo con tokens nuevos, borra el progreso de regalos y pistas de todos y avisa a todos que vuelvan a girar),
+cambie o no alguna pareja. Así no sirve de «oráculo»: agregar una restricción y ver si «hubo algo que cambiar» no dice nada.
+Cada `vault` va atado a su dueño (`g`): copiar el `vault` de A en la ficha de B no le muestra a B la persona de A.
+El organizador **no puede crear ni cambiar** documentos de `assignments` (solo borrarlos).
 
 ### La revelación
 El organizador pide la revelación (`reveal/main` con `want: true`). El servidor abre las parejas y las publica.
-Los autores de los anónimos se abren cuando llega la fecha de revelación (`config/event.revealAt` o `revealNow`).
+El servidor solo la acepta el día del evento (desde 3 h antes de `eventAt`) o pasada `revealAt`; si no, la rechaza y lo
+anota en `config/revealGate`. Cada revelación queda en `revealLog` (que todos pueden leer y nadie puede borrar desde la app)
+y manda un aviso a todos. Los autores de anónimos solo se abren después de una revelación anotada, y cada autor va
+cifrado junto con el id de su mensaje (no se puede copiar a otro mensaje).
+Si se agrega un teléfono nuevo a una persona que ya tenía uno, le llega un aviso a esa persona.
 
 ## Qué NO puede hacer el organizador (ni el dueño del proyecto)
 - Ver en la app o en la consola de Firebase a quién le tocó cada persona: solo hay texto cifrado.
-- Leer `angelKey`, `vaultOps`, `devkeys`, `thanksFor`, ni los autores cifrados: las reglas (`firestore.rules`) lo prohíben
-  incluso al organizador principal.
+- Leer `angelKey`, `vaultOps`, `devkeys`, `thanksFor`, `giftIncoming`, `hints` ni los autores cifrados: las reglas
+  (`firestore.rules`) lo prohíben incluso al organizador principal.
+- Cambiar en secreto la llave pública del servidor: cada teléfono fija la primera que vio y se niega a usar otra.
 
 ## Lo que sí podría hacer (y cómo se detectaría)
 Ningún sistema puede impedir esto del todo a quien controla el código; por eso el código es abierto y auditable:
 1. **Cambiar el código del servidor** para que imprima las parejas. → Queda en el historial de Git (fecha, autor, cambio)
    y en los registros de GitHub Actions. Revisa los cambios a `push/vault.mjs`, `push/send.mjs` y `.github/workflows/`.
 2. **Cambiar la app** para mandar tu persona a otro lado cuando giras. → Queda en el historial de `Web/js/`.
-3. **Usar la cuenta de servicio** fuera de GitHub. → La llave solo está en los secretos de GitHub; se puede rotar
-   y Google registra su uso (Cloud Audit Logs).
-4. **Correlacionar tiempos**: si alguien mira la base en vivo, podría ver que `giftStatus/{A}` y `giftIncoming/{B}` cambian
+3. **Usar la cuenta de servicio** fuera de GitHub. ⚠️ Es el riesgo principal: quien tenga el JSON de la cuenta de servicio
+   puede derivar la llave del servidor y descifrar todo. Hoy solo está en los secretos de GitHub, pero el dueño del proyecto
+   de Firebase puede crear otra llave en la consola de Google. → Se puede rotar, y Google registra la creación de llaves
+   y su uso (Cloud Audit Logs). Mejora prevista: una llave propia de la caja fuerte (`VAULT_KEY`) generada dentro de GitHub
+   sin que nadie la vea.
+4. **Desplegar fuera de Git** (`firebase deploy` desde su computadora) una app o reglas distintas. → Firebase Hosting
+   guarda el historial de versiones con fecha; compara con los despliegues de GitHub Actions.
+5. **Adelantar la revelación** cambiando la fecha del evento. → Queda en `revealLog` y todos reciben el aviso.
+6. **Correlacionar tiempos**: si alguien mira la base en vivo, podría ver que `giftStatus/{A}` y `giftIncoming/{B}` cambian
    en el mismo instante. Es un riesgo menor que se acepta a cambio de que el organizador vea cuántos ya compraron.
 
 Para quitar también estas posibilidades, la propiedad de Firebase y GitHub puede pasarse a un **custodio** que no participe.
@@ -54,7 +69,7 @@ Para quitar también estas posibilidades, la propiedad de Firebase y GitHub pued
 1. Lee `push/vault.mjs` completo: es corto y comentado. Busca cualquier `console.log` que imprima `r`, `pairs` o `uid`:
    solo se imprimen conteos.
 2. Lee `Web/js/app/00b-caja-fuerte.js`: comprueba `extractable: false` y que lo descifrado no se guarda en ninguna parte.
-3. En `firestore.rules`, busca `angelKey`, `vaultOps`, `devkeys`, `thanksFor`, `questionAuthors`, `suggestionAuthors`
+3. En `firestore.rules`, busca `assignments`, `giftIncoming`, `hints`, `angelKey`, `vaultOps`, `devkeys`, `thanksFor`, `questionAuthors`, `suggestionAuthors`
    y la regla general del organizador (`match /{col}/{rest=**}`), que excluye esas colecciones.
 4. Revisa el historial de Git de esos archivos (`git log -p -- push/vault.mjs`).
 5. Las copias de seguridad nocturnas (`push/backup.mjs`) van cifradas; las anteriores a la caja fuerte se borraron.

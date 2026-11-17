@@ -34,7 +34,11 @@ const CF = (() => {
   }
   // cifrar algo que solo el servidor podrá abrir
   async function sealForServer(obj) {
-    if (!serverPub) { const s = await getDoc(doc(db, 'config', 'vault')); serverPub = s.data()?.pub; if (!serverPub) throw new Error('La caja fuerte todavía no está lista. Intenta en un par de minutos.'); }
+    if (!serverPub) { const s = await getDoc(doc(db, 'config', 'vault')); serverPub = s.data()?.pub; if (!serverPub) throw new Error('La caja fuerte todavía no está lista. Intenta en un par de minutos.');
+      // 🔐 la primera llave vista queda fijada en este teléfono: si alguien la cambia luego en la base de datos, no se cifra nada con la llave falsa
+      let pin = null; try { pin = localStorage.getItem('angelito:vaultPub'); } catch { }
+      if (pin && pin !== serverPub) { serverPub = null; throw new Error('La llave de la caja fuerte cambió. Avísale al organizador antes de seguir.'); }
+      if (!pin) try { localStorage.setItem('angelito:vaultPub', serverPub); } catch { } }
     const e = await C.generateKey(ALG, true, ['deriveBits']), ePub = new Uint8Array(await C.exportKey('raw', e.publicKey));
     const sk = await C.importKey('raw', unb64(serverPub), ALG, false, []), shared = await C.deriveBits({ name: 'ECDH', public: sk }, e.privateKey, 256);
     const iv = crypto.getRandomValues(new Uint8Array(12)), ct = await C.encrypt({ name: 'AES-GCM', iv }, await aesKey(shared, ePub, 'encrypt'), te.encode(JSON.stringify(obj)));

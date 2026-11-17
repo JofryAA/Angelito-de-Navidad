@@ -52,7 +52,8 @@ service cloud.firestore {
     // El organizador principal puede leer y corregir cualquier dato (por ejemplo, al restablecer un PIN).
     // El organizador principal puede todo, MENOS leer quién escribió cada anónimo (eso tiene su propia regla abajo).
     match /{col}/{rest=**} {
-      allow read, write: if isOwner() && !(col in ['questionAuthors', 'suggestionAuthors', 'angelKey', 'thanksFor', 'vaultOps', 'devkeys']);
+      allow read, write: if isOwner() && !(col in ['questionAuthors', 'suggestionAuthors', 'angelKey', 'thanksFor', 'vaultOps', 'devkeys', 'assignments', 'giftIncoming', 'hints', 'revealLog']);
+      // 🔐 assignments, giftIncoming y pistas tienen su propia regla: el organizador no puede escribir parejas ni leer lo que recibe cada quien
     }
 
     // ---------- equipo organizador ----------
@@ -151,8 +152,8 @@ service cloud.firestore {
     // A quién le regala cada uno: solo esa persona (y el organizador principal).
     match /assignments/{uid} {
       allow read: if isOwner() || (isParticipant() && me() == uid);
-      allow create, delete: if isOwner();
-      allow update: if isOwner() || (isParticipant() && me() == uid && changed().hasOnly(['revealed', 'revealedAt', 'spunEver']) && request.resource.data.get('spunEver', true) == true && request.resource.data.revealed == true && request.resource.data.revealedAt is timestamp);
+      allow delete: if isOwner(); // crear o cambiar parejas: solo el servidor (caja fuerte)
+      allow update: if (isParticipant() && me() == uid && changed().hasOnly(['revealed', 'revealedAt', 'spunEver']) && request.resource.data.get('spunEver', true) == true && request.resource.data.revealed == true && request.resource.data.revealedAt is timestamp);
     }
 
     // ---------- deseos ----------
@@ -429,7 +430,7 @@ service cloud.firestore {
     }
     // Aviso que le llega a quien recibe el regalo. Solo lo escribe su angelito de verdad. No guarda quién ni cuándo.
     match /giftIncoming/{rid} {
-      allow read: if isOwner() || (signedIn() && me() == rid);
+      allow read: if signedIn() && me() == rid;
       // 🔐 quien regala prueba que es el angelito de rid con su token secreto k: aquí solo está sha256(k)
       allow create, update: if isParticipant()
         && request.resource.data.k is string && request.resource.data.k.size() < 80 && hashing.sha256(request.resource.data.k) == get(/databases/$(database)/documents/angelKey/$(rid)).data.h
@@ -486,11 +487,14 @@ service cloud.firestore {
     match /devkeys/{id} {
       allow create, update: if isParticipant() && id == me() + '__' + request.resource.data.dev
         && request.resource.data.keys().hasOnly(['uid', 'dev', 'pub', 'at']) && request.resource.data.uid == me()
-        && str(request.resource.data.dev, 20) && str(request.resource.data.pub, 120) && request.resource.data.at is int;
+        && request.resource.data.dev.matches('^[a-z0-9]{6,16}$') && str(request.resource.data.pub, 120)
+        && request.resource.data.at is int && request.resource.data.at > request.time.toMillis() - 3600000 && request.resource.data.at < request.time.toMillis() + 3600000;
       allow delete: if signedIn() && resource.data.uid == me();
     }
     // huella del token de cada angelito (sha256): nadie la lee; las reglas de pistas y estado del regalo la comparan
     match /angelKey/{id} { allow read, write: if false; }
+    // registro de cuándo se abrió la revelación (lo escribe solo el servidor): cualquiera puede comprobar que no fue antes de tiempo
+    match /revealLog/{id} { allow read: if member(); allow write: if false; }
     // agradecimiento para el angelito: se pide por un id imposible de adivinar (sha256 del token); no se puede listar
     match /thanksFor/{id} { allow get: if isParticipant(); allow list, write: if false; }
     // pedidos a la caja fuerte (sortear, cambiar un uid): los crea el organizador; solo el servidor los lee

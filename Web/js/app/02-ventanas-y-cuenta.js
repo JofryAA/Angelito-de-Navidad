@@ -190,7 +190,7 @@ async function resetPin(pid, tempPin) {
   if (p.nameKey) fin.set(R('names', p.nameKey), { uid: nid });
   fin.set(R('banned', pid), { at: serverTimestamp() });
   if ((S.drawRules || []).some(r => r.a === pid || r.b === pid)) fin.set(R('drawRules', 'main'), { pairs: S.drawRules.map(r => ({ ...r, a: r.a === pid ? nid : r.a, b: r.b === pid ? nid : r.b })), at: serverTimestamp() });
-  for (const c of ['assignments', 'giftStatus', 'giftIncoming', 'attendance', 'guesses']) {
+  for (const c of ['giftStatus', 'attendance', 'guesses']) { // 🔐 assignments, giftIncoming y pistas los mueve la caja fuerte (servidor)
     const snap = await getDoc(R(c, pid)).catch(() => null);
     if (snap && snap.exists()) { const data = snap.data(); if ('uid' in data) data.uid = nid; put(R(c, nid), data); del(R(c, pid)); }
   }
@@ -206,7 +206,6 @@ async function resetPin(pid, tempPin) {
   (await q('chatReacts', 'uid', pid)).forEach(d => { put(R('chatReacts', `${d.data().msg}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
   (await q('fcmTokens', 'uid', pid)).forEach(d => del(d.ref)); del(R('fcmTokens', pid));
   for (const c of ['profiles', 'hintsSent', 'angelGuess', 'thanks', 'wishPick']) { const sn = await getDoc(R(c, pid)).catch(() => null); if (sn && sn.exists()) { put(R(c, nid), sn.data()); del(R(c, pid)); } }
-  (await q('hints', 'to', pid)).forEach(d => put(d.ref, { ...d.data(), to: nid }));
   for (const c of ['photos', 'photosFull']) (await q(c, 'uid', pid)).forEach(d => put(d.ref, { ...d.data(), uid: nid }));
   (await q('anonVotes', 'uid', pid)).forEach(d => { put(R('anonVotes', `${d.data().qid}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
   (await q('anonVotes', 'choice', pid)).forEach(d => { if (d.data().uid !== pid) put(d.ref, { ...d.data(), choice: nid }); });

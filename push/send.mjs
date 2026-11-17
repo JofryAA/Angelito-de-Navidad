@@ -20,8 +20,8 @@ const now = Date.now();
 const stateRef = db.doc('push/state');
 const st = (await stateRef.get()).data() || {};
 // 🔐 Caja fuerte (parejas y autores cifrados): ver push/vault.mjs y SEGURIDAD.md
-let V = makeVault(SA);
-try { V = await vaultTasks({ db, sa: SA, now: Date.now() }); } catch (e) { console.log('Caja fuerte: falló (' + String(e?.message || e).slice(0, 80) + ').'); }
+let V = makeVault(SA), VT = {};
+try { VT = await vaultTasks({ db, sa: SA, now: Date.now() }); V = VT.V || V; } catch (e) { console.log('Caja fuerte: falló (' + String(e?.message || e).slice(0, 80) + ').'); }
 // la primera vez solo mira los últimos 10 minutos; nunca más de 1 hora atrás (si GitHub se atrasó)
 const since = Math.max(st.last || now - 10 * 60e3, now - 60 * 60e3);
 const ms = t => !t ? 0 : typeof t === 'number' ? t : t.toMillis ? t.toMillis() : 0;
@@ -144,7 +144,7 @@ if (process.env.AJUSTE === '1' && draw?.ids?.length && !(fx && fx.status === 'sc
   await db.doc('config/event').set({ fix: fx }, { merge: true });
 }
 if (fx && fx.status === 'scheduled' && +fx.at <= now && draw?.ids?.length) {
-  try { fixReady = await runFix(fx); console.log(fixReady ? 'Ajuste del sorteo aplicado.' : 'Ajuste del sorteo: nada que aplicar.'); }
+  try { fixReady = await runFix(fx); console.log(fixReady ? 'Ajuste del sorteo aplicado.' : 'Ajuste del sorteo: ya estaba en curso.'); }
   catch (e) { console.log('Ajuste del sorteo: no se pudo aplicar.'); await db.doc('config/event').set({ fix: { ...fx, status: 'failed' } }, { merge: true }).catch(() => { }); }
 }
 async function runFix(fx) {
@@ -154,7 +154,7 @@ async function runFix(fx) {
   // quien ya no existe como participante (p. ej. se borró por error) también sale del sorteo
   const alive = new Set((await db.collection('participants').select().get()).docs.map(d => d.id));
   const drop = [...new Set([...(fx.drop || []), ...draw.ids.filter(d => !alive.has(d))])].filter(d => draw.ids.includes(d)), ids = draw.ids.filter(g => !drop.includes(g)), rec = {}, spun = new Set();
-  for (const d of (await db.collection('assignments').get()).docs) if (draw.ids.includes(d.id)) { rec[d.id] = d.data().vault ? V.open(d.data().vault).r : d.data().recipient; if (d.data().revealed || d.data().spunEver) spun.add(d.id); } // «ya giró alguna vez» (spunEver): ningún ajuste lo borra
+  for (const d of (await db.collection('assignments').get()).docs) if (draw.ids.includes(d.id)) { rec[d.id] = d.data().vault ? V.openFor(d.id, d.data().vault).r : d.data().recipient; if (d.data().revealed || d.data().spunEver) spun.add(d.id); } // «ya giró alguna vez» (spunEver): ningún ajuste lo borra
   const orig = { ...rec };
   // 👋 quien sale del sorteo: a quien le regalaba a esa persona le pasa la persona que le tocaba a ella (se cierra la cadena)
   for (const d of drop) {
@@ -175,24 +175,19 @@ async function runFix(fx) {
     const fresh = opts.filter(y => !spun.has(y)), pool = fresh.length ? fresh : opts; // primero con quienes AÚN NO han girado: nunca vieron su persona, así que no deja rastro
     const y = pool[rnd(pool.length)]; [rec[v], rec[y]] = [rec[y], rec[v]]; return y;
   };
-  console.log('Ajuste: ' + (givers.some(g => !ok(g, rec[g])) ? 'hay restricciones por corregir' : 'no hay restricciones incumplidas') + (drop.length ? ' · se cierra la cadena de quien salió' : ''));
+  // 🔐 sin registros que digan si había algo que corregir: el resultado público es idéntico en todos los casos
   for (const v of givers) if (!ok(v, rec[v])) {
     const y = swap(v, []); if (!y) throw new Error('sin salida');
     swap(v, [y]); // segundo cambio: así nadie puede deducir la pareja nueva a partir de la vieja
   }
   if (givers.some(g => !ok(g, rec[g]))) throw new Error('incumple');
-  if (!drop.length && givers.every(g => rec[g] === orig[g])) { await evRef.set({ fix: { ...fx, status: 'done', doneAt: Date.now(), noop: true } }, { merge: true }); return false; } // nada que cambiar: nadie tiene que volver a girar
-  const changed = givers.filter(g => rec[g] !== before[g]);
-  const touchedRec = new Set(changed.flatMap(g => [before[g], rec[g]]));
+  // siempre se aplica igual (aunque nada cambie): así el ajuste no sirve para averiguar si alguien tenía a alguien
   const ops = [];
-  // 🔐 cada quien con su persona cifrada; a quien le cambió la persona, token nuevo (las pistas viejas ya no valen)
-  const prevK = {}; for (const d of (await db.collection('assignments').get()).docs) if (d.data().vault) try { prevK[d.id] = V.open(d.data().vault).k; } catch { }
-  for (const g of givers) { const k = rec[g] === orig[g] && prevK[g] ? prevK[g] : newToken(); ops.push(b => b.set(db.doc('assignments/' + g), { vault: V.seal({ r: rec[g], k }), boxes: {}, recipient: FieldValue.delete(), revealed: false, revealedAt: FieldValue.delete(), ...(spun.has(g) ? { spunEver: true } : {}) }, { merge: true })); ops.push(b => b.set(db.doc('angelKey/' + rec[g]), { h: sha256(k) })); }
-  ops.push(b => b.set(db.doc('config/vault'), { boxAt: 0, badStamp: '' }, { merge: true }));
+  // 🔐 todos: persona recifrada con token NUEVO y progreso reiniciado por igual, cambie o no su persona (nadie puede deducir quién cambió)
+  for (const g of givers) { const k = newToken(); ops.push(b => b.set(db.doc('assignments/' + g), { vault: V.seal({ g, r: rec[g], k }), boxes: {}, recipient: FieldValue.delete(), revealed: false, revealedAt: FieldValue.delete(), ...(spun.has(g) ? { spunEver: true } : {}) }, { merge: true })); ops.push(b => b.set(db.doc('angelKey/' + rec[g]), { h: sha256(k) })); }
+  ops.push(b => b.set(db.doc('config/vault'), { boxAt: 0 }, { merge: true }));
   for (const d of drop) ops.push(b => b.delete(db.doc('angelKey/' + d)));
-  for (const g of changed) for (const c of ['giftStatus', 'wishPick', 'hintsSent']) ops.push(b => b.delete(db.doc(`${c}/${g}`)));
-  for (const r of touchedRec) { ops.push(b => b.delete(db.doc('giftIncoming/' + r))); ops.push(b => b.delete(db.doc('thanks/' + r))); }
-  for (const d of (await db.collection('hints').get()).docs) if (touchedRec.has(d.data().to)) ops.push(b => b.delete(d.ref));
+  for (const c of ['giftStatus', 'giftIncoming', 'thanks', 'hints', 'thanksFor']) for (const d of (await db.collection(c).get()).docs) ops.push(b => b.delete(d.ref));
   if (drop.length) {
     ops.push(b => b.set(db.doc('config/draw'), { ids, n: ids.length }, { merge: true }));
     for (const d of drop) {
@@ -208,7 +203,7 @@ async function runFix(fx) {
   for (let i = 0; i < ops.length; i += 400) { const b = db.batch(); ops.slice(i, i + 400).forEach(f => f(b)); await b.commit(); }
   return true;
 }
-const nothing = !PRUEBA && !fixReady && !remDue.length && !invs.length && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
+const nothing = !PRUEBA && !fixReady && !VT.alerts?.length && !VT.revealedNow && !remDue.length && !invs.length && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
   && !(open && st.revealSent !== openKey) && hintsQ.docs.every(d => seenH.has(d.id));
 if (nothing) { await stateRef.set({ last: now }, { merge: true }); console.log('Nada nuevo.'); process.exit(0); }
 
@@ -244,6 +239,8 @@ for (const d of actsQ.docs) {
   const a = d.data(); for (const uid of all) put(uid, 'actividades', { title: `📅 Nueva actividad: ${a.title}`, body: a.date || '', url: `#actividad-${d.id}`, skipDev: a.dev || '' });
 }
 // 🔀 ajuste del sorteo listo: el MISMO aviso para todos
+for (const uid of VT.alerts || []) put(uid, 'avisos', { title: '🔐 Se agregó un dispositivo nuevo', body: 'Tu persona secreta ahora también se puede abrir en otro teléfono. Si no fuiste tú, avisa al organizador.', url: '#inicio' });
+if (VT.revealedNow) for (const uid of Object.keys(people)) put(uid, 'avisos', { title: '🎁 ¡Llegó la revelación!', body: 'Ya puedes ver quién era el angelito de cada quien.', url: '#inicio' });
 if (fixReady) for (const uid of draw.ids || []) put(uid, 'avisos', { title: '🔀 El ajuste del sorteo está listo', body: 'Entra y gira tu ruleta otra vez para ver tu persona definitiva. 🤫', url: '#ruleta' });
 // 🎡 sorteo listo
 if (draw && ms(draw.at) > since) for (const uid of draw.ids || []) put(uid, 'avisos', { title: '🎡 ¡La ruleta ya está habilitada!', body: 'Entra y descubre a quién te toca regalar.', url: '#ruleta' });

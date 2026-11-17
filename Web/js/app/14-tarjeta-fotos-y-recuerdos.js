@@ -252,7 +252,7 @@ $('#ny-go').addEventListener('click', async () => {
     const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return; if (a === 'no') return closeModal();
     if ($('#ny-txt', s2).value.trim().toUpperCase() !== 'NUEVO AÑO') { $('#ny-err', s2).textContent = 'Escribe NUEVO AÑO exactamente.'; return; }
     const btn = s2.querySelector('[data-a=ok]'); busy(btn, true);
-    const cols = ['assignments', 'giftStatus', 'giftIncoming', 'guesses', 'angelGuess', 'hints', 'hintsSent', 'reveal', 'wishes', 'wishImg', 'wishPick', 'games', 'gameWins', 'attendance', 'questions', 'questionAuthors',
+    const cols = ['assignments', 'giftStatus', 'guesses', 'angelGuess', 'hintsSent', /* 🔐 regalo recibido y pistas: los borra la caja fuerte al quedar sin sorteo */ 'reveal', 'wishes', 'wishImg', 'wishPick', 'games', 'gameWins', 'attendance', 'questions', 'questionAuthors',
       'suggestions', 'suggestionAuthors', 'sugVotes', 'activities', 'activityPicks', 'votes', 'activitySignups', 'quizAns', 'quizKeys', 'rsvps', 'notices', 'thanks', 'anonVotes', 'triviaAns', 'party'];
     const wipeMedia = $('#ny-chat', s2).checked; if (wipeMedia) cols.push('chat', 'chatReacts', 'photos');
     try {

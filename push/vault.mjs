@@ -42,10 +42,14 @@ export function makeVault(sa) {
     const key = Buffer.from(hkdfSync('sha256', shared, ePub, Buffer.from(INFO_BOX), 32));
     return JSON.parse(ungcm(key, unb64(box.iv), unb64(box.ct)).toString());
   };
-  return { seal, open, boxFor, openFromApp, pubB64: b64(pub) };
+  // la pareja va atada a quien regala (g): copiar el «vault» de otra persona a tu documento no sirve de nada
+  const openFor = (g, v) => { const x = open(v); if (x.g !== undefined && x.g !== g) throw new Error('vault ajeno'); return x; };
+  return { seal, open, openFor, boxFor, openFromApp, pubB64: b64(pub) };
 }
 export const sha256 = s => createHash('sha256').update(String(s)).digest();
 export const newToken = () => randomBytes(24).toString('base64url');
+export const MIN_OPC = n => Math.max(2, Math.ceil((n - 1) / 3)); // cada quien debe poder recibir al menos 1/3 del grupo: así nadie puede «forzar» el sorteo con restricciones
+export function optsOK(ids, pairs) { const bad = new Set(); for (const r of pairs || []) { bad.add(r.a + '>' + r.b); if (r.both) bad.add(r.b + '>' + r.a); } const m = MIN_OPC(ids.length); return ids.every(x => ids.filter(y => y !== x && !bad.has(x + '>' + y)).length >= m); }
 
 /* ---------------- sorteo (misma lógica que la app: una sola cadena si se puede; si no, emparejamiento exacto) ---------------- */
 const rnd = n => { const a = new Uint32Array(1); globalThis.crypto.getRandomValues(a); return a[0] % n; };
@@ -76,7 +80,7 @@ export function drawPlan(ids, pairs) {
 
 /* ---------------- tareas que corre push/send.mjs en cada vuelta ---------------- */
 export async function vaultTasks({ db, sa, now, log = console.log }) {
-  const V = makeVault(sa), did = [];
+  const V = makeVault(sa), did = [], alerts = []; let revealedNow = false;
   const cfg = db.doc('config/vault'), cv = (await cfg.get()).data() || {};
   if (cv.pub !== V.pubB64) { await cfg.set({ pub: V.pubB64, v: 1, at: now }, { merge: true }); did.push('llave'); }
 
@@ -89,11 +93,24 @@ export async function vaultTasks({ db, sa, now, log = console.log }) {
     b.set(cfg, { migrated: now }, { merge: true }); await b.commit(); did.push(`migración (${n})`);
   }
 
+  // 1b) Migración 2: atar cada pareja a quien regala, y borrar lo que delataba parejas (wishPick, hintsSent, conteo de restricciones)
+  if ((cv.mig || 0) < 2) {
+    const b = db.batch();
+    for (const d of (await db.collection('assignments').get()).docs) { const v = d.data().vault; if (!v) continue; try { const x = V.open(v); if (x.g === undefined) b.set(d.ref, { vault: V.seal({ g: d.id, r: x.r, k: x.k }) }, { merge: true }); } catch { } }
+    for (const c of ['wishPick', 'hintsSent', 'adminState']) for (const d of (await db.collection(c).get()).docs) b.delete(d.ref);
+    b.set(cfg, { mig: 2 }, { merge: true }); await b.commit(); did.push('migración 2');
+  }
+
   // 2) Pedidos del organizador: sortear / cambiar el uid de alguien (al restablecer su PIN)
   for (const op of (await db.collection('vaultOps').get()).docs) {
     const o = op.data(); try {
       if (o.op === 'draw') await doDraw(db, V, o.ids || []);
-      if (o.op === 'remap' && o.from && o.to) await doRemap(db, V, o.from, o.to);
+      if (o.op === 'remap' && o.from && o.to) {
+        // el cambio de ficha del cliente llega al final: si todavía no llegó, se espera (hasta 15 min)
+        const young = now - (o.at?.toMillis?.() ?? now) < 15 * 60e3;
+        if (young && (await db.doc('participants/' + o.from).get()).exists) continue;
+        await doRemap(db, V, o.from, o.to);
+      }
       did.push(o.op);
     } catch (e) { await db.doc('adminState/draw').set({ err: String(e.message || e).slice(0, 120), at: now }, { merge: true }); log('Caja fuerte: un pedido no se pudo hacer.'); }
     await op.ref.delete();
@@ -105,72 +122,94 @@ export async function vaultTasks({ db, sa, now, log = console.log }) {
   if (draw?.ids?.length) {
     const devs = (await db.collection('devkeys').where('at', '>', (cv.boxAt || 0) - 5 * 60e3).get()).docs.map(d => d.data()).filter(d => d.uid && d.dev && d.pub);
     if (devs.length) {
-      const b = db.batch(); let n = 0;
+      let n = 0;
       for (const dk of devs) {
-        if (!draw.ids.includes(dk.uid)) continue;
+        if (!draw.ids.includes(dk.uid) || !/^[a-z0-9]{6,16}$/.test(dk.dev)) continue;
         const a = (await db.doc('assignments/' + dk.uid).get()).data(); if (!a?.vault || a.boxes?.[dk.dev]?.for === dk.pub.slice(0, 16)) continue;
-        try { b.set(db.doc('assignments/' + dk.uid), { boxes: { [dk.dev]: { ...V.boxFor(dk.pub, V.open(a.vault)), for: dk.pub.slice(0, 16) } } }, { merge: true }); n++; } catch { }
+        const others = Object.keys(a.boxes || {}).filter(x => x !== dk.dev);
+        if (others.length >= 4) continue; // máximo 4 teléfonos por persona
+        try { await db.doc('assignments/' + dk.uid).set({ boxes: { [dk.dev]: { ...V.boxFor(dk.pub, V.openFor(dk.uid, a.vault)), for: dk.pub.slice(0, 16) } } }, { merge: true }); n++; if (others.length) alerts.push(dk.uid); } catch { }
       }
-      if (n) { await b.commit(); did.push(`cajitas (${n})`); }
+      if (n) did.push(`cajitas (${n})`);
     }
     if (devs.length || now - (cv.boxAt || 0) > 3600e3) await cfg.set({ boxAt: now }, { merge: true });
   }
 
-  // 4) Cuántas parejas no cumplen las restricciones (solo el número, nunca quiénes) → para el «switch»
-  const rdoc = (await db.doc('drawRules/main').get()).data() || {}, stamp = `${draw?.at?.toMillis?.() || 0}:${rdoc.at?.toMillis?.() || 0}:${did.join()}`;
-  if (draw?.ids?.length && cv.badStamp !== stamp) { // solo cuando cambian el sorteo o las restricciones (para no gastar lecturas)
-    await cfg.set({ badStamp: stamp }, { merge: true });
-    const rules = rdoc.pairs || [], bl = new Set(); for (const r of rules) { bl.add(r.a + '>' + r.b); if (r.both) bl.add(r.b + '>' + r.a); }
-    let bad = 0; for (const d of (await db.collection('assignments').get()).docs) { const v = d.data().vault; if (!v) continue; try { if (bl.has(d.id + '>' + V.open(v).r)) bad++; } catch { } }
-    const ds = (await db.doc('adminState/draw').get()).data() || {}; if (ds.bad !== bad) await db.doc('adminState/draw').set({ bad, at: now }, { merge: true });
-  }
-
   // 5) Agradecimientos: la persona escribe thanks/{ella}; su angelito lo lee en thanksFor/{sha256(k)} (id imposible de adivinar)
-  for (const t of (await db.collection('thanks').where('at', '>', new Date(now - 10 * 60e3)).get()).docs) {
+  for (const t of (await db.collection('thanks').where('at', '>', new Date((cv.thxAt || now - 864e5) - 60e3)).get()).docs) {
     const r = t.id, hk = (await db.doc('angelKey/' + r).get()).data()?.h; if (!hk) continue;
     await db.doc('thanksFor/' + Buffer.from(hk).toString('hex')).set(t.data());
   }
+  await cfg.set({ thxAt: now }, { merge: true });
 
   // 6) Revelación: el organizador la pide (reveal/main con want) → aquí se abren las parejas y los autores de anónimos
   const rv = db.doc('reveal/main'), rd = (await rv.get()).data();
-  if (rd && !rd.pairs && rd.want) {
-    const pairs = []; for (const d of (await db.collection('assignments').get()).docs) { const v = d.data().vault; if (v) try { pairs.push({ g: d.id, r: V.open(v).r }); } catch { } }
-    await rv.set({ pairs, at: FieldValue.serverTimestamp(), want: FieldValue.delete() }, { merge: true }); did.push('revelación');
-  }
   const ev = (await db.doc('config/event').get()).data() || {};
-  const revealed = !!ev.revealNow || (ev.revealAt && (ev.revealAt.toMillis ? ev.revealAt.toMillis() : +new Date(ev.revealAt)) <= now);
-  if (revealed && now - (cv.authAt || 0) > 30 * 60e3) {
+  const msOf = x => !x ? 0 : x.toMillis ? x.toMillis() : +new Date(x);
+  if (rd && !rd.pairs && rd.want) {
+    // solo el día del angelito (desde 3 h antes de la hora del evento) o pasada la fecha de revelación; queda anotado para siempre y se avisa a todos
+    const okTime = (msOf(ev.eventAt) && now >= msOf(ev.eventAt) - 3 * 3600e3) || (msOf(ev.revealAt) && now >= msOf(ev.revealAt));
+    if (!okTime) { await rv.delete(); await db.doc('config/revealGate').set({ denied: now }, { merge: true }); did.push('revelación rechazada (todavía no es el día)'); }
+    else {
+      const pairs = []; for (const d of (await db.collection('assignments').get()).docs) { const v = d.data().vault; if (v) try { pairs.push({ g: d.id, r: V.openFor(d.id, v).r }); } catch { } }
+      await rv.set({ pairs, at: FieldValue.serverTimestamp(), want: FieldValue.delete() }, { merge: true });
+      await db.collection('revealLog').add({ at: FieldValue.serverTimestamp(), n: pairs.length });
+      revealedNow = true; did.push('revelación');
+    }
+  }
+  // autores de anónimos: solo después de una revelación que quedó anotada en revealLog (y que avisó a todos); el organizador no lo puede adelantar a escondidas
+  if (now - (cv.authAt || 0) > 30 * 60e3 && (revealedNow || !(await db.collection('revealLog').get()).empty)) {
     await cfg.set({ authAt: now }, { merge: true });
     const b = db.batch(); let n = 0;
-    for (const d of (await db.collection('questionAuthors').get()).docs) { const x = d.data(); if (x.uid) continue; try { const u = x.box ? V.openFromApp(x.box).uid : x.sealed ? V.open(x.sealed).uid : null; if (u) { b.set(d.ref, { uid: u }, { merge: true }); n++; } } catch { } }
+    for (const d of (await db.collection('questionAuthors').get()).docs) { const x = d.data(); if (x.uid) continue; try {
+      let u = null; if (x.box) { const o = V.openFromApp(x.box); if (o.col === 'questionAuthors' && o.id === d.id) u = o.uid; } else if (x.sealed) u = V.open(x.sealed).uid; // el autor va atado a ESTE mensaje
+      if (u) { b.set(d.ref, { uid: u }, { merge: true }); n++; } } catch { } }
     if (n) { await b.commit(); did.push(`autores (${n})`); }
   }
+  // sin sorteo: las huellas viejas se borran (nadie puede seguir mandando pistas de un sorteo que ya no existe)
+  // también lo que solo tiene sentido con parejas (estado del regalo recibido, pistas, agradecimientos): el organizador no puede leerlo, así que lo limpia el servidor
+  if (!draw?.ids?.length && !cv.akClean) { await wipe(db, PAIR_COLS); await db.doc('config/vault').set({ akClean: now }, { merge: true }); }
+  if (draw?.ids?.length && cv.akClean) await cfg.set({ akClean: FieldValue.delete() }, { merge: true });
   if (did.length) log('Caja fuerte: ' + did.join(', ') + '.');
-  return V;
+  return { V, alerts, revealedNow };
 }
+
+const PAIR_COLS = ['angelKey', 'giftIncoming', 'hints', 'thanksFor', 'revealLog'];
+async function wipe(db, cols) { for (const c of cols) { const ds = (await db.collection(c).get()).docs; for (let i = 0; i < ds.length; i += 400) { const b = db.batch(); ds.slice(i, i + 400).forEach(d => b.delete(d.ref)); await b.commit(); } } }
 
 async function doDraw(db, V, ids) {
   ids = [...new Set(ids)].filter(Boolean); if (ids.length < 3) throw new Error('Se necesitan al menos 3 personas');
   const people = new Set((await db.collection('participants').select().get()).docs.map(d => d.id)); ids = ids.filter(id => people.has(id));
   const rules = (await db.doc('drawRules/main').get()).data()?.pairs || [];
+  if (!optsOK(ids, rules)) throw new Error('Hay demasiadas restricciones: cada quien debe poder recibir a ' + MIN_OPC(ids.length) + ' personas o más');
   const next = drawPlan(ids, rules); if (!next) throw new Error('Con estas restricciones no hay forma de sortear');
+  await wipe(db, PAIR_COLS); // lo del sorteo anterior
   const b = db.batch();
   for (const d of (await db.collection('assignments').get()).docs) if (!ids.includes(d.id)) b.delete(d.ref);
-  for (const d of (await db.collection('angelKey').get()).docs) b.delete(d.ref);
-  for (const g of ids) { const k = newToken(); b.set(db.doc('assignments/' + g), { vault: V.seal({ r: next[g], k }), boxes: {}, revealed: false, at: FieldValue.serverTimestamp() }); b.set(db.doc('angelKey/' + next[g]), { h: sha256(k) }); }
+  for (const g of ids) { const k = newToken(); b.set(db.doc('assignments/' + g), { vault: V.seal({ g, r: next[g], k }), boxes: {}, revealed: false, at: FieldValue.serverTimestamp() }); b.set(db.doc('angelKey/' + next[g]), { h: sha256(k) }); }
   b.set(db.doc('config/event'), { fix: FieldValue.delete(), registrationOpen: false, angelLocked: false, guessesOpen: false, guessesLocked: false, guessWinner: FieldValue.delete() }, { merge: true });
   b.set(db.doc('config/draw'), { ids, n: ids.length, at: FieldValue.serverTimestamp() });
-  b.set(db.doc('config/vault'), { boxAt: 0 }, { merge: true }); // que se hagan las cajitas de todos los teléfonos ya registrados
+  b.set(db.doc('config/vault'), { boxAt: 0, akClean: 0 }, { merge: true }); // que se hagan las cajitas de todos los teléfonos ya registrados
   await b.commit();
 }
 
 async function doRemap(db, V, from, to) {
+  // solo para el cambio de PIN: «from» ya no existe y «to» es una persona nueva fuera del sorteo
+  const draw = (await db.doc('config/draw').get()).data() || {}, ids = draw.ids || [];
+  if ((await db.doc('participants/' + from).get()).exists || !(await db.doc('participants/' + to).get()).exists || ids.includes(to) || from === to) throw new Error('cambio de uid no válido');
   const b = db.batch();
   for (const d of (await db.collection('assignments').get()).docs) {
-    const a = d.data(); if (!a.vault) continue; const x = V.open(a.vault);
-    if (x.r === from) { x.r = to; b.set(d.ref, { vault: V.seal(x), boxes: {} }, { merge: true }); }
+    const a = d.data(); if (!a.vault) continue; const x = V.openFor(d.id, a.vault), g = d.id === from ? to : d.id;
+    if (x.r === from) x.r = to;
+    // TODAS se vuelven a cifrar y TODAS las cajitas se rehacen: desde afuera no se nota a quién le tocaba
+    b.set(db.doc('assignments/' + g), { ...a, vault: V.seal({ g, r: x.r, k: x.k }), boxes: {} });
+    if (d.id === from) b.delete(d.ref);
   }
-  const ak = (await db.doc('angelKey/' + from).get()); if (ak.exists) { b.set(db.doc('angelKey/' + to), ak.data()); b.delete(ak.ref); }
+  const ak = await db.doc('angelKey/' + from).get(); if (ak.exists) { b.set(db.doc('angelKey/' + to), ak.data()); b.delete(ak.ref); }
+  // lo que le llegó a «from» como persona secreta (estado del regalo y pistas) pasa a «to»: el organizador ya no puede leerlo ni moverlo
+  const gi = await db.doc('giftIncoming/' + from).get(); if (gi.exists) { b.set(db.doc('giftIncoming/' + to), gi.data()); b.delete(gi.ref); }
+  for (const h of (await db.collection('hints').where('to', '==', from).get()).docs) b.update(h.ref, { to });
+  if (ids.includes(from)) b.set(db.doc('config/draw'), { ids: ids.map(x => x === from ? to : x) }, { merge: true });
   b.set(db.doc('config/vault'), { boxAt: 0 }, { merge: true });
   await b.commit();
 }

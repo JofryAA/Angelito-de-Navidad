@@ -222,6 +222,8 @@ function startAdminSubs() {
   if (S.isOwner) {
     sub(doc(adb, 'drawRules', 'main'), s => { S.drawRules = s.exists() ? (s.data().pairs || []) : []; render(); }, 'drawRules');
     sub(doc(adb, 'adminState', 'draw'), s => { S.drawState = s.exists() ? s.data() : null; render(); }, 'drawState');
+    // 🔐 avisos de la caja fuerte al organizador: un pedido que no se pudo hacer, o una revelación pedida antes de tiempo
+    sub(doc(adb, 'config', 'revealGate'), s => { const d = +s.data()?.denied || 0; if (d && Date.now() - d < 15 * 60e3 && S._rgSeen !== d) { S._rgSeen = d; toast('🔐 La revelación solo se abre el día del evento (desde 3 h antes) o en la fecha de revelación'); } }, 'revealGate');
     sub(collection(adb, 'assignments'), s => { S.assignments = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); render(); }, 'assignments');
     sub(collection(adb, 'suggestionAuthors'), s => { S.sugAuthors = Object.fromEntries(s.docs.filter(d => d.data().uid).map(d => [d.id, d.data().uid])); render(); }, 'sugauth'); // 🔐 cifrados: no se ven
     sub(collection(adb, 'guesses'), s => { S.adminGuesses = rows(s); render(); }, 'guesses-adm');

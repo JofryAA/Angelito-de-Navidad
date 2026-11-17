@@ -391,16 +391,16 @@ $('#p-list').addEventListener('click', async e => {
 // vuelven a girar. Nadie ve cuántas parejas cambiaron ni cuáles: el aviso y los pasos son iguales para todos.
 const fixOf = () => S.event?.fix || null;
 const fixWhen = f => new Date(+f.at).toLocaleString('es-DO', { weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' });
-function fixBad() { return S.drawMeta ? +S.drawState?.bad || 0 : 0; } // 🔐 lo cuenta la caja fuerte (solo el número, nunca quiénes)
 function renderFixAdmin() {
   const box = $('#fx-box'); if (!box) return;
-  const f = fixOf(), bad = S.isOwner ? fixBad() : 0, live = f && (f.status === 'scheduled' || f.status === 'running');
+  const f = fixOf(), live = f && (f.status === 'scheduled' || f.status === 'running');
   if (!S.isOwner || !S.drawMeta) { if (box.innerHTML) box.innerHTML = ''; return; }
   const inDraw = S.participants.filter(p => S.drawMeta.ids?.includes(p.id)).sort((a, b) => a.name.localeCompare(b.name, 'es'));
   const drops = (f?.drop || []).map(pName).filter(Boolean);
   const def = new Date(Date.now() + 864e5); def.setHours(21, 0, 0, 0);
   const loc = d => new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
-  box.innerHTML = `<div class="fx-card ${live ? 'on' : ''}"><div class="fx-hd"><span class="fx-ic">🔀</span><div class="grow"><b>Ajuste del sorteo</b><small>${f?.status === 'scheduled' ? 'Programado para el ' + esc(fixWhen(f)) : f?.status === 'running' ? 'Aplicando ahora…' : f?.status === 'failed' ? 'El último intento no se pudo aplicar. Prográmalo otra vez.' : bad ? 'Hay ' + bad + (bad === 1 ? ' pareja que no cumple' : ' parejas que no cumplen') + ' las restricciones' : 'El sorteo cumple las restricciones'}</small></div></div>
+  const verr = S.drawState?.err && Date.now() - (+S.drawState.at || 0) < 864e5 ? `<p class="err" style="margin:0 0 8px">🔐 La caja fuerte no pudo hacer el último pedido: ${esc(S.drawState.err)}</p>` : '';
+  box.innerHTML = verr + `<div class="fx-card ${live ? 'on' : ''}"><div class="fx-hd"><span class="fx-ic">🔀</span><div class="grow"><b>Ajuste del sorteo</b><small>${f?.status === 'scheduled' ? 'Programado para el ' + esc(fixWhen(f)) : f?.status === 'running' ? 'Aplicando ahora…' : f?.status === 'failed' ? 'El último intento no se pudo aplicar. Prográmalo otra vez.' : 'Úsalo si agregaste restricciones o alguien sale del sorteo. 🔐 Nadie, ni tú, puede saber si alguien las incumplía'}</small></div></div>
     ${live ? `<p class="muted small">A esa hora el sistema hace los cambios al azar (respetando todas las restricciones) y todos vuelven a girar. Los cambios se hacen primero con quienes aún no han girado. Nadie sabrá cuántos ni cuáles cambiaron.</p>${drops.length ? `<p class="muted small">👋 Sale del sorteo: <b>${esc(drops.join(', '))}</b></p>` : ''}${f.status === 'scheduled' || (f.status === 'running' && Date.now() - +f.at > 15 * 60e3) ? '<div class="actions"><button class="btn sm" id="fx-cancel">Cancelar ajuste</button></div>' : ''}`
     : `<p class="muted small">Elige cuándo se hace. Se avisa a todos que habrá un <b>switch</b> (sin decir cuántos ni por qué) y luego cada quien vuelve a girar su ruleta.</p>
     <label class="field" style="margin-top:8px"><span>Sacar a alguien del sorteo (opcional)</span><select class="in" id="fx-drop"><option value="">Nadie</option>${inDraw.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${S.assignments?.[p.id]?.revealed ? '' : ' · no ha girado'}</option>`).join('')}</select></label>
@@ -412,7 +412,6 @@ document.addEventListener('click', async e => {
     const at = new Date($('#fx-at')?.value || '').getTime();
     if (!at || at < Date.now() - 60e3) return toast('Elige una fecha y hora que no haya pasado');
     const dr = $('#fx-drop')?.value || '', f = { id: Date.now().toString(36), at, status: 'scheduled', ...(dr ? { drop: [dr] } : {}) };
-    if (!dr && !fixBad()) return toast('El sorteo ya cumple las restricciones: no hace falta ajuste');
     if (!(await confirmBox('🔀 Programar el ajuste', `El ${fixWhen(f)} el sistema hará el switch${dr ? ' y sacará del sorteo a ' + pName(dr) + ' (se borra su cuenta)' : ''}. Todos volverán a girar. Se enviará un aviso a todo el grupo.`, 'Programar'))) return;
     try {
       const b = writeBatch(adb);
@@ -607,8 +606,7 @@ $('#d-gen').addEventListener('click', async () => {
       const hop = histOp(rv, null, th, gu); if (hop) ops.push(hop); if (rv.exists()) ops.push(['del', rv.ref]); } // restos de un sorteo viejo: primero al historial
     // parejas nuevas: se borra solo lo que dependía de la pareja anterior (estado del regalo, "mi regalo", pistas, sospechas y apartados).
     // Deseos, fotos, perfiles, chat, ideas, asistencia y aportes NO se tocan.
-    for (const c of ['giftStatus', 'giftIncoming', 'hints', 'hintsSent', 'angelGuess', 'wishPick', 'thanks', 'guesses']) (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
-    (await getDocs(collection(adb, 'assignments'))).forEach(d => { if (!ids.includes(d.id)) ops.push(['del', d.ref]); });
+    for (const c of ['giftStatus', 'hintsSent', 'angelGuess', 'wishPick', 'thanks', 'guesses']) /* 🔐 regalo recibido y pistas los limpia la caja fuerte */ (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
     await commitOps(ops);
     // 3) 🔐 el sorteo lo hace la CAJA FUERTE (servidor): aquí solo se pide. Las parejas nunca pasan por este teléfono.
     await setDoc(doc(collection(adb, 'vaultOps')), { op: 'draw', ids, at: serverTimestamp() });
