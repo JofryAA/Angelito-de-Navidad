@@ -1346,3 +1346,4 @@ body.touring #helper{display:none!important}
 #gchat-panel .gc-m,.gc-m{background:#1d3a2c}#gchat-panel .gc-m.me,.gc-m.me{background:#1f5a3d}
 .gcp-x{background:#1d3a2c}
 #g-emos .gemo{background:#0f2419}
+body.logged .hero p.cdmsg:not([hidden]){display:block;margin:10px 0 0;max-width:none;font-size:.8rem;padding:6px 12px;text-align:center}

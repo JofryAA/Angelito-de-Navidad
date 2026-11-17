@@ -65,7 +65,7 @@ const isOnline = uid => uid === S.uid ? navigator.onLine !== false && !document.
 const onlineIds = () => S.participants.filter(p => isOnline(p.id)).map(p => p.id);
 let beatT = 0, beatLast = 0;
 function beat(force) { // «sigo aquí» cada 4 minutos mientras la app está a la vista
-  clearTimeout(beatT); if (!S.me || navigator.onLine === false || quotaOut()) return;
+  clearTimeout(beatT); if (window.__dead || !S.me || navigator.onLine === false || quotaOut()) return;
   const on = !document.hidden;
   if (force || !on || Date.now() - beatLast > 235e3) { beatLast = Date.now(); fsSetDoc(doc(db, 'presence', S.uid), { ts: Date.now(), on, at: serverTimestamp() }).catch(quotaCheck); }
   if (on) beatT = setTimeout(beat, 240e3);
@@ -82,6 +82,7 @@ function liveGroup(on) {
   } else if (!on && groupUn) { groupUn(); groupUn = null; }
 }
 function liveGroupSync() {
+  if (window.__dead) return;
   const want = !!S.me && !document.hidden && $('#v-buzon')?.classList.contains('on') && S.buz === 'c';
   if (want) liveGroup(true); else if (groupUn && !groupOffT) groupOffT = setTimeout(() => { groupOffT = 0; liveGroup(false); }, 20e3);
 }

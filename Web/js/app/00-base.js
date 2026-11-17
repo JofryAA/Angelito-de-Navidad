@@ -123,7 +123,7 @@ const RTURL = firebaseConfig.databaseURL || `https://${firebaseConfig.projectId}
 let errN = 0; const errSeen = new Set();
 function reportErr(msg, src) {
   try {
-    msg = String(msg || '').slice(0, 300); if (!msg || errN >= 6 || errSeen.has(msg) || /ResizeObserver|Script error|extension:\/\/|NetworkError|Failed to fetch|Load failed|AbortError/i.test(msg)) return;
+    msg = String(msg || '').slice(0, 300); if (!msg || errN >= 6 || errSeen.has(msg) || /ResizeObserver|Script error|extension:\/\/|NetworkError|Failed to fetch|Load failed|AbortError|already been terminated/i.test(msg) || window.__dead) return;
     if (!auth.currentUser) return; errSeen.add(msg); errN++;
     const k = rtPush(rtRef(rdb, 'errs')).key;
     rtUpdate(rtRef(rdb), { ['errs/' + k]: { m: msg, s: String(src || '').replace(/^.*\/(js\/)/, '$1').slice(0, 160), v: APP_VERSION, p: location.hash.slice(0, 30) || '#', ts: Date.now() } }).catch(() => { });

@@ -27,14 +27,14 @@ startCoreSubs();
 async function repairData(auto) {
   try { sessionStorage.setItem('angelito:repaired', String(Date.now())); } catch { }
   if (!auto) toast('🔄 Recargando los datos…');
-  try { await terminate(db); await clearIndexedDbPersistence(db); } catch (e) { console.warn('repair', e); }
+  window.__dead = true; try { await terminate(db); await clearIndexedDbPersistence(db); } catch (e) { console.warn('repair', e); }
   try { localStorage.removeItem('angelito:boot:v1'); } catch { }
   location.reload();
 }
 // Vigilante: si hay internet y el servidor responde pero la lista en vivo no llega, la copia local está trabada → se repara sola (una vez).
 let hcN = 0, hcNext = 0; // cada revisión al servidor espera el doble que la anterior (20 s → 40 s → … máx. 10 min)
 async function healthCheck() {
-  if (navigator.onLine === false || document.hidden || typeof getDocsFromServer !== 'function' || quotaOut()) return;
+  if (window.__dead || navigator.onLine === false || document.hidden || typeof getDocsFromServer !== 'function' || quotaOut()) return;
   const stuckPeople = !SYNC.people, stuckWishes = !!S.me && !SYNC.wishes && Date.now() - SYNC.wishesT0 > 9000;
   if (!stuckPeople && !stuckWishes) { $('#datafail').hidden = true; hcN = 0; hcNext = 0; return; }
   if (Date.now() < hcNext) return;
