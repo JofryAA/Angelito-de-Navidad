@@ -152,7 +152,7 @@ service cloud.firestore {
     match /assignments/{uid} {
       allow read: if isOwner() || (isParticipant() && me() == uid);
       allow create, delete: if isOwner();
-      allow update: if isOwner() || (isParticipant() && me() == uid && changed().hasOnly(['revealed', 'revealedAt']) && request.resource.data.revealed == true && request.resource.data.revealedAt is timestamp);
+      allow update: if isOwner() || (isParticipant() && me() == uid && changed().hasOnly(['revealed', 'revealedAt', 'spunEver']) && request.resource.data.get('spunEver', true) == true && request.resource.data.revealed == true && request.resource.data.revealedAt is timestamp);
     }
 
     // ---------- deseos ----------

@@ -1490,7 +1490,7 @@ $('#spinBtn').addEventListener('click', async () => {
   if (!(await privacyGate(a.revealed))) return;
   if (!(await askPin(`Hola, ${S.me.first} 👋`, a.revealed ? 'Confirma tu PIN para ver de nuevo a quién te tocó.' : 'Confirma tu PIN para girar la ruleta.'))) return;
   if (!a.revealed) {
-    try { await setDoc(doc(db, 'assignments', S.uid), { revealed: true, revealedAt: serverTimestamp() }, { merge: true }); }
+    try { await setDoc(doc(db, 'assignments', S.uid), { revealed: true, revealedAt: serverTimestamp(), spunEver: true }, { merge: true }); // spunEver: ningún ajuste lo borra }
     catch (e) { toast(authErr(e)); return; }
   }
   S.spinning = true; renderWheel(); drawWheel();

@@ -81,7 +81,7 @@ async function runFix(fx) {
   // quien ya no existe como participante (p. ej. se borró por error) también sale del sorteo
   const alive = new Set((await db.collection('participants').select().get()).docs.map(d => d.id));
   const drop = [...new Set([...(fx.drop || []), ...draw.ids.filter(d => !alive.has(d))])].filter(d => draw.ids.includes(d)), ids = draw.ids.filter(g => !drop.includes(g)), rec = {}, spun = new Set();
-  for (const d of (await db.collection('assignments').get()).docs) if (draw.ids.includes(d.id)) { rec[d.id] = d.data().recipient; if (d.data().revealed) spun.add(d.id); }
+  for (const d of (await db.collection('assignments').get()).docs) if (draw.ids.includes(d.id)) { rec[d.id] = d.data().recipient; if (d.data().revealed || d.data().spunEver) spun.add(d.id); } // «ya giró alguna vez» (spunEver): ningún ajuste lo borra
   const orig = { ...rec };
   // 👋 quien sale del sorteo: a quien le regalaba a esa persona le pasa la persona que le tocaba a ella (se cierra la cadena)
   for (const d of drop) {
@@ -111,7 +111,7 @@ async function runFix(fx) {
   const changed = givers.filter(g => rec[g] !== before[g]);
   const touchedRec = new Set(changed.flatMap(g => [before[g], rec[g]]));
   const ops = [];
-  for (const g of givers) ops.push(b => b.set(db.doc('assignments/' + g), { recipient: rec[g], revealed: false, revealedAt: FieldValue.delete() }, { merge: true }));
+  for (const g of givers) ops.push(b => b.set(db.doc('assignments/' + g), { recipient: rec[g], revealed: false, revealedAt: FieldValue.delete(), ...(spun.has(g) ? { spunEver: true } : {}) }, { merge: true }));
   for (const g of changed) for (const c of ['giftStatus', 'wishPick', 'hintsSent']) ops.push(b => b.delete(db.doc(`${c}/${g}`)));
   for (const r of touchedRec) ops.push(b => b.delete(db.doc('giftIncoming/' + r)));
   for (const d of (await db.collection('hints').get()).docs) if (touchedRec.has(d.data().to)) ops.push(b => b.delete(d.ref));
