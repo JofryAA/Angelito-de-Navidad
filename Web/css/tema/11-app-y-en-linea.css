@@ -1,0 +1,15 @@
+/* 📲 descargar la app */
+.dlh{text-align:center}.dlh h3{margin:8px 0 4px}
+.dlh-ic{width:68px;height:68px;margin:0 auto;border-radius:20px;display:grid;place-items:center;font-size:36px;background:linear-gradient(150deg,#e2483f,#a92a22);box-shadow:0 10px 24px rgba(226,72,63,.4)}
+.dl-url{padding:10px 12px;border-radius:14px;background:rgba(0,0,0,.25);border:1px dashed rgba(236,188,92,.45);font-size:.85rem;word-break:break-all;color:#ffe2a6}
+/* 🟢 en línea */
+#offline{display:none!important}
+.netdot{position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;border-radius:50%;border:2px solid #10241b;background:#9aa;font-style:normal}
+.netdot.on{background:#3ccf83;box-shadow:0 0 6px rgba(60,207,131,.7)}
+.netdot.off{background:#ff5a4e;box-shadow:0 0 6px rgba(255,90,78,.7);animation:apPulse 1s ease-in-out infinite alternate}
+.userchip .av,.on-av{position:relative}
+.onl{display:inline-flex;align-items:center;gap:6px;padding:0;background:none;color:inherit;font:inherit;font-size:inherit}
+.onl .netdot{position:static;width:8px;height:8px;border-width:0}
+.onl.off{color:#ff9b8f}
+#c-count{margin-right:4px}
+.msg .av{position:relative}.msg .av .netdot{width:9px;height:9px;right:-1px;bottom:-1px}

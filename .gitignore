@@ -4,3 +4,4 @@ node_modules/
 .DS_Store
 Web/js/app.js
 Web/js/juegos.js
+Web/css/tema.css

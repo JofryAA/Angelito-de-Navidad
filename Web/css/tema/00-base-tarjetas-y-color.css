@@ -1,0 +1,112 @@
+/* =====================================================================
+   Tema visual: equilibrio entre tarjetas sólidas (con profundidad) y
+   tarjetas de color para lo importante — mismo lenguaje que la sala de juegos.
+   ===================================================================== */
+:root{
+  --surf:linear-gradient(165deg,#173a2b 0%,#112c21 55%,#0d2219 100%);
+  --surf-line:rgba(255,255,255,.09);
+  --surf-shadow:0 10px 24px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.07);
+  --c-rose:linear-gradient(145deg,#d9466b 0%,#8f2147 100%);
+  --c-plum:linear-gradient(145deg,#8a4ad8 0%,#4a2596 100%);
+  --c-teal:linear-gradient(145deg,#1fa58f 0%,#0d5f5a 100%);
+  --c-blue:linear-gradient(145deg,#3779de 0%,#1b4296 100%);
+  --c-green:linear-gradient(145deg,#2aa565 0%,#11603a 100%);
+  --c-amber:linear-gradient(145deg,#f0a33a 0%,#b85d18 100%);
+  --c-gold:linear-gradient(145deg,#3a3016 0%,#231d0d 100%);
+}
+
+/* ---- Tarjeta base: sólida, con relieve suave (ya no transparente) ---- */
+.card{background:var(--surf);border:1px solid var(--surf-line);box-shadow:var(--surf-shadow)}
+.card.empty{background:linear-gradient(165deg,#142f24,#0e231a)}
+.item,.gm,.rk.me{box-shadow:none}
+
+/* ---- Tarjetas de color (lo que pide acción) ---- */
+.cc,.profcard,.anonhome,.anoncard,.rsvpcard,#h-sug.join,#h-join2 .join,.guesscard,.who-card,.plancard,.ideaform{
+  position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.14)!important;color:#fff;
+  box-shadow:0 12px 26px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.2)!important}
+.profcard::before,.anonhome::before,.anoncard::before,.rsvpcard::before,#h-sug.join::before,#h-join2 .join::before,.guesscard::before,.who-card::before,.plancard::before,.ideaform::before{
+  content:'';position:absolute;right:-40px;top:-40px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.1);pointer-events:none}
+.profcard>*,.anonhome>*,.anoncard>*,.rsvpcard>*,#h-sug.join>*,#h-join2 .join>*,.guesscard>*,.who-card>*,.plancard>*,.ideaform>*{position:relative}
+.profcard{background:var(--c-teal)!important}
+.anonhome,.anoncard{background:var(--c-rose)!important}
+.rsvpcard{background:var(--c-green)!important}
+#h-sug.join{background:var(--c-amber)!important}
+#h-join2 .join{background:var(--c-blue)!important}
+.guesscard,.ideaform{background:var(--c-plum)!important}
+.who-card{background:var(--c-gold)!important;border-color:rgba(236,188,92,.4)!important}
+.plancard{background:linear-gradient(145deg,#1d5c46,#0f3527)!important}
+
+/* texto y controles dentro de las tarjetas de color */
+:is(.profcard,.anonhome,.anoncard,.rsvpcard,#h-sug.join,#h-join2 .join,.guesscard,.ideaform) .muted{color:rgba(255,255,255,.84)!important}
+:is(.profcard,.anonhome,.anoncard,#h-sug.join,#h-join2 .join,.guesscard,.ideaform) .btn.gold,
+:is(.profcard,.anonhome,.anoncard,#h-sug.join,#h-join2 .join,.guesscard,.ideaform) .btn.sm.gold{background:#fff!important;color:#1b140a!important;border-color:transparent!important;box-shadow:0 4px 10px rgba(0,0,0,.25)!important}
+:is(.profcard,.anonhome,.anoncard,#h-sug.join,#h-join2 .join) .chev{color:#fff;opacity:.9}
+:is(.profcard,.anonhome,.anoncard,#h-sug.join,#h-join2 .join,.who-card) :is(.pc-e,.ah-e,.je,.em,.av){display:grid;place-items:center;width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.18)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.25);flex:none;font-size:28px}
+.guesscard .in,.ideaform .in,.guesscard textarea,.ideaform textarea{background:rgba(0,0,0,.22)!important;border-color:rgba(255,255,255,.2)!important;color:#fff}
+.guesscard .in::placeholder,.ideaform textarea::placeholder{color:rgba(255,255,255,.6)}
+.guesscard .btn.gold,.ideaform .btn.gold{background:#fff!important;color:#3a248a!important}
+.profcard .pbar,.profcard .prog{background:rgba(0,0,0,.25)!important}
+.anoncard .when,.profcard b+span{color:#ffe7a8!important}
+.anoncard .tag,.anoncard .chip{background:rgba(0,0,0,.22)!important;color:#fff!important;border-color:transparent!important}
+/* asistencia: botones Sí / No sobre verde */
+.rsvpcard .rsvp button{background:rgba(255,255,255,.14)!important;border-color:rgba(255,255,255,.22)!important;color:#fff!important}
+.rsvpcard .rsvp button.on,.rsvpcard .rsvp button[aria-pressed=true]{background:#fff!important;color:#11603a!important}
+.rsvpcard .bdg,.rsvpcard .tag{background:rgba(0,0,0,.25)!important;color:#fff!important}
+
+/* ---- Pendientes ---- */
+.todo{background:linear-gradient(165deg,#2a2a14,#18190c)!important;border-color:rgba(236,188,92,.35)!important}
+.todo-h b{font-size:1.05rem}
+
+/* ---- Detalles del evento: celdas con chip de color ---- */
+.evcard{background:linear-gradient(165deg,#1b3d30,#0f261c)!important}
+.evcard .info>div{padding:10px 12px!important;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06)!important;margin:4px 0}
+
+/* ---- Barra de pestañas y segmentos: más sólidos ---- */
+.tabs{background:linear-gradient(180deg,#183a2c,#0e241a)!important;border:1px solid rgba(255,255,255,.12)!important;box-shadow:0 14px 34px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.08)!important}
+.seg{background:linear-gradient(180deg,#0e241a,#0b1d15)!important;border:1px solid rgba(255,255,255,.07)}
+
+/* ---- Ruleta ---- */
+.lockmsg{background:linear-gradient(145deg,#2b2412,#1a160b)!important;border:1px solid rgba(236,188,92,.35)!important;color:#f6e3b4!important}
+
+/* ---- Dentro de una partida ---- */
+.score2{background:linear-gradient(145deg,#173a2b,#0e241a)!important;box-shadow:var(--surf-shadow)}
+.score2>div{min-width:88px;padding:8px 14px!important;border-radius:14px}
+.score2>div:first-child{background:linear-gradient(145deg,rgba(42,165,101,.35),rgba(17,96,58,.25))}
+.score2>div:last-child{background:linear-gradient(145deg,rgba(217,70,107,.32),rgba(143,33,71,.22))}
+.score2>div.mine{box-shadow:inset 0 0 0 2px rgba(236,188,92,.6)!important}
+.seat{background:var(--surf)!important;box-shadow:0 6px 14px rgba(0,0,0,.25)}
+.seat:has(.team.a),.seat.ta{background:linear-gradient(165deg,rgba(42,165,101,.28),#10261c)!important}
+.seat:has(.team.b),.seat.tb{background:linear-gradient(165deg,rgba(217,70,107,.26),#1d1418)!important}
+.seat.turn{border-color:var(--gold)!important}
+.myhand{background:linear-gradient(165deg,#2e2a14,#17150a)!important;border-color:rgba(236,188,92,.45)!important;box-shadow:0 -6px 24px rgba(0,0,0,.4)}
+.hand{flex-wrap:wrap;justify-content:center;overflow:visible!important;row-gap:10px!important}
+.glog:empty{display:none}
+body.immersive .myhand{bottom:calc(10px + env(safe-area-inset-bottom))}
+@media(max-width:400px){.hand{gap:6px!important}.hand .dmn.big .dh{grid-template-columns:repeat(3,6px)!important;grid-template-rows:repeat(3,6px)!important;gap:2px!important;padding:3px!important}}
+
+/* ---- Chat ---- */
+.chatbox{background:
+    radial-gradient(circle at 20% 10%,rgba(236,188,92,.06),transparent 40%),
+    radial-gradient(circle at 85% 80%,rgba(42,165,101,.08),transparent 45%),
+    radial-gradient(rgba(255,255,255,.035) 1px,transparent 1.4px) 0 0/18px 18px,
+    linear-gradient(180deg,#0f271d,#0a1c14)!important;
+  border:1px solid rgba(255,255,255,.08)!important;box-shadow:inset 0 2px 12px rgba(0,0,0,.35)}
+.msg .bub{background:linear-gradient(165deg,#24473a,#1a372c)!important;border:1px solid rgba(255,255,255,.06);box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.msg.me .bub{background:linear-gradient(145deg,#2fae6c,#167446)!important;border-color:rgba(255,255,255,.12);box-shadow:0 3px 10px rgba(22,116,70,.35)}
+.msg.me .tm{color:rgba(255,255,255,.75)!important}
+.msg .av{background:linear-gradient(160deg,#24473a,#163328)!important;box-shadow:0 2px 5px rgba(0,0,0,.3)}
+.msg .nm{font-size:.74rem!important;letter-spacing:.01em}
+.daysep{align-self:center;margin:6px 0;padding:4px 12px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.07);font-size:.72rem;font-weight:700;color:#d8e2da}
+.msg .quote{background:rgba(0,0,0,.2);border-left:3px solid var(--gold);border-radius:8px;padding:4px 8px}
+.msg.me .quote{border-left-color:#fff}
+#c-dock{background:linear-gradient(180deg,#183a2c,#0e241a)!important;border:1px solid rgba(255,255,255,.12)!important;box-shadow:0 -8px 28px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08)!important}
+#c-form.ready .sendbtn{box-shadow:0 6px 18px rgba(22,116,70,.45)!important;background:linear-gradient(145deg,#2fae6c,#167446)!important;color:#fff!important}
+.chead .chead-t b{font-size:1.05rem}
+
+/* ---- Íconos de actividades con color ---- */
+.actcard:not(.anoncard) .em{box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 4px 10px rgba(0,0,0,.25)}
+.actcard:not(.anoncard):nth-child(4n+1) .em{background:var(--c-amber)!important}
+.actcard:not(.anoncard):nth-child(4n+2) .em{background:var(--c-blue)!important}
+.actcard:not(.anoncard):nth-child(4n+3) .em{background:var(--c-plum)!important}
+.actcard:not(.anoncard):nth-child(4n) .em{background:var(--c-teal)!important}
+

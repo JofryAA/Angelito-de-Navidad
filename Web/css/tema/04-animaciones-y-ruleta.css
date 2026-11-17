@@ -1,0 +1,75 @@
+/* =================== Animación en toda la app =================== */
+body:not(.anim-in) :is(.todo .step,.witem,.sug2){animation:none!important}
+@keyframes tabpop{0%{transform:scale(1)}40%{transform:translateY(-4px) scale(1.25)}70%{transform:translateY(0) scale(.95)}100%{transform:translateY(-1px) scale(1.08)}}
+@keyframes toastin{0%{transform:translateX(-50%) translateY(-30px) scale(.9)}60%{transform:translateX(-50%) translateY(4px) scale(1.02)}100%{transform:translateX(-50%)}}
+@keyframes sheetup{from{transform:translateY(40px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+@keyframes shimmer{0%{background-position:-150% 0}100%{background-position:250% 0}}
+@keyframes pulse2{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+.tab{transition:background .25s,color .25s,transform .14s}
+.tab:active{transform:scale(.9)}
+.tab.on .i{animation:tabpop .45s cubic-bezier(.2,1.4,.4,1) both}
+.tab .bd{animation:pulse2 1.8s ease-in-out infinite}
+#toast.on{animation:toastin .45s cubic-bezier(.2,1.4,.4,1)}
+.modal.on .sheet{animation:sheetup .35s cubic-bezier(.2,1,.3,1) backwards}
+/* brillo que pasa por los botones dorados */
+.btn.gold{background-size:100% 100%;position:relative;overflow:hidden}
+.btn.gold::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.45) 50%,transparent 70%) 0 0/250% 100% no-repeat;background-position:-150% 0;animation:shimmer 3.6s ease-in-out infinite;pointer-events:none}
+/* tarjetas de color: se levantan un poco al tocar */
+:is(.profcard,.anonhome,.anoncard,#h-sug.join,.gc2,.actcard,.wadd>summary){transition:transform .16s ease,box-shadow .2s}
+:is(.profcard,.anonhome,.anoncard,#h-sug.join,.actcard,.wadd>summary):active{transform:scale(.98)}
+@media(hover:hover){:is(.profcard,.anonhome,.anoncard,#h-sug.join,.actcard):hover{transform:translateY(-2px)}}
+/* cuenta regresiva: los números laten suave */
+.count>div{transition:transform .2s}
+.count>div:last-child b{display:inline-block;animation:pulse2 1s ease-in-out infinite}
+/* la campana del chat se mueve cuando está activa */
+.bellbtn.on .ic{animation:wiggle 2.8s ease-in-out infinite;transform-origin:50% 10%}
+/* ícono del logo */
+.brand .logo{transition:transform .3s}
+.brand:active .logo{transform:rotate(-12deg) scale(.92)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ---- Mapa del lugar ---- */
+.evmap{position:relative;height:170px;border-radius:16px;overflow:hidden;margin:0 0 12px;border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(0,0,0,.2),0 6px 16px rgba(0,0,0,.3);background:#0e241a}
+.evmap iframe{width:100%;height:100%;border:0;filter:saturate(.9) contrast(1.02)}
+.evmap-go{position:absolute;right:8px;bottom:8px;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;background:#fff;color:#1b140a;font-weight:800;font-size:.8rem;text-decoration:none;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+/* ---- Volver a entrar ---- */
+.relog{text-align:center}
+.rl-ic{font-size:46px;animation:wiggle 2s ease-in-out infinite;transform-origin:50% 10%}
+.rl-steps{display:grid;gap:10px;margin:14px 0 4px;text-align:left}
+.rl-steps>div{display:grid;grid-template-columns:34px 1fr;column-gap:10px;align-items:center;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.rl-steps span{grid-row:span 2;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--c-amber);font-weight:900;color:#fff}
+.rl-steps small{color:var(--muted)}
+
+/* ---- Pestañas: Chat e Ideas por separado (7 pestañas) ---- */
+.tabs .tab{font-size:clamp(.54rem,2.5vw,.64rem)!important;padding-left:0!important;padding-right:0!important}
+.tabs .tab .i{font-size:clamp(17px,5vw,20px)}
+body.ideas-on #buz-seg{display:none!important}
+
+/* ---- Ruleta: confirmación de privacidad y nombre que se oculta ---- */
+.pg{text-align:center}
+.pg-ic{font-size:44px;animation:bob 3s ease-in-out infinite}
+.pg-list{display:grid;gap:8px;margin:14px 0;text-align:left}
+.pg-it{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:inherit;font:inherit;font-weight:600;cursor:pointer;transition:background .2s,border-color .2s,transform .12s;animation:upin .35s var(--d) backwards}
+.pg-it:active{transform:scale(.98)}
+.pg-ck{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:9px;border:2px solid rgba(255,255,255,.3);color:transparent;transition:.2s}
+.pg-it.on{background:rgba(47,174,108,.16);border-color:rgba(47,174,108,.6)}
+.pg-it.on .pg-ck{background:var(--c-green);border-color:transparent;color:#fff;transform:scale(1.08)}
+.pg-note{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:12px;border-radius:14px;background:rgba(236,188,92,.12);border:1px solid rgba(236,188,92,.35);font-size:.85rem;color:#f6e3b4}
+.pg-note .ic{flex:none;margin-top:2px}
+.pg .btn[disabled]{opacity:.45}
+.rv-timer{height:6px;border-radius:9px;background:rgba(0,0,0,.3);overflow:hidden;margin-top:16px}
+.rv-timer i{display:block;height:100%;background:linear-gradient(90deg,#ffd77a,#d9466b);animation:rvt 5s linear forwards}
+@keyframes rvt{from{width:100%}to{width:0}}
+.pg-it{text-align:left}.pg-it>span:last-child{flex:1}
+.um-hd{margin:0 0 4px!important;padding:14px!important;border-radius:20px!important}.um-hd h3{overflow-wrap:break-word}.um-hd .av{cursor:pointer;transition:transform .15s}.um-hd .av:active{transform:scale(.92)}
+/* foto lista para enviar en el chat: miniatura limpia con X en la esquina */
+.cip2{display:flex;padding:4px 2px 8px}
+.cip2-th{position:relative;width:76px;height:76px;border-radius:16px;overflow:visible;animation:popin .25s backwards}
+.cip2-th img{width:100%;height:100%;object-fit:cover;border-radius:16px;border:2px solid rgba(255,255,255,.18);box-shadow:0 6px 14px rgba(0,0,0,.35)}
+.cip2-x{position:absolute;top:-8px;right:-8px;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;border:2px solid #10261c;background:#fff;color:#1b140a;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,.35)}
+.st-own{margin-top:10px;padding:10px 12px;border-radius:14px;background:rgba(236,188,92,.1);border:1px solid rgba(236,188,92,.3)}
+
+/* ---- Cuenta regresiva: los segundos no pierden su forma ---- */
+.count>div:last-child b{display:block!important}
+

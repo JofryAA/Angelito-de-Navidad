@@ -1,0 +1,98 @@
+/* =================== Tanda 3 =================== */
+/* Nieve por encima del contenido (sin tapar toques), debajo de la barra y de las ventanas */
+#snow{z-index:45!important;opacity:.55!important}
+
+/* Separación uniforme entre tarjetas (nada pegado) */
+#v-inicio>div>.card,#v-inicio>.card,#v-inicio>div>a.card,#v-inicio>div>button.card{margin:0 0 18px!important}
+#v-inicio .anonhome{margin:0 0 18px!important}
+#v-inicio>.hero{margin-bottom:18px}
+.stack{gap:12px}
+.rsvpcard::before,.profcard::before,.anonhome::before{right:-56px!important;top:-56px!important}
+.rsvpcard .bdg,.rsvpcard .tag,.rsvpcard>div:first-child>span{position:relative;z-index:1}
+
+/* ---- Login ---- */
+.sheet.authm{padding:0 0 18px!important;overflow-x:hidden}
+.auth-hd{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:26px 20px 34px;text-align:center;color:#fff;overflow:hidden;
+  background:radial-gradient(circle at 80% 0%,rgba(255,214,120,.4),transparent 45%),linear-gradient(145deg,#a8342f,#7a1f2b 60%,#4e1220)}
+.auth-hd::after{content:'';position:absolute;inset:0;background:radial-gradient(rgba(255,255,255,.22) 1px,transparent 1.5px) 0 0/16px 16px;opacity:.35}
+.auth-hd>*{position:relative;z-index:1}
+.auth-logo{display:grid;place-items:center;width:64px;height:64px;border-radius:20px;font-size:34px;background:rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 8px 20px rgba(0,0,0,.3);animation:bob 3.4s ease-in-out infinite;margin-bottom:6px}
+.auth-hd b{font-family:var(--serif,inherit);font-size:1.45rem;line-height:1.1}
+.auth-hd small{opacity:.85}
+.auth-seg{margin:-20px 18px 16px!important;position:relative;z-index:2;box-shadow:0 8px 20px rgba(0,0,0,.35)}
+.authm #auth-body{padding:0 20px}
+.apick{display:flex;flex-direction:column;align-items:center;gap:2px;width:calc(33.33% - 6px);padding:12px 6px 10px;border-radius:16px;border:1px solid rgba(255,255,255,.08);
+  background:linear-gradient(165deg,#1d4234,#12291f);color:inherit;font:inherit;cursor:pointer;transition:transform .14s,box-shadow .2s;animation:popin .3s backwards}
+.apick:active{transform:scale(.95)}
+.ap-e{font-size:28px;line-height:1.1}
+.ap-n{font-weight:700;font-size:.85rem;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apick small{font-size:.7rem;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apick.on{background:linear-gradient(145deg,#f7d98b,#e2a93b);color:#2b1a00;border-color:transparent;box-shadow:0 6px 16px rgba(226,169,59,.4)}
+.apick.on small{color:#5a3d00}
+.authm .pick{max-height:260px;gap:8px!important}
+.authm .pinin{text-align:center;font-size:1.6rem!important;letter-spacing:.6em;padding-left:.6em!important;font-weight:800}
+.authm #l-pinbox{animation:upin .3s backwards}
+.authm .actions{margin-top:16px}
+/* ---- Trivia (actividad) ---- */
+.qstart,.qdone{text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;padding:22px!important;background:var(--c-plum)!important;color:#fff;border:1px solid rgba(255,255,255,.14)!important}
+.qstart .muted,.qdone .muted{color:rgba(255,255,255,.85)!important}
+.qstart .btn.gold{background:#fff!important;color:#3a248a!important;margin-top:6px}
+.qd-e{font-size:46px;animation:bob 3s ease-in-out infinite}
+.qcard{padding:18px;border-radius:22px;background:var(--surf);border:1px solid var(--surf-line);box-shadow:var(--surf-shadow);animation:popin .3s backwards}
+.qc-top{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;font-weight:700;color:var(--muted);min-height:32px}
+.qc-bar{height:6px;border-radius:9px;background:rgba(0,0,0,.35);overflow:hidden;margin:6px 0 14px}
+.qc-bar i{display:block;height:100%;width:var(--p);background:linear-gradient(90deg,#8a4ad8,#d9466b);transition:width .4s}
+.qc-q{font-size:1.2rem;font-weight:800;line-height:1.3;margin-bottom:14px}
+.qc-o{display:grid;gap:10px}
+.qopt{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.14);color:#fff;font:inherit;font-weight:700;text-align:left;cursor:pointer;
+  box-shadow:0 6px 14px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.2);transition:transform .14s,filter .2s;animation:upin .3s backwards}
+.qopt:nth-child(2){animation-delay:.05s}.qopt:nth-child(3){animation-delay:.1s}.qopt:nth-child(4){animation-delay:.15s}
+.qopt b{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:10px;background:rgba(0,0,0,.25)}
+.qopt:active{transform:scale(.97)}
+.qopt.on{outline:3px solid #fff;outline-offset:2px;transform:scale(1.02)}
+.qrev{display:flex;gap:12px;padding:12px;border-radius:16px;background:var(--surf);border:1px solid var(--surf-line)}
+.qrev.ok{border-color:rgba(47,174,108,.6)}.qrev.no{border-color:rgba(217,70,107,.5)}
+.qr-n{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:rgba(255,255,255,.08);font-weight:800;font-size:.8rem}
+.qrev.ok .qr-n{background:var(--c-green)}.qrev.no .qrev .qr-n,.qrev.no .qr-n{background:var(--c-rose)}
+.qrev .small{margin-top:4px}
+
+/* =================== Tanda 4: medidas que se adaptan =================== */
+/* Textos largos: parten bien y no se salen de su caja */
+h1,h2,h3,.v,.t,.st-l,.chead-t b,.ab-t b,.gc2-tx b,.qc-q{overflow-wrap:break-word;hyphens:manual}
+.sec-title{font-size:clamp(1.45rem,6.4vw,2rem)!important;line-height:1.1}
+.sec-sub{font-size:clamp(.86rem,3.6vw,1rem)}
+.btn{min-width:0;line-height:1.15;text-align:center}
+.grow,.ir-t,.chead-t,.st-l{min-width:0}
+/* Cabecera del panel */
+.ab-t small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.66rem!important;letter-spacing:.08em}
+.ab-id{flex-wrap:nowrap}
+.ab-id .btn{flex:none;padding:10px 14px}
+.ab-acts{display:grid!important;grid-template-columns:1fr 1fr}
+.ab-acts .ab-link{justify-content:center;font-size:clamp(.74rem,3.3vw,.88rem);padding:12px 8px;text-align:center}
+/* Barra de secciones: bordes que se desvanecen al deslizar */
+#adm-nav.anav{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent);mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent);padding-left:12px!important;padding-right:12px!important;scroll-padding:0 12px}
+/* Celdas de detalles: en pantallas muy angostas, una por fila */
+@media(max-width:360px){
+  .evcard .info{grid-template-columns:1fr!important}
+  .gcreate2{grid-template-columns:1fr 1fr;gap:8px}.gc2{min-height:160px;padding:12px}.gc2-go{padding:5px 9px}
+  .ab-ic{width:48px!important;height:48px!important;font-size:26px!important}
+  .seat .sn{font-size:.7rem}
+}
+@media(max-width:340px){.ab-id .btn{padding:8px 10px;font-size:.8rem}.chbtn{width:36px;height:36px}}
+/* Buzón anónimo (panel): fecha editable */
+.qwhen{margin-top:14px;padding:14px;border-radius:16px;background:linear-gradient(145deg,rgba(217,70,107,.18),rgba(143,33,71,.08));border:1px solid rgba(217,70,107,.3)}
+.qw-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.qw-row{display:grid;grid-template-columns:1.3fr 1fr;gap:10px;margin-top:10px}
+.qw-row .field{min-width:0}.qw-row .in{min-width:0;width:100%}
+.qw-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+@media(max-width:360px){.qw-row{grid-template-columns:1fr}}
+@media(max-width:400px){.ab-vt{display:none}.ab-id .btn{width:42px;height:42px;padding:0!important;font-size:1.3rem;display:grid;place-items:center}}
+.chead-t b{font-size:clamp(.92rem,4.2vw,1.05rem)!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Compatibilidad (Android viejos y navegadores dentro de apps):
+   - las animaciones de entrada ya no dejan "transform" puesto: eso hacía que la barra de escribir del chat
+     se quedara flotando a media pantalla en vez de pegada abajo
+   - altura de pantalla con respaldo cuando el teléfono no entiende "dvh" */
+body.chat-on #c-dock{will-change:auto}
+@supports not (height:100dvh){.chatbox{height:calc(100vh - 430px)}}
+@supports not (inset:0){.bulbs{top:-12px;right:-12px;bottom:-12px;left:-12px}.mesa::before{top:6px;right:6px;bottom:6px;left:6px}}
+

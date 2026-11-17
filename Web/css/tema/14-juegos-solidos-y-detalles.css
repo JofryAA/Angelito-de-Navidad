@@ -1,0 +1,65 @@
+/* ================= 🎮 Juegos sin transparencias: todos los componentes con fondo sólido
+   (lo transparente solo queda en el fondo de la pantalla, como en el resto de la app) ================= */
+#v-juegos{--card:#132e21;--card2:#183a2a;--line:#24493a}
+#v-juegos *,#gq-tray,#gchat-panel,#g-emos .gemo{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+#v-juegos .seat{background:var(--surf)!important}
+#v-juegos .seat.turn{background:linear-gradient(165deg,#3a3014,#1f2a15)!important}
+#v-juegos .seat.ta{background:linear-gradient(165deg,#1d5a3b,#10261c)!important}#v-juegos .seat.tb{background:linear-gradient(165deg,#5a2236,#1d1418)!important}
+#v-juegos .seat .se{background:#1c4231}
+#v-juegos .score2,#v-juegos .sb2,#v-juegos .sb-t,#v-juegos .sb-goal{background-color:#112c21}
+#v-juegos .glog{background:#10261c!important;border-color:#24493a!important}
+#v-juegos .mt-tag{background:#0b1d14}
+#v-juegos .myhand{background:linear-gradient(180deg,#22160a,#140d05)!important}
+#v-juegos .pq{background:linear-gradient(180deg,#123222,#0b2016)!important}
+#v-juegos .pq-cmp span{background:#1b3a2b}
+#v-juegos .gq{background:linear-gradient(160deg,#2a2412,#15130b)}
+#v-juegos .gq-p{background:#1d3328}#v-juegos .gq-p.me{background:#1f5a3d}
+#v-juegos .tn,#v-juegos .tn-cta{background:linear-gradient(160deg,#3a2a0c,#171106)}
+#v-juegos .tn-m{background:#120d05;border-color:#3a3122}#v-juegos .tn-t+.tn-t{border-top-color:#2c2518}
+#v-juegos .tn-t.w{background:#1f5a3d}#v-juegos .tn-p{background:#2a2414}#v-juegos .tn-p.me{background:#1f5a3d}
+#v-juegos .tn-me{background:#143826;border-color:#2f7a52}
+#v-juegos .iconbtn,#v-juegos .backbtn{background:#132e21!important;border-color:#24493a!important}
+#v-juegos .emo-chip{background:#3a2f14;border-color:#7a6230}
+#v-juegos .ttt .tc{background:linear-gradient(160deg,#1c2a33,#121c22)!important}
+#v-juegos .hkb button.miss{opacity:1;background:linear-gradient(180deg,#4a2222,#2e1313);color:#c99}
+#gq-tray{background:#0f2419;border-color:#5a4a22}
+.gqt-e button{background:#1a3528}.gqt-p button{background:#3a2f14;border-color:#6a5628}
+#gchat-panel{background:#0f2419;border-color:#24493a}
+#gchat-panel .gc-list{background:#0a1a12}
+#gchat-panel .gc-m,.gc-m{background:#1d3a2c}#gchat-panel .gc-m.me,.gc-m.me{background:#1f5a3d}
+.gcp-x{background:#1d3a2c}
+#g-emos .gemo{background:#0f2419}
+body.logged .hero p.cdmsg:not([hidden]){display:block;margin:10px 0 0;max-width:none;font-size:.8rem;padding:6px 12px;text-align:center}
+/* 🤫 barra secreta en Deseos */
+.secbar{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 12px;border-radius:16px;background:linear-gradient(160deg,#2a1f3a,#171226);border:1px solid #4a3a6a}
+.secbar.open{background:linear-gradient(160deg,#143826,#0d2419);border-color:#2f7a52}
+.secbar .sb-e{font-size:24px}.secbar b{display:block;font-size:.9rem}.secbar small{color:var(--muted);font-size:.74rem}
+.secbar .btn{flex:none}
+/* 👍 / 👎 en las ideas */
+.vote3{flex:none;display:flex;flex-direction:column;gap:6px}
+.vote3 .vote2{min-height:48px;width:52px;border-radius:14px}
+.vote3 .vote2 .v-th{font-size:17px}.vote3 .vote2 b{font-size:.9rem}
+.vote2.nay.on{background:#7a2a2a;border-color:transparent;box-shadow:0 6px 14px rgba(122,42,42,.4)}
+/* 💬😄 botones flotantes de la mesa */
+.gfab{position:fixed;right:10px;top:46%;z-index:80;display:flex;flex-direction:column;gap:10px}
+.gfab-b{position:relative;width:46px;height:46px;border-radius:50%;font-size:22px;border:1px solid #6a5628;background:linear-gradient(180deg,#2c2410,#17130a);box-shadow:0 8px 20px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,236,190,.15);cursor:pointer}
+.gfab-b:active{transform:scale(.9)}
+.gfab-b[data-n]:not([data-n=""])::after{content:attr(data-n);position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#e5484d;color:#fff;font-size:.68rem;font-weight:800;line-height:18px;text-align:center;box-shadow:0 0 0 2px #0f2419;animation:pop .3s}
+#gq-tray{left:auto;right:64px;transform:none;width:min(80vw,360px);animation:gcpIn .2s ease-out}
+/* sonido */
+.snd-box{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.snd-r{padding:12px;border-radius:16px;background:#132e21;border:1px solid #24493a}
+.snd-t{display:flex;align-items:center;gap:10px}.snd-ic{font-size:24px}.snd-t b{display:block;font-size:.92rem}.snd-t small{color:var(--muted);font-size:.74rem}
+.snd-v{display:flex;align-items:center;gap:8px;margin-top:10px;transition:opacity .2s}.snd-v.off{opacity:.35;pointer-events:none}
+.snd-v input{flex:1;accent-color:#e3ae4b;height:28px}.snd-v b{min-width:30px;text-align:right;font-size:.82rem;color:#ffd77e}
+#v-juegos .pq-cmp span.w,#v-juegos .mt-side.win .mt-tag{background:#3ccf83;color:#06281a}
+#v-juegos .pq-cmp span:not(.w),#v-juegos .mt-tag{color:#e9f6ee}
+/* elegir lado EN la mesa (sin ventana que la tape) */
+#v-juegos .mesa.picking .snake .dmt:not(.pickend){opacity:.55}
+#v-juegos .dmt.pickend{cursor:pointer;z-index:3;box-shadow:0 0 0 3px #ffd77e,0 0 22px 6px rgba(255,215,126,.7)!important;animation:pickPulse 1s ease-in-out infinite}
+#v-juegos .hand .dmn.picked{transform:translateY(-14px)!important;box-shadow:0 0 0 3px #3ccf83,0 0 20px rgba(60,207,131,.6),0 12px 18px rgba(0,0,0,.5)!important}
+.pickbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;margin:0 0 8px;padding:6px 8px;border-radius:12px;background:#2c2410;border:1px solid #6a5628;font-size:.78rem;font-weight:700;color:#ffe2a3}
+.pickbar>div{display:flex;gap:6px}
+.pk-b{border:0;border-radius:999px;padding:6px 12px;font-weight:800;font-size:.8rem;color:#2a1a05;background:linear-gradient(180deg,#ffd77e,#e3ae4b)}
+.pk-x{border:0;width:30px;height:30px;border-radius:50%;background:#3a3122;color:#ffe2a3;font-weight:800}
+@keyframes pickPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
