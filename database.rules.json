@@ -64,6 +64,16 @@
         ".write": "auth != null && root.child('members/'+auth.uid).val() == true && !data.exists() && newData.child('uid').val() == auth.uid && $id.beginsWith(newData.child('gid').val() + '_') && $id.endsWith('_' + auth.uid) && root.child('games/' + newData.child('gid').val() + '/status').val() == 'done' && root.child('games/' + newData.child('gid').val() + '/type').val() == newData.child('type').val() && (root.child('games/' + newData.child('gid').val() + '/winners/0').val() == auth.uid || root.child('games/' + newData.child('gid').val() + '/winners/1').val() == auth.uid || root.child('games/' + newData.child('gid').val() + '/winners/2').val() == auth.uid || root.child('games/' + newData.child('gid').val() + '/winners/3').val() == auth.uid || root.child('games/' + newData.child('gid').val() + '/winners/4').val() == auth.uid || root.child('games/' + newData.child('gid').val() + '/winners/5').val() == auth.uid)",
         ".validate": "newData.hasChildren(['uid', 'gid', 'type', 'at'])"
       }
+    },
+    "gchat": {
+      "$gid": {
+        ".read": "root.child('members/'+auth.uid).val() == true",
+        ".write": "auth != null && !newData.exists() && !newData.parent().parent().child('games/'+$gid).exists()",
+        "$mid": {
+          ".write": "auth != null && root.child('members/'+auth.uid).val() == true && !data.exists() && newData.child('uid').val() == auth.uid && root.child('games/'+$gid+'/host').exists()",
+          ".validate": "newData.child('t').isString() && newData.child('t').val().length > 0 && newData.child('t').val().length <= 200 && newData.child('ts').isNumber()"
+        }
+      }
     }
   }
 }

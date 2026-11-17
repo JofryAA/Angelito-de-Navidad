@@ -1171,3 +1171,13 @@ body.touring #helper{display:none!important}
 .mesa.ended{min-height:380px!important}
 .pq-cmp{flex-wrap:nowrap}.pq-cmp span{white-space:nowrap;padding:2px 8px}
 .pq-rule{margin-top:-2px}
+/* 💬 chat de la mesa */
+.gemo-btn,.emo-chip{position:relative}
+.gemo-btn[data-n]:not([data-n=""])::after,.emo-chip[data-n]:not([data-n=""])::after{content:attr(data-n);position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#e5484d;color:#fff;font-size:.68rem;font-weight:800;line-height:18px;text-align:center;box-shadow:0 0 0 2px rgba(6,34,21,.9);animation:pop .3s}
+.gc-list{display:flex;flex-direction:column;gap:6px;max-height:min(38vh,320px);overflow-y:auto;margin:12px 0 10px;padding:10px;border-radius:16px;background:rgba(0,0,0,.18);overscroll-behavior:contain}
+.gc-m{align-self:flex-start;max-width:82%;padding:7px 11px 8px;border-radius:14px 14px 14px 4px;background:rgba(255,255,255,.08);animation:fade .25s}
+.gc-m.me{align-self:flex-end;border-radius:14px 14px 4px 14px;background:rgba(60,207,131,.22)}
+.gc-m small{display:block;font-size:.68rem;font-weight:700;color:var(--gold);margin-bottom:1px}.gc-m.me small{color:#8ff0bd;text-align:right}
+.gc-m span{white-space:pre-wrap;word-break:break-word;font-size:.92rem}
+.gc-empty{margin:18px 0;text-align:center;color:rgba(255,255,255,.55);font-size:.86rem}
+.gc-form{display:flex;gap:8px}.gc-form .in{flex:1;min-width:0}.gc-form .btn{flex:none;width:48px;padding:0;font-size:1.1rem}
