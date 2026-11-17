@@ -116,6 +116,13 @@
       "title": {
         ".validate": "newData.isString() && newData.val().length <= 60"
       }
+    },
+    "backups": {
+      ".read": false,
+      ".write": false,
+      ".indexOn": [
+        "at"
+      ]
     }
   }
 }
