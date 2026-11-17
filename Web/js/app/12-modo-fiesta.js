@@ -29,7 +29,9 @@ async function openParty() {
   const big = (e, t, sub = '') => `<div class="pe">${e}</div><div class="pt">${t}</div>${sub ? `<div class="ps">${sub}</div>` : ''}`;
   slides.push({ html: () => big('🎁', esc(c.eventName || 'Angelito de Navidad'), `¡Bienvenidos! · ${S.participants.length} participantes`) });
   // parejas
-  const pairs = Object.entries(S.assignments).filter(([g, a]) => P(g) && P(a.recipient)).map(([g, a]) => ({ g, r: a.recipient }));
+  // 🔐 las parejas solo existen ya abiertas en la revelación (reveal/main, la abre la caja fuerte)
+  const pairs = (S.reveal?.pairs || []).filter(x => P(x.g) && P(x.r)).map(x => ({ g: x.g, r: x.r }));
+  if (!pairs.length && !S.reveal?.pairs) toast('🔐 Para mostrar las parejas, primero toca «Revelar» en el panel (la caja fuerte tarda 1-2 minutos en abrirlas)');
   shuffle(pairs);
   if (pairs.length) {
     slides.push({ html: () => big('🎡', 'La gran revelación', 'Toca para descubrir cada angelito') });

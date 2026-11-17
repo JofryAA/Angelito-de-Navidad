@@ -82,6 +82,7 @@ $('#spinBtn').addEventListener('click', async e => {
 $('#spinBtn').addEventListener('click', async () => {
   if (S.spinning || !S.me || !S.assignment) return;
   const a = S.assignment, rid = a.recipient;
+  if (!rid) return toast('🔐 Tu caja segura se está preparando en este teléfono: intenta en 1 o 2 minutos');
   if (fixOf()?.status === 'running' && Date.now() - +fixOf().at < 15 * 60e3) return toast('🔀 El ajuste se está aplicando. Espera un momento…');
   // Tras un ajuste, los términos y la privacidad van en UNA sola ventana (no dos listas seguidas)
   const fd = fixDone(), terms = fd && !a.revealed && !fixAccepted(fd); if (terms && !(await fixTerms(fd))) return;

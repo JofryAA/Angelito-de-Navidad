@@ -167,7 +167,7 @@ $('#q-formbox').addEventListener('submit', async e => {
     const b = writeBatch(db);
     const qref = doc(collection(db, 'questions'));
     b.set(qref, { text, to: $('#q-to').value });
-    b.set(doc(db, 'questionAuthors', qref.id), { uid: S.uid });
+    b.set(doc(db, 'questionAuthors', qref.id), { box: await CF.sealForServer({ uid: S.uid }) }); // 🔐 cifrado para la caja fuerte; se abre en la revelación
     b.set(doc(db, 'stats', 'questions'), { count: increment(1), last: qref.id }, { merge: true });
     await b.commit();
     $('#q-text').value = ''; toast('Mensaje guardado en secreto 🤫');

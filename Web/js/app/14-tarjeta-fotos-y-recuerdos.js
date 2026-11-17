@@ -186,7 +186,7 @@ async function saveMemories() {
   const get = async n => { try { return (await getDocs(collection(adb, n))).docs.map(d => ({ id: d.id, ...d.data() })); } catch { return []; } };
   const [chat, sugs, sv, wishes, photos] = await Promise.all(['chat', 'suggestions', 'sugVotes', 'wishes', 'photos'].map(get));
   const nm = id => P(id)?.name || 'Alguien';
-  const pairs = S.reveal ? Object.entries(S.assignments).filter(([g]) => P(g)).map(([g, a]) => ({ g: nm(g), r: nm(a.recipient) })) : [];
+  const pairs = (S.reveal?.pairs || []).map(x => ({ g: nm(x.g), r: nm(x.r) }));
   const votes = S.activities.filter(a => a.kind === 'vote').map(a => {
     const vs = S.adminVotes.filter(v => v.act === a.id); const cnt = {}; vs.forEach(v => cnt[v.choice] = (cnt[v.choice] || 0) + 1);
     const best = Object.entries(cnt).sort((x, y) => y[1] - x[1])[0]; return best ? { title: a.title, winner: a.voteTarget === 'participants' ? nm(best[0]) : best[0], n: best[1] } : null;

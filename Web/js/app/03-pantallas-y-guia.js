@@ -346,9 +346,11 @@ function renderNext() {
   if (evDay && evDay === today) h = `<div class="card nextc"><div class="nx-e">🎉</div><div class="grow"><b>¡Hoy es el angelito!</b><div class="muted small">${c.place ? '📍 ' + esc(c.place) + ' · ' : ''}${esc(hm(new Date(c.eventDate)))}</div></div><a class="btn sm gold" href="#actividades">Ver agenda</a></div>`;
   else if (ready && !A?.revealed) h = `<a class="card nextc hot" href="#ruleta"><div class="nx-e spin">🎡</div><div class="grow"><b>¡Ya puedes girar la ruleta!</b><div class="muted small">Descubre a quién le vas a regalar.</div></div><span class="btn sm gold">Girar ahora</span></a>`;
   else if (ready && A?.revealed && A.recipient && P(A.recipient)) {
+    if (!P(A.recipient)) { h = `<div class="card nextc sec-lock"><div class="nx-e">🔐</div><div class="grow"><b>Abriendo tu caja segura…</b><div class="muted small">${A.pendingBox ? 'Es la primera vez en este teléfono: en 1 o 2 minutos queda listo.' : 'Un momento…'}</div></div></div>`; } else {
     const R = P(A.recipient), op = secretOpen();
     h = `<div class="card nextc ${op ? '' : 'sec-lock'}"><div class="nx-e">${op ? esc(R.emoji) : '🤫'}</div><div class="grow"><b>${op ? 'Le regalas a ' + esc(R.name) : 'Tu persona es secreta'}</b><div class="muted small">${op ? 'Se oculta solo en 1 minuto o al salir de la app.' : 'Nadie que mire tu teléfono puede saberlo: se ve solo con tu PIN.'}</div>
       <div class="qa" style="margin-top:8px">${op ? '<button class="btn sm gold" data-sec="list">🎁 Ver su lista</button><button class="btn sm" data-sec="lock">🔒 Ocultar</button>' : '<button class="btn sm gold" data-sec="unlock">🔐 Ver con PIN</button>'}${mod('pistas') ? '<a class="btn sm" href="#ruleta">💌 Mandar una pista</a>' : ''}</div></div></div>`;
+    }
   }
   box.innerHTML = h;
 }

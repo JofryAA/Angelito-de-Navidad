@@ -8,10 +8,12 @@ applyBig();
 /* ---------- 💛 recibí mi regalo + agradecimiento ---------- */
 let unsubThx = null, thxFor = null;
 function syncThanks() {
-  const rec = S.assignment?.revealed ? S.assignment.recipient : null;
-  if (rec === thxFor) return; thxFor = rec;
+  // el agradecimiento de mi persona me llega por thanksFor/{sha256(mi token)}: nadie puede saber de quién a quién
+  const k = S.assignment?.revealed ? S.assignment.k || (S.assignment.recipient && !S.assignment.vault ? 'r:' + S.assignment.recipient : null) : null;
+  if (k === thxFor) return; thxFor = k;
   if (unsubThx) { unsubThx(); unsubThx = null; } S.thanksFromRec = null;
-  if (rec) unsubThx = onSnapshot(doc(db, 'thanks', rec), s => { S.thanksFromRec = s.exists() ? s.data() : null; render(); }, () => { });
+  if (k?.startsWith('r:')) unsubThx = onSnapshot(doc(db, 'thanks', k.slice(2)), s => { S.thanksFromRec = s.exists() ? s.data() : null; render(); }, () => { });
+  else if (k) CF.sha256hex(k).then(h => { if (thxFor !== k) return; unsubThx = onSnapshot(doc(db, 'thanksFor', h), s => { S.thanksFromRec = s.exists() ? s.data() : null; render(); }, () => { }); });
 }
 function renderThanks() {
   const box = $('#r-thanks'); if (!box) return; syncThanks();
@@ -82,8 +84,8 @@ async function toggleTop(id) {
 }
 async function togglePick(id) {
   try {
-    const cur = S.wishPick?.wishId;
-    await setDoc(doc(db, 'wishPick', S.uid), { wishId: cur === id ? '' : id });
+    const cur = S.wishPick?.wishId; S.wishPick = { wishId: cur === id ? '' : id };
+    try { localStorage.setItem('angelito:wishPick:' + S.uid, JSON.stringify(S.wishPick)); } catch { } render();
     toast(cur === id ? 'Quitaste el apartado' : '🛒 ¡Apartado! Solo tú lo ves');
   } catch (err) { toast(authErr(err)); }
 }

@@ -121,9 +121,9 @@ $('#r-hints').addEventListener('submit', async e => {
   const sent = [...(S.hintsSent || []), text];
   try {
     const b = writeBatch(db);
-    b.set(doc(collection(db, 'hints')), { to: S.assignment.recipient, text, ts: Math.floor(Date.now() / 600000) * 600000 });
-    b.set(doc(db, 'hintsSent', S.uid), { texts: sent });
-    await b.commit(); $('#h-text').value = ''; toast('💌 Pista enviada en secreto');
+    b.set(doc(collection(db, 'hints')), { to: S.assignment.recipient, text, ts: Math.floor(Date.now() / 600000) * 600000, ...(S.assignment.k ? { k: S.assignment.k } : {}) });
+    b.set(doc(db, 'hintsSent', S.uid), { n: sent.length });
+    await b.commit(); try { localStorage.setItem('angelito:hintsSent:' + S.uid, JSON.stringify(sent)); } catch { } S.hintsSent = sent; void 0; $('#h-text').value = ''; toast('💌 Pista enviada en secreto');
   } catch (err) { toast(authErr(err)); }
 });
 $('#r-hints').addEventListener('change', async e => {
@@ -140,8 +140,8 @@ async function toggleReveal() {
   }
   if (!drawReady()) return toast('Primero genera el sorteo');
   if (!(await confirmBox('🎉 ¿Hacer la gran revelación?', 'Todos verán quién era el angelito de quién y quién adivinó. Hazlo en la fiesta 😉', 'Revelar'))) return;
-  const pairs = Object.entries(S.assignments).filter(([g]) => P(g)).map(([g, a]) => ({ g, r: a.recipient }));
-  try { await setDoc(doc(adb, 'reveal', 'main'), { pairs, at: serverTimestamp() }); toast('🎉 ¡Revelado!'); confetti(140); } catch (err) { toast(authErr(err)); }
+  // 🔐 las parejas solo las conoce la caja fuerte: se le pide que las abra (tarda hasta 2 minutos)
+  try { await setDoc(doc(adb, 'reveal', 'main'), { want: true, at: serverTimestamp() }); toast('🔐 Abriendo la caja fuerte… las parejas aparecen en 1 o 2 minutos'); confetti(60); } catch (err) { toast(authErr(err)); }
 }
 $('#d-reveal').addEventListener('click', toggleReveal);
 
@@ -297,7 +297,7 @@ $('#s-formbox').addEventListener('submit', async e => {
     const b = writeBatch(db), ref = doc(collection(db, 'suggestions')); S.myCreated.add(ref.id);
     const ts = Math.floor(Date.now() / 3600e3) * 3600e3; // hora redondeada: no delata quién la escribió
     b.set(ref, signed ? { text, signed: true, uid: S.uid, status: 'nueva', ts } : { text, signed: false, status: 'nueva', ts });
-    b.set(doc(db, 'suggestionAuthors', ref.id), { uid: S.uid });
+    b.set(doc(db, 'suggestionAuthors', ref.id), { box: await CF.sealForServer({ uid: S.uid }) }); // 🔐 cifrado: ni el organizador lo puede leer
     await b.commit(); $('#s-text').value = ''; toast('¡Gracias por tu sugerencia! 💡');
   } catch (err) { toast(authErr(err)); }
   busy(btn, false, label);

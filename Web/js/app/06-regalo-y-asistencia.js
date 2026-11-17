@@ -56,7 +56,7 @@ $('#r-extra').addEventListener('click', async e => {
   try {
     const w = writeBatch(db);
     w.set(doc(db, 'giftStatus', S.uid), { status: st, at: serverTimestamp() });
-    w.set(doc(db, 'giftIncoming', S.assignment.recipient), { status: st });
+    w.set(doc(db, 'giftIncoming', S.assignment.recipient), S.assignment.k ? { status: st, k: S.assignment.k } : { status: st }); // k: token secreto; las reglas comprueban su huella sin saber quién eres
     await w.commit(); toast(GS[st][0] + ' ¡Listo! Ya le avisamos (en secreto)'); if (st === 'envuelto') confetti(70);
   } catch (err) { toast(authErr(err)); }
 });

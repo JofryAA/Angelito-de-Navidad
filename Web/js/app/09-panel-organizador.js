@@ -381,7 +381,7 @@ $('#p-list').addEventListener('click', async e => {
     if (S.staffList?.some(x => x.id === id) || S.isOwner) b2.delete(doc(adb, 'staff', id));
     if (S.isOwner) {
       for (const c of ['giftStatus', 'guesses', 'angelGuess', 'wishPick', 'thanks', 'hintsSent', 'fcmTokens']) b2.delete(doc(adb, c, id));
-      const rec = S.assignments?.[id]?.recipient; if (rec) b2.delete(doc(adb, 'giftIncoming', rec));
+      /* 🔐 a quién le regalaba esa persona ya no se sabe aquí: el ajuste del sorteo lo resuelve en el servidor */
     }
     await b2.commit(); toast('Participante eliminado');
   } catch (err) { toast(authErr(err)); }
@@ -391,7 +391,7 @@ $('#p-list').addEventListener('click', async e => {
 // vuelven a girar. Nadie ve cuántas parejas cambiaron ni cuáles: el aviso y los pasos son iguales para todos.
 const fixOf = () => S.event?.fix || null;
 const fixWhen = f => new Date(+f.at).toLocaleString('es-DO', { weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' });
-function fixBad() { if (!S.drawMeta || !S.assignments) return 0; const bl = blockedSet(); return (S.drawMeta.ids || []).filter(g => { const r = S.assignments[g]?.recipient; return r && bl.has(g + '>' + r); }).length; }
+function fixBad() { return S.drawMeta ? +S.drawState?.bad || 0 : 0; } // 🔐 lo cuenta la caja fuerte (solo el número, nunca quiénes)
 function renderFixAdmin() {
   const box = $('#fx-box'); if (!box) return;
   const f = fixOf(), bad = S.isOwner ? fixBad() : 0, live = f && (f.status === 'scheduled' || f.status === 'running');
@@ -610,12 +610,9 @@ $('#d-gen').addEventListener('click', async () => {
     for (const c of ['giftStatus', 'giftIncoming', 'hints', 'hintsSent', 'angelGuess', 'wishPick', 'thanks', 'guesses']) (await getDocs(collection(adb, c))).forEach(d => ops.push(['del', d.ref]));
     (await getDocs(collection(adb, 'assignments'))).forEach(d => { if (!ids.includes(d.id)) ops.push(['del', d.ref]); });
     await commitOps(ops);
-    // 3) el sorteo nuevo completo en UNA sola escritura: o queda todo o no queda nada
-    const b = writeBatch(adb);
-    ids.forEach((id, i) => b.set(doc(adb, 'assignments', id), { recipient: perm[i], revealed: false, at: serverTimestamp() }));
-    b.set(doc(adb, 'config', 'event'), { fix: deleteField(), registrationOpen: false, angelLocked: false, guessesOpen: false, guessesLocked: false, guessWinner: deleteField() }, { merge: true });
-    b.set(doc(adb, 'config', 'draw'), { ids, n: ids.length, at: serverTimestamp() });
-    await b.commit(); toast('¡Sorteo generado! 🎉 Ya pueden girar.'); confetti(60);
+    // 3) 🔐 el sorteo lo hace la CAJA FUERTE (servidor): aquí solo se pide. Las parejas nunca pasan por este teléfono.
+    await setDoc(doc(collection(adb, 'vaultOps')), { op: 'draw', ids, at: serverTimestamp() });
+    void perm; toast('🔐 Sorteando en la caja fuerte… en 1 o 2 minutos llega el aviso para girar'); confetti(40);
   } catch (err) { toast(authErr(err) + ' · Vuelve a tocar Sortear'); }
 });
 async function commitOps(ops) {

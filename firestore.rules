@@ -52,7 +52,7 @@ service cloud.firestore {
     // El organizador principal puede leer y corregir cualquier dato (por ejemplo, al restablecer un PIN).
     // El organizador principal puede todo, MENOS leer quién escribió cada anónimo (eso tiene su propia regla abajo).
     match /{col}/{rest=**} {
-      allow read, write: if isOwner() && col != 'questionAuthors';
+      allow read, write: if isOwner() && !(col in ['questionAuthors', 'suggestionAuthors', 'angelKey', 'thanksFor', 'vaultOps', 'devkeys']);
     }
 
     // ---------- equipo organizador ----------
@@ -288,8 +288,7 @@ service cloud.firestore {
     // "Este lo compro yo": apartado privado de cada quien.
     match /wishPick/{uid} {
       allow read: if signedIn() && me() == uid;
-      allow write: if isParticipant() && me() == uid
-        && request.resource.data.keys().hasOnly(['wishId']) && str(request.resource.data.wishId, 80);
+      allow delete: if signedIn() && me() == uid; // 🔐 «Lo compro yo» ya solo vive en el teléfono (en la base revelaba a quién le regalas)
     }
 
     // ---------- actividades ----------
@@ -350,8 +349,8 @@ service cloud.firestore {
     match /questionAuthors/{id} {
       allow read: if isOwner() && revealed();
       allow delete: if isOwner();
-      allow create: if isParticipant() && request.resource.data.keys().hasOnly(['uid'])
-        && request.resource.data.uid == me()
+      // 🔐 el autor llega cifrado para la caja fuerte (box); el servidor lo abre solo en la revelación
+      allow create: if isParticipant() && request.resource.data.keys().hasOnly(['box']) && request.resource.data.box is map && request.resource.data.box.keys().hasOnly(['e', 'iv', 'ct']) && request.resource.data.box.e is string && request.resource.data.box.iv is string && request.resource.data.box.ct is string && request.resource.data.box.ct.size() < 600
         && existsAfter(/databases/$(database)/documents/questions/$(id))
         && !exists(/databases/$(database)/documents/questions/$(id));
     }
@@ -396,8 +395,7 @@ service cloud.firestore {
     match /suggestionAuthors/{id} {
       allow read: if isOwner();
       allow delete: if can('moderar');
-      allow create: if isParticipant() && request.resource.data.keys().hasOnly(['uid'])
-        && request.resource.data.uid == me()
+      allow create: if isParticipant() && request.resource.data.keys().hasOnly(['box']) && request.resource.data.box is map && request.resource.data.box.keys().hasOnly(['e', 'iv', 'ct']) && request.resource.data.box.e is string && request.resource.data.box.iv is string && request.resource.data.box.ct is string && request.resource.data.box.ct.size() < 600
         && existsAfter(/databases/$(database)/documents/suggestions/$(id))
         && !exists(/databases/$(database)/documents/suggestions/$(id));
     }
@@ -432,9 +430,10 @@ service cloud.firestore {
     // Aviso que le llega a quien recibe el regalo. Solo lo escribe su angelito de verdad. No guarda quién ni cuándo.
     match /giftIncoming/{rid} {
       allow read: if isOwner() || (signedIn() && me() == rid);
+      // 🔐 quien regala prueba que es el angelito de rid con su token secreto k: aquí solo está sha256(k)
       allow create, update: if isParticipant()
-        && get(/databases/$(database)/documents/assignments/$(me())).data.recipient == rid
-        && request.resource.data.keys().hasOnly(['status'])
+        && request.resource.data.k is string && request.resource.data.k.size() < 80 && hashing.sha256(request.resource.data.k) == get(/databases/$(database)/documents/angelKey/$(rid)).data.h
+        && request.resource.data.keys().hasOnly(['status', 'k'])
         && request.resource.data.status in ['pensando', 'ideas', 'comprado', 'envuelto'];
       allow delete: if isOwner();
     }
@@ -470,17 +469,36 @@ service cloud.firestore {
     match /hints/{id} {
       allow read: if signedIn() && resource.data.to == me();
       allow create: if isParticipant() && okId(id)
-        && request.resource.data.keys().hasOnly(['to', 'text', 'ts'])
+        && request.resource.data.keys().hasOnly(['to', 'text', 'ts', 'k'])
         && str(request.resource.data.text, 200) && request.resource.data.text.size() > 0 && request.resource.data.ts is int
-        && get(/databases/$(database)/documents/assignments/$(me())).data.recipient == request.resource.data.to
+        && request.resource.data.to is string && request.resource.data.k is string && request.resource.data.k.size() < 80
+        && hashing.sha256(request.resource.data.k) == get(/databases/$(database)/documents/angelKey/$(request.resource.data.to)).data.h
         && !exists(/databases/$(database)/documents/reveal/main) && ev('angelLocked', false) == false;
     }
     // Copia privada de las pistas que yo mandé.
     match /hintsSent/{uid} {
       allow read: if signedIn() && me() == uid;
       allow create, update: if isParticipant() && me() == uid
-        && request.resource.data.keys().hasOnly(['texts']) && request.resource.data.texts is list && request.resource.data.texts.size() <= 10;
+        && request.resource.data.keys().hasOnly(['n']) && request.resource.data.n is int && request.resource.data.n <= 10; // 🔐 solo cuántas: el texto revelaría a quién
     }
+    // 🔐 CAJA FUERTE (ver SEGURIDAD.md y push/vault.mjs)
+    // llave pública de cada teléfono: la sube su dueño; nadie la lee desde la app (solo el servidor)
+    match /devkeys/{id} {
+      allow create, update: if isParticipant() && id == me() + '__' + request.resource.data.dev
+        && request.resource.data.keys().hasOnly(['uid', 'dev', 'pub', 'at']) && request.resource.data.uid == me()
+        && str(request.resource.data.dev, 20) && str(request.resource.data.pub, 120) && request.resource.data.at is int;
+      allow delete: if signedIn() && resource.data.uid == me();
+    }
+    // huella del token de cada angelito (sha256): nadie la lee; las reglas de pistas y estado del regalo la comparan
+    match /angelKey/{id} { allow read, write: if false; }
+    // agradecimiento para el angelito: se pide por un id imposible de adivinar (sha256 del token); no se puede listar
+    match /thanksFor/{id} { allow get: if isParticipant(); allow list, write: if false; }
+    // pedidos a la caja fuerte (sortear, cambiar un uid): los crea el organizador; solo el servidor los lee
+    match /vaultOps/{id} {
+      allow create: if isOwner() && request.resource.data.op in ['draw', 'remap'];
+    }
+    // cuántas parejas no cumplen las restricciones (solo el número)
+    match /adminState/{id} { allow read: if isOwner(); }
 
     // ---------- ¿quién es mi angelito? ----------
     // Secreto hasta la gran revelación; después ya no se puede cambiar.
@@ -548,8 +566,7 @@ service cloud.firestore {
     // ---------- 💛 recibí mi regalo ----------
     // Lo lee quien lo escribió y su angelito de verdad (nadie más).
     match /thanks/{uid} {
-      allow read: if (signedIn() && me() == uid)
-        || (isParticipant() && get(/databases/$(database)/documents/assignments/$(me())).data.recipient == uid);
+      allow read: if signedIn() && me() == uid; // 🔐 su angelito lo lee en thanksFor/{sha256(token)} (lo copia la caja fuerte)
       allow create, update: if isParticipant() && me() == uid
         && request.resource.data.keys().hasOnly(['received', 'note', 'at']) && tsOk(request.resource.data)
         && request.resource.data.received is bool && str(request.resource.data.note, 500);

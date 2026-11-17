@@ -128,7 +128,9 @@ function startUserSubs(user) {
       S.wishes = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at)); render();
     }, ufail('wishes')));
     unsubUser.push(onSnapshot(doc(db, 'staff', user.uid), s => { S.myStaff = s.exists() ? s.data() : null; syncAdminMode(); }, () => { S.myStaff = null; syncAdminMode(); }));
-    unsubUser.push(onSnapshot(doc(db, 'assignments', user.uid), s => { S.assignment = s.exists() ? s.data() : null; render(); }, ufail('assignment')));
+    // 🔐 mi persona viene cifrada: se abre en este teléfono (caja fuerte) y queda solo en memoria
+    CF.register(user.uid); let asSeq = 0;
+    unsubUser.push(onSnapshot(doc(db, 'assignments', user.uid), s => { const n = ++asSeq, raw = s.exists() ? s.data() : null; CF.unlockAssignment(raw).then(a => { if (n !== asSeq) return; if (a?.boxErr) CF.register(user.uid, true); S.assignment = a; render(); }); }, ufail('assignment')));
     const rows = rowsOf;
     unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('uid', '==', user.uid)), s => { S.myPicks = rows(s); render(); }, ufail('myPicks')));
     unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('public', '==', true)), s => { S.publicPicks = rows(s); render(); }, ufail('publicPicks')));
@@ -147,13 +149,17 @@ function startUserSubs(user) {
     unsubUser.push(onSnapshot(doc(db, 'chatSeen', user.uid), s => { S.chatSeenAll = { ...(S.chatSeenAll || {}), [user.uid]: s.exists() ? +s.data().ts || 0 : 0 }; try { renderBadges(); } catch { } }, () => { }));
     unsubUser.push(() => liveGroup(false)); beat(true); setTimeout(liveGroupSync, 400);
     unsubUser.push(onSnapshot(doc(db, 'thanks', user.uid), s => { S.myThanks = s.exists() ? s.data() : null; render(); }, ufail('thanks')));
-    unsubUser.push(onSnapshot(doc(db, 'wishPick', user.uid), s => { S.wishPick = s.exists() ? s.data() : null; render(); }, ufail('wishPick')));
+    // «Lo compro yo» se guarda SOLO en este teléfono: en la base revelaría a quién le regalas
+    try { S.wishPick = JSON.parse(localStorage.getItem('angelito:wishPick:' + user.uid) || 'null'); } catch { S.wishPick = null; }
+    getDoc(doc(db, 'wishPick', user.uid)).then(s => { if (!s.exists()) return; if (!S.wishPick && s.data().wishId) { S.wishPick = s.data(); try { localStorage.setItem('angelito:wishPick:' + user.uid, JSON.stringify(S.wishPick)); } catch { } } deleteDoc(doc(db, 'wishPick', user.uid)).catch(() => { }); render(); }).catch(() => { });
     unsubUser.push(onSnapshot(collection(db, 'memories'), s => { S.memories = rows(s); render(); }, ufail('memories')));
     unsubUser.push(onSnapshot(collection(db, 'profiles'), s => { S.profiles = Object.fromEntries(rows(s).map(x => [x.id, x])); render(); }, ufail('profiles')));
     unsubUser.push(onSnapshot(query(collection(db, 'hints'), where('to', '==', user.uid)), s => { S.hintsIn = rows(s); render(); }, ufail('hints')));
-    unsubUser.push(onSnapshot(doc(db, 'hintsSent', user.uid), s => { S.hintsSent = s.exists() ? (s.data().texts || []) : []; render(); }, ufail('hintsSent')));
+    // las pistas que mandaste: el texto solo en este teléfono; en la base solo cuántas (el texto revelaría a quién)
+    try { S.hintsSent = JSON.parse(localStorage.getItem('angelito:hintsSent:' + user.uid) || '[]'); } catch { S.hintsSent = []; }
+    unsubUser.push(onSnapshot(doc(db, 'hintsSent', user.uid), s => { const n = s.exists() ? (+s.data().n || (s.data().texts || []).length) : 0; if (S.hintsSent.length < n) S.hintsSent = [...S.hintsSent, ...Array(n - S.hintsSent.length).fill('(enviada desde otro teléfono)')]; if (!n) S.hintsSent = []; render(); }, ufail('hintsSent')));
     unsubUser.push(onSnapshot(doc(db, 'angelGuess', user.uid), s => { S.myAngelGuess = s.exists() ? s.data() : null; render(); }, ufail('angelGuess')));
-    unsubUser.push(onSnapshot(doc(db, 'reveal', 'main'), s => { S.reveal = s.exists() ? s.data() : null; syncAngelGuesses(); render(); }, ufail('reveal')));
+    unsubUser.push(onSnapshot(doc(db, 'reveal', 'main'), s => { S.reveal = s.exists() && s.data().pairs ? s.data() : null; /* 🔐 mientras la caja fuerte abre las parejas, todavía no hay revelación */ syncAngelGuesses(); render(); }, ufail('reveal')));
     unsubUser.push(onSnapshot(doc(db, 'guesses', user.uid), s => { S.myGuess = s.exists() ? s.data() : null; render(); }, ufail('myGuess')));
     unsubUser.push(onSnapshot(query(collection(db, 'chat'), orderBy('ts', 'desc'), limit(120)), { includeMetadataChanges: true }, s => {
       // orden por la hora del SERVIDOR (no la del teléfono, que puede estar adelantada o atrasada); lo que aún no sube va al final con 🕓
@@ -215,8 +221,9 @@ function startAdminSubs() {
   const rows = rowsOf;
   if (S.isOwner) {
     sub(doc(adb, 'drawRules', 'main'), s => { S.drawRules = s.exists() ? (s.data().pairs || []) : []; render(); }, 'drawRules');
+    sub(doc(adb, 'adminState', 'draw'), s => { S.drawState = s.exists() ? s.data() : null; render(); }, 'drawState');
     sub(collection(adb, 'assignments'), s => { S.assignments = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); render(); }, 'assignments');
-    sub(collection(adb, 'suggestionAuthors'), s => { S.sugAuthors = Object.fromEntries(s.docs.map(d => [d.id, d.data().uid])); render(); }, 'sugauth');
+    sub(collection(adb, 'suggestionAuthors'), s => { S.sugAuthors = Object.fromEntries(s.docs.filter(d => d.data().uid).map(d => [d.id, d.data().uid])); render(); }, 'sugauth'); // 🔐 cifrados: no se ven
     sub(collection(adb, 'guesses'), s => { S.adminGuesses = rows(s); render(); }, 'guesses-adm');
     sub(collection(adb, 'memories'), s => { if (!S.uid) S.memories = rows(s); render(); }, 'mem-adm');
     sub(doc(adb, 'reveal', 'main'), s => { S.reveal = s.exists() ? s.data() : null; syncAngelGuesses(); render(); }, 'reveal-adm');

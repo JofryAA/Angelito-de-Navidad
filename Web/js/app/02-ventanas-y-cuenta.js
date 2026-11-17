@@ -194,7 +194,8 @@ async function resetPin(pid, tempPin) {
     const snap = await getDoc(R(c, pid)).catch(() => null);
     if (snap && snap.exists()) { const data = snap.data(); if ('uid' in data) data.uid = nid; put(R(c, nid), data); del(R(c, pid)); }
   }
-  (await q('assignments', 'recipient', pid)).forEach(d => { if (d.id !== pid) put(d.ref, { ...d.data(), recipient: nid }); });
+  // 🔐 a quién le toca está cifrado: la caja fuerte cambia pid → nid adentro de las parejas
+  put(doc(collection(adb, 'vaultOps')), { op: 'remap', from: pid, to: nid, at: serverTimestamp() });
   (await q('questions', 'to', pid)).forEach(d => put(d.ref, { ...d.data(), to: nid }));
   for (const c of ['wishes', 'wishImg', 'chatImg', 'activitySignups', 'suggestions', 'suggestionAuthors'] /* los autores de anónimos están sellados: no se tocan */)
     (await q(c, 'uid', pid).catch(() => ({ forEach() { } }))).forEach(d => put(d.ref, { ...d.data(), uid: nid })); // los autores de anónimos están sellados: si no se pueden leer, se dejan

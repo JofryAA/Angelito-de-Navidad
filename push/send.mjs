@@ -7,6 +7,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import { getDatabase } from 'firebase-admin/database';
 import { nightlyBackup, restoreBackup } from './backup.mjs';
+import { vaultTasks, makeVault, sha256, newToken } from './vault.mjs';
 
 const key = process.env.FIREBASE_ADMIN_KEY;
 if (!key) { console.log('Falta el secreto FIREBASE_ADMIN_KEY: no se envía nada.'); process.exit(0); }
@@ -18,6 +19,9 @@ const BASE = process.env.APP_URL || 'https://angelito-2026.web.app/';
 const now = Date.now();
 const stateRef = db.doc('push/state');
 const st = (await stateRef.get()).data() || {};
+// 🔐 Caja fuerte (parejas y autores cifrados): ver push/vault.mjs y SEGURIDAD.md
+let V = makeVault(SA);
+try { V = await vaultTasks({ db, sa: SA, now: Date.now() }); } catch (e) { console.log('Caja fuerte: falló (' + String(e?.message || e).slice(0, 80) + ').'); }
 // la primera vez solo mira los últimos 10 minutos; nunca más de 1 hora atrás (si GitHub se atrasó)
 const since = Math.max(st.last || now - 10 * 60e3, now - 60 * 60e3);
 const ms = t => !t ? 0 : typeof t === 'number' ? t : t.toMillis ? t.toMillis() : 0;
@@ -59,6 +63,8 @@ if (process.env.RESTAURAR) {
   await restoreBackup({ db, rdb: getDatabase(), sa: SA, day: process.env.RESTAURAR.trim(), cols: (process.env.COLECCIONES || '').split(',').map(x => x.trim()).filter(Boolean) });
   process.exit(0);
 }
+// 🔐 Una sola vez tras activar la caja fuerte: se borran las copias de seguridad viejas (tenían las parejas sin cifrar)
+if (!st.bkPurged) { try { const cv = (await db.doc('config/vault').get()).data(); if (cv?.migrated) { await getDatabase().ref('backups').remove(); await stateRef.set({ bkPurged: Date.now(), bkDay: '' }, { merge: true }); console.log('Copias viejas (sin cifrar) borradas.'); } } catch (e) { console.log('No se pudieron borrar las copias viejas.'); } }
 // 🗄️ Copia de seguridad de cada noche
 try { await nightlyBackup({ db, rdb: getDatabase(), sa: SA, st, stateRef, now, force: process.env.COPIA === '1' }); } catch (e) { console.log('Copia de seguridad: falló (' + String(e?.message || e).slice(0, 80) + ').'); }
 // 🐞 Errores de la app: cada hora se resume en el registro (solo el mensaje técnico) y se borran los de más de 7 días
@@ -148,7 +154,7 @@ async function runFix(fx) {
   // quien ya no existe como participante (p. ej. se borró por error) también sale del sorteo
   const alive = new Set((await db.collection('participants').select().get()).docs.map(d => d.id));
   const drop = [...new Set([...(fx.drop || []), ...draw.ids.filter(d => !alive.has(d))])].filter(d => draw.ids.includes(d)), ids = draw.ids.filter(g => !drop.includes(g)), rec = {}, spun = new Set();
-  for (const d of (await db.collection('assignments').get()).docs) if (draw.ids.includes(d.id)) { rec[d.id] = d.data().recipient; if (d.data().revealed || d.data().spunEver) spun.add(d.id); } // «ya giró alguna vez» (spunEver): ningún ajuste lo borra
+  for (const d of (await db.collection('assignments').get()).docs) if (draw.ids.includes(d.id)) { rec[d.id] = d.data().vault ? V.open(d.data().vault).r : d.data().recipient; if (d.data().revealed || d.data().spunEver) spun.add(d.id); } // «ya giró alguna vez» (spunEver): ningún ajuste lo borra
   const orig = { ...rec };
   // 👋 quien sale del sorteo: a quien le regalaba a esa persona le pasa la persona que le tocaba a ella (se cierra la cadena)
   for (const d of drop) {
@@ -179,7 +185,11 @@ async function runFix(fx) {
   const changed = givers.filter(g => rec[g] !== before[g]);
   const touchedRec = new Set(changed.flatMap(g => [before[g], rec[g]]));
   const ops = [];
-  for (const g of givers) ops.push(b => b.set(db.doc('assignments/' + g), { recipient: rec[g], revealed: false, revealedAt: FieldValue.delete(), ...(spun.has(g) ? { spunEver: true } : {}) }, { merge: true }));
+  // 🔐 cada quien con su persona cifrada; a quien le cambió la persona, token nuevo (las pistas viejas ya no valen)
+  const prevK = {}; for (const d of (await db.collection('assignments').get()).docs) if (d.data().vault) try { prevK[d.id] = V.open(d.data().vault).k; } catch { }
+  for (const g of givers) { const k = rec[g] === orig[g] && prevK[g] ? prevK[g] : newToken(); ops.push(b => b.set(db.doc('assignments/' + g), { vault: V.seal({ r: rec[g], k }), boxes: {}, recipient: FieldValue.delete(), revealed: false, revealedAt: FieldValue.delete(), ...(spun.has(g) ? { spunEver: true } : {}) }, { merge: true })); ops.push(b => b.set(db.doc('angelKey/' + rec[g]), { h: sha256(k) })); }
+  ops.push(b => b.set(db.doc('config/vault'), { boxAt: 0, badStamp: '' }, { merge: true }));
+  for (const d of drop) ops.push(b => b.delete(db.doc('angelKey/' + d)));
   for (const g of changed) for (const c of ['giftStatus', 'wishPick', 'hintsSent']) ops.push(b => b.delete(db.doc(`${c}/${g}`)));
   for (const r of touchedRec) { ops.push(b => b.delete(db.doc('giftIncoming/' + r))); ops.push(b => b.delete(db.doc('thanks/' + r))); }
   for (const d of (await db.collection('hints').get()).docs) if (touchedRec.has(d.data().to)) ops.push(b => b.delete(d.ref));
