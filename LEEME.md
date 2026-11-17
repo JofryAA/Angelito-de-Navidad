@@ -222,4 +222,4 @@ El código principal está dividido por temas en `Web/js/app/` (ruleta, deseos, 
 Los archivos llevan un número delante porque se unen en ese orden en `Web/js/app.js`, que es lo que carga la página.
 
 - Para cambiar algo, edita el archivo del tema en `Web/js/app/`.
-- `Web/js/app.js` se genera solo: GitHub lo arma antes de publicar. Para probar en tu computadora: `node tools/build-app.mjs`.
+- `Web/js/app.js` y `Web/js/juegos.js` (partes en `Web/js/juegos/`) se generan solos: GitHub lo arma antes de publicar. Para probar en tu computadora: `node tools/build-app.mjs`.

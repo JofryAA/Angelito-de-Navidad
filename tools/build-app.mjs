@@ -1,8 +1,12 @@
-// Une los archivos de Web/js/app/ (en orden por su número) en Web/js/app.js, que es lo que carga la página.
-// Se edita SIEMPRE en Web/js/app/; Web/js/app.js se genera (lo hace también GitHub antes de publicar).
+// Une las partes de cada carpeta (en orden por su número) en un solo archivo, que es lo que carga la página:
+//   Web/js/app/*.js    → Web/js/app.js
+//   Web/js/juegos/*.js → Web/js/juegos.js
+// Se edita SIEMPRE en las carpetas; los archivos unidos se generan (GitHub lo hace también antes de publicar).
 // Uso: node tools/build-app.mjs
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-const dir = new URL('../Web/js/app/', import.meta.url), out = new URL('../Web/js/app.js', import.meta.url);
-const files = readdirSync(dir).filter(f => /^\d\d-.*\.js$/.test(f)).sort();
-writeFileSync(out, files.map(f => readFileSync(new URL(f, dir), 'utf8')).join(''));
-console.log(`app.js armado con ${files.length} partes.`);
+for (const name of ['app', 'juegos']) {
+  const dir = new URL(`../Web/js/${name}/`, import.meta.url), out = new URL(`../Web/js/${name}.js`, import.meta.url);
+  const files = readdirSync(dir).filter(f => /^\d\d-.*\.js$/.test(f)).sort();
+  writeFileSync(out, files.map(f => readFileSync(new URL(f, dir), 'utf8')).join(''));
+  console.log(`${name}.js armado con ${files.length} partes.`);
+}
