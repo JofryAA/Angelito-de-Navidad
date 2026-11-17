@@ -22,7 +22,8 @@ dueño del proyecto de Firebase, pueda ver esa información en la base de datos 
   tarea del servidor. Al activarla, la «migración 3» volvió a cifrar todo con ella y borró las copias de seguridad
   anteriores. (Antes de `VAULT_KEY`, la llave salía de la cuenta de servicio: versión 1.)
   ⚠️ Si `VAULT_KEY` se borra o se cambia, las parejas cifradas no se pueden recuperar.
-  De ella salen una llave simétrica (para `vault`) y un par ECDH P-256 cuya parte pública se publica en `config/vault`.
+  De ella salen una llave simétrica (para `vault`) y un par ECDH P-256 cuya parte pública está **fija en el código de la app**
+  (`SERVER_PUB` en `00b-caja-fuerte.js`); el servidor la imprime en el registro de GitHub Actions («Caja fuerte: llave pública …») para que cualquiera la compare.
 - **Llave de cada teléfono**: la crea el navegador con WebCrypto (ECDH P-256, `extractable: false`) y se guarda en IndexedDB.
   La parte privada no se puede exportar, ni siquiera desde la propia app. Solo la pública sube a `devkeys/`.
 - **Formato de las cajitas** (igual en `push/vault.mjs` y en `Web/js/app/00b-caja-fuerte.js`):
