@@ -278,7 +278,7 @@ function openTour() {
   function paint() {
     const s = T[i], my = ++tok, last = i === T.length - 1;
     body.innerHTML = `<div class="tx-chaps">${chaps.map(c => `<button type="button" class="${c === s.c ? 'on' : chaps.indexOf(c) < chaps.indexOf(s.c) ? 'done' : ''}" data-tc="${esc(c)}">${esc(c)}</button>`).join('')}</div>
-      <div class="tx-top"><span class="tx-e">${s.e}</span><div class="grow"><small>Paso ${i + 1} de ${T.length}</small><b>${esc(s.t)}</b></div></div>
+      <div class="tx-top"><span class="tx-e">${s.e}</span><div class="grow"><small>Paso ${i + 1} de ${T.length}</small><b>${esc(s.t)}</b></div><button type="button" class="tx-x" data-t="close" aria-label="Cerrar la guía">✕</button></div>
       ${s.demo ? TOUR_DEMOS[s.demo]() : ''}<p>${s.d}</p>
       ${last ? `<div class="tx-end">${mod('perfil') ? `<button class="tx-go" data-t="prof"><span>👕</span><b>Llenar mi perfil</b><small>Para que tu angelito acierte</small></button>` : ''}${mod('deseos') ? `<button class="tx-go" data-t="wish"><span>🎁</span><b>Escribir mis deseos</b><small>Con dos o tres ideas basta</small></button>` : ''}<button class="tx-go" data-t="notif"><span>🔔</span><b>Activar los avisos</b><small>Para enterarte de todo</small></button></div>` : ''}
       <div class="tx-bar"><i style="width:${(i + 1) / T.length * 100}%"></i></div>
@@ -305,6 +305,7 @@ function openTour() {
     const c = e.target.closest('[data-tc]'); if (c) { const k = T.findIndex(s => s.c === c.dataset.tc); if (k <= i) { i = k; paint(); } return; } // se puede volver a un capítulo, no saltarse los que faltan
     const t = e.target.closest('[data-t]')?.dataset.t;
     if (!t) { if (e.target.closest('.tx-hole')) step(1); return; }
+    if (t === 'close') return end(back); // ✕: la guía se cierra y no vuelve a salir (se puede abrir desde la ayuda)
     if (t === 'next') return step(1);
     if (t === 'prev') return step(-1);
     if (t === 'prof') { end('#inicio'); return setTimeout(openProfile, 300); }

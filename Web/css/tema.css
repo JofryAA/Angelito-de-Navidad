@@ -1141,3 +1141,4 @@ body.touring #helper{display:none!important}
 .mt-side.top{top:10px}.mt-side.bot{bottom:10px}
 .mesa.ended{min-height:200px}
 .mesa.ended .snake{margin:34px 0}
+.tx-x{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:inherit;font-size:15px;font-weight:700;display:grid;place-items:center;cursor:pointer;transition:background .2s,transform .2s}.tx-x:active{transform:scale(.9);background:rgba(255,255,255,.18)}
