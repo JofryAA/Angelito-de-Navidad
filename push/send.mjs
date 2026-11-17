@@ -52,12 +52,14 @@ if (hourL >= 9 && hourL < 20 && evDay) {
 }
 const remKey = k => `${k}:${evDay}`;
 const remDue = dueRem.filter(k => !remSent.has(remKey(k)));
-// 🎮 Quién puede usar la base de juegos: copia de los participantes (cada 30 min; quien sale del grupo pierde el acceso)
-if (!st.memAt || now - st.memAt > 1800e3) {
+// 🎮 Quién puede usar la base de juegos: copia de los participantes (al momento en que alguien entra o sale; y cada 30 min por si acaso)
+// En cada vuelta solo se CUENTA a los participantes (cuesta 1 lectura): si alguien entró o salió, se copia la lista al momento.
+let memN = -1; try { memN = (await db.collection('participants').count().get()).data().count; } catch { }
+if (!st.memAt || now - st.memAt > 1800e3 || (memN >= 0 && memN !== st.memN)) {
   try {
     const ids = (await db.collection('participants').select().get()).docs.map(d => d.id);
     await getDatabase().ref('members').set(Object.fromEntries(ids.map(id => [id, true])));
-    await stateRef.set({ memAt: now }, { merge: true }); st.memAt = now;
+    await stateRef.set({ memAt: now, memN: ids.length }, { merge: true }); st.memAt = now; st.memN = ids.length;
   } catch (e) { console.log('Miembros de juegos: no se pudieron copiar.'); }
 }
 // 🏆 Una sola vez: la tabla de campeones de antes (Firestore) se copia a Realtime Database, donde viven los juegos ahora
