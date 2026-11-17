@@ -1309,3 +1309,8 @@ body.touring #helper{display:none!important}
 #gchat-panel .gc-list{max-height:min(22vh,160px)}
 #gchat-panel.out{transform:translateY(-20px)}
 @keyframes gcpInT{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:none}}
+/* reloj del turno: una sola barra limpia (antes se mezclaba con otro estilo y salían dos) */
+#v-juegos i.tbar{display:block;margin:0!important;height:4px;border-radius:3px;background:linear-gradient(90deg,#ffd77e,#e3ae4b)!important;box-shadow:0 0 8px rgba(255,215,126,.5)}
+#v-juegos .seat i.tbar{position:absolute;left:12px;right:12px;bottom:5px}
+#v-juegos .myhand .tline{height:5px;margin:2px 0 8px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+#v-juegos .myhand .tline i.tbar{position:absolute;inset:0;height:auto}
