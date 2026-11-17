@@ -8,6 +8,10 @@ on:
         description: 'Mandar un aviso de prueba a todos los teléfonos registrados'
         type: boolean
         default: false
+      ajuste:
+        description: 'Hacer YA el ajuste (switch) del sorteo'
+        type: boolean
+        default: false
 concurrency: { group: push, cancel-in-progress: false }  # nunca dos a la vez: si llega otro, espera su turno
 jobs:
   enviar:
@@ -25,3 +29,4 @@ jobs:
         env:
           FIREBASE_ADMIN_KEY: ${{ secrets.FIREBASE_ADMIN_KEY }}
           PRUEBA: ${{ inputs.prueba && '1' || '' }}
+          AJUSTE: ${{ inputs.ajuste && '1' || '' }}

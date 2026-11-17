@@ -51,7 +51,12 @@ const remDue = dueRem.filter(k => !remSent.has(remKey(k)));
 // 🔀 Ajuste programado del sorteo (lo programa el organizador). Aquí NUNCA se escriben nombres ni parejas en el
 // registro: GitHub guarda estos registros y otras personas podrían leerlos.
 let fixReady = false;
-const fx = ev.fix;
+let fx = ev.fix;
+// Botón manual del organizador (Actions → Run workflow → «ajuste»): hace el ajuste YA.
+if (process.env.AJUSTE === '1' && draw?.ids?.length && !(fx && fx.status === 'scheduled')) {
+  fx = { id: 'sys' + now.toString(36), at: now, status: 'scheduled' };
+  await db.doc('config/event').set({ fix: fx }, { merge: true });
+}
 if (fx && fx.status === 'scheduled' && +fx.at <= now && draw?.ids?.length) {
   try { fixReady = await runFix(fx); console.log(fixReady ? 'Ajuste del sorteo aplicado.' : 'Ajuste del sorteo: nada que aplicar.'); }
   catch (e) { console.log('Ajuste del sorteo: no se pudo aplicar.'); await db.doc('config/event').set({ fix: { ...fx, status: 'failed' } }, { merge: true }).catch(() => { }); }
@@ -60,11 +65,18 @@ async function runFix(fx) {
   const evRef = db.doc('config/event');
   const claimed = await db.runTransaction(async t => { const f = (await t.get(evRef)).data()?.fix; if (!f || f.id !== fx.id || f.status !== 'scheduled') return false; t.set(evRef, { fix: { ...f, status: 'running' } }, { merge: true }); return true; });
   if (!claimed) return false;
-  const drop = (fx.drop || []).filter(d => draw.ids.includes(d)), ids = draw.ids.filter(g => !drop.includes(g)), rec = {}, spun = new Set();
+  // quien ya no existe como participante (p. ej. se borró por error) también sale del sorteo
+  const alive = new Set((await db.collection('participants').select().get()).docs.map(d => d.id));
+  const drop = [...new Set([...(fx.drop || []), ...draw.ids.filter(d => !alive.has(d))])].filter(d => draw.ids.includes(d)), ids = draw.ids.filter(g => !drop.includes(g)), rec = {}, spun = new Set();
   for (const d of (await db.collection('assignments').get()).docs) if (draw.ids.includes(d.id)) { rec[d.id] = d.data().recipient; if (d.data().revealed) spun.add(d.id); }
   const orig = { ...rec };
   // 👋 quien sale del sorteo: a quien le regalaba a esa persona le pasa la persona que le tocaba a ella (se cierra la cadena)
-  for (const d of drop) { const g = Object.keys(rec).find(k => rec[k] === d); if (g) rec[g] = rec[d]; delete rec[d]; }
+  for (const d of drop) {
+    const g = Object.keys(rec).find(k => rec[k] === d);
+    // si su asignación ya se había borrado, su persona es la que quedó sin angelito
+    const r = rec[d] || draw.ids.find(x => !drop.includes(x) && !Object.values(rec).includes(x) && x !== g);
+    if (g) rec[g] = r; delete rec[d];
+  }
   const pairs = (await db.doc('drawRules/main').get()).data()?.pairs || [], blocked = new Set();
   for (const r of pairs) { blocked.add(r.a + '>' + r.b); if (r.both) blocked.add(r.b + '>' + r.a); }
   const ok = (g, r) => !!r && g !== r && !blocked.has(g + '>' + r);
@@ -77,6 +89,7 @@ async function runFix(fx) {
     const fresh = opts.filter(y => !spun.has(y)), pool = fresh.length ? fresh : opts; // primero con quienes AÚN NO han girado: nunca vieron su persona, así que no deja rastro
     const y = pool[rnd(pool.length)]; [rec[v], rec[y]] = [rec[y], rec[v]]; return y;
   };
+  console.log('Ajuste: ' + (givers.some(g => !ok(g, rec[g])) ? 'hay restricciones por corregir' : 'no hay restricciones incumplidas') + (drop.length ? ' · se cierra la cadena de quien salió' : ''));
   for (const v of givers) if (!ok(v, rec[v])) {
     const y = swap(v, []); if (!y) throw new Error('sin salida');
     swap(v, [y]); // segundo cambio: así nadie puede deducir la pareja nueva a partir de la vieja
