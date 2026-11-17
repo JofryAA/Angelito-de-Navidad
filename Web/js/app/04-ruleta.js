@@ -88,7 +88,7 @@ $('#spinBtn').addEventListener('click', async () => {
   // Siempre (al girar y cada vez que quiera volver a verlo): confirmar privacidad + PIN
   if (!terms && !(await privacyGate(a.revealed))) return;
   if (!(await askPin(`Hola, ${S.me.first} 👋`, a.revealed ? 'Confirma tu PIN para ver de nuevo a quién te tocó.' : 'Confirma tu PIN para girar la ruleta.'))) return;
-  openSecret(); // ya puso su PIN: en Inicio y Deseos se ve su persona 2 minutos sin pedirlo otra vez
+  openSecret(); // ya puso su PIN: en Inicio y Deseos se ve su persona 1 minuto sin pedirlo otra vez
   if (!a.revealed) {
     try { await setDoc(doc(db, 'assignments', S.uid), { revealed: true, revealedAt: serverTimestamp(), spunEver: true }, { merge: true }); /* spunEver: ningún ajuste lo borra */ }
     catch (e) { toast(authErr(e)); return; }

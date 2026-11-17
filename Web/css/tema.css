@@ -1347,3 +1347,8 @@ body.touring #helper{display:none!important}
 .gcp-x{background:#1d3a2c}
 #g-emos .gemo{background:#0f2419}
 body.logged .hero p.cdmsg:not([hidden]){display:block;margin:10px 0 0;max-width:none;font-size:.8rem;padding:6px 12px;text-align:center}
+/* 🤫 barra secreta en Deseos */
+.secbar{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 12px;border-radius:16px;background:linear-gradient(160deg,#2a1f3a,#171226);border:1px solid #4a3a6a}
+.secbar.open{background:linear-gradient(160deg,#143826,#0d2419);border-color:#2f7a52}
+.secbar .sb-e{font-size:24px}.secbar b{display:block;font-size:.9rem}.secbar small{color:var(--muted);font-size:.74rem}
+.secbar .btn{flex:none}

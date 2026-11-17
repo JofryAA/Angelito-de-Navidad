@@ -327,13 +327,13 @@ function maybeTour() {
 }
 /* ---------- lo que te toca ahora (cambia según el momento) ---------- */
 // 🤫 Modo secreto: a quién le regalas NO se nota en ninguna parte (inicio, deseos, etiquetas, orden de la lista)
-// a menos que pongas tu PIN. Se vuelve a ocultar a los 2 minutos o en cuanto sales de la app.
+// a menos que pongas tu PIN. Se vuelve a ocultar al minuto o en cuanto sales de la app.
 let secT = 0;
 const secretOpen = () => Date.now() < (S.secretUntil || 0);
-function openSecret() { S.secretUntil = Date.now() + 120e3; clearTimeout(secT); secT = setTimeout(lockSecret, 120e3); }
+function openSecret() { S.secretUntil = Date.now() + 60e3; clearTimeout(secT); secT = setTimeout(lockSecret, 60e3); }
 function lockSecret() { if (!S.secretUntil) return; S.secretUntil = 0; clearTimeout(secT); if (S.wishPid && S.wishPid === S.assignment?.recipient) S.wishPid = S.uid; render(); } // al ocultarse, Deseos vuelve a tu lista
 async function unlockSecret() {
-  if (!(await askPin('🤫 Ver tu persona', 'Confirma tu PIN. Se oculta sola en 2 minutos o al salir de la app.'))) return false;
+  if (!(await askPin('🤫 Ver tu persona', 'Confirma tu PIN. Se oculta sola en 1 minuto o al salir de la app.'))) return false;
   openSecret(); render(); return true;
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) lockSecret(); });
@@ -347,15 +347,16 @@ function renderNext() {
   else if (ready && !A?.revealed) h = `<a class="card nextc hot" href="#ruleta"><div class="nx-e spin">🎡</div><div class="grow"><b>¡Ya puedes girar la ruleta!</b><div class="muted small">Descubre a quién le vas a regalar.</div></div><span class="btn sm gold">Girar ahora</span></a>`;
   else if (ready && A?.revealed && A.recipient && P(A.recipient)) {
     const R = P(A.recipient), op = secretOpen();
-    h = `<div class="card nextc ${op ? '' : 'sec-lock'}"><div class="nx-e">${op ? esc(R.emoji) : '🤫'}</div><div class="grow"><b>${op ? 'Le regalas a ' + esc(R.name) : 'Tu persona es secreta'}</b><div class="muted small">${op ? 'Se oculta solo en 2 minutos o al salir de la app.' : 'Nadie que mire tu teléfono puede saberlo: se ve solo con tu PIN.'}</div>
-      <div class="qa" style="margin-top:8px">${op ? '<button class="btn sm gold" id="nx-list">🎁 Ver su lista</button><button class="btn sm" id="nx-lock">🔒 Ocultar</button>' : '<button class="btn sm gold" id="nx-unlock">🔐 Ver con PIN</button>'}${mod('pistas') ? '<a class="btn sm" href="#ruleta">💌 Mandar una pista</a>' : ''}</div></div></div>`;
+    h = `<div class="card nextc ${op ? '' : 'sec-lock'}"><div class="nx-e">${op ? esc(R.emoji) : '🤫'}</div><div class="grow"><b>${op ? 'Le regalas a ' + esc(R.name) : 'Tu persona es secreta'}</b><div class="muted small">${op ? 'Se oculta solo en 1 minuto o al salir de la app.' : 'Nadie que mire tu teléfono puede saberlo: se ve solo con tu PIN.'}</div>
+      <div class="qa" style="margin-top:8px">${op ? '<button class="btn sm gold" data-sec="list">🎁 Ver su lista</button><button class="btn sm" data-sec="lock">🔒 Ocultar</button>' : '<button class="btn sm gold" data-sec="unlock">🔐 Ver con PIN</button>'}${mod('pistas') ? '<a class="btn sm" href="#ruleta">💌 Mandar una pista</a>' : ''}</div></div></div>`;
   }
   box.innerHTML = h;
 }
 document.addEventListener('click', e => {
-  if (e.target.closest('#nx-unlock')) unlockSecret();
-  if (e.target.closest('#nx-lock')) lockSecret();
-  if (e.target.closest('#nx-list') && S.assignment?.recipient && secretOpen()) { S.wishPid = S.assignment.recipient; location.hash = 'deseos'; render(); }
+  const sa = e.target.closest('[data-sec]')?.dataset.sec;
+  if (sa === 'unlock') unlockSecret();
+  if (sa === 'lock') lockSecret();
+  if (sa === 'list' && S.assignment?.recipient && secretOpen()) { S.wishPid = S.assignment.recipient; location.hash = 'deseos'; render(); }
 });
 // 💌 El buzón anónimo en Inicio, para que nadie se lo pierda
 function anonCardHTML() {

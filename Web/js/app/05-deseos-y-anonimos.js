@@ -4,6 +4,13 @@ const numsIn = t => (String(t || '').replace(/(\d),(\d{3})/g, '$1$2').match(/\d+
 const budgetMax = () => Math.max(0, ...numsIn(S.event.budget));
 const overBudget = price => { const b = budgetMax(), p = Math.max(0, ...numsIn(price)); return b > 0 && p > b * 1.1; };
 const WISH_IDEAS = [['👕', 'Ropa'], ['👟', 'Zapatos'], ['📚', 'Un libro'], ['🎧', 'Tecnología'], ['🧴', 'Perfume'], ['🍫', 'Dulces'], ['🏠', 'Para la casa'], ['💄', 'Cuidado personal'], ['🎮', 'Juegos'], ['⌚', 'Accesorios']];
+// 🤫 La misma vista secreta de Inicio, arriba en Deseos: tu persona solo se ve con PIN (1 minuto)
+function secBar() {
+  const A = S.assignment; if (!A?.revealed || !A.recipient || !P(A.recipient) || !S.drawMeta?.ids?.includes(S.uid)) return '';
+  const R = P(A.recipient);
+  return secretOpen() ? `<div class="secbar open"><span class="sb-e">${esc(R.emoji)}</span><div class="grow"><b>Le regalas a ${esc(R.name)}</b><small>Se oculta solo en 1 minuto</small></div><button class="btn sm gold" data-sec="list">🎁 Su lista</button><button class="btn sm" data-sec="lock" aria-label="Ocultar">🔒</button></div>`
+    : `<div class="secbar"><span class="sb-e">🤫</span><div class="grow"><b>Tu persona es secreta</b><small>Nadie que mire tu teléfono puede saberlo</small></div><button class="btn sm gold" data-sec="unlock">🔐 Ver con PIN</button></div>`;
+}
 function renderWishes() {
   const root = $('#w-root');
   if (!S.me) { root.innerHTML = S.authReady ? needLogin('Entra para ver las listas de deseos y escribir la tuya.') : ''; return; }
@@ -13,7 +20,7 @@ function renderWishes() {
   const isRec = !mine && S.assignment?.revealed && secretOpen() && S.assignment.recipient === S.wishPid;
   const keep = { t: $('#w-text')?.value || '', l: $('#w-link')?.value || '', p: $('#w-price')?.value || '', f: document.activeElement?.id, sl: $('#w-strip')?.scrollLeft || 0 };
   const many = S.participants.length > 8;
-  root.innerHTML = `${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}
+  root.innerHTML = `${secBar()}${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}
   <div class="pscroll" id="w-strip">${wishStrip()}</div>
   ${wishHero(S.wishPid, mine, isRec, items)}
   ${items.length || mine ? `<div class="wl-h"><b>${mine ? 'Lo que me gustaría' : 'Lo que le gustaría'}</b><span>${items.length} ${items.length === 1 ? 'deseo' : 'deseos'}</span></div>` : ''}
