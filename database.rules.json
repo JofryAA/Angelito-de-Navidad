@@ -84,6 +84,16 @@
       ".indexOn": [
         "ts"
       ]
+    },
+    "queue": {
+      "$gid": {
+        ".read": "root.child('members/'+auth.uid).val() == true",
+        ".write": "auth != null && !newData.exists() && !newData.parent().parent().child('games/'+$gid).exists()",
+        "$uid": {
+          ".write": "auth != null && root.child('members/'+auth.uid).val() == true && ((auth.uid == $uid && (!newData.exists() || root.child('games/'+$gid+'/host').exists())) || (!newData.exists() && (root.child('games/'+$gid+'/host').val() == auth.uid || root.child('games/'+$gid+'/players/0').val() == auth.uid || root.child('games/'+$gid+'/players/1').val() == auth.uid || root.child('games/'+$gid+'/players/2').val() == auth.uid || root.child('games/'+$gid+'/players/3').val() == auth.uid || root.child('games/'+$gid+'/players/4').val() == auth.uid || root.child('games/'+$gid+'/players/5').val() == auth.uid)))",
+          ".validate": "newData.isNumber()"
+        }
+      }
     }
   }
 }

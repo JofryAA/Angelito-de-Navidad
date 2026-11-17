@@ -89,7 +89,7 @@ try {
     const st = g?.status, age = now - (+g?.updatedAt || 0), players = Array.isArray(g?.players) ? g.players : Object.values(g?.players || {});
     if (players.length && age < (st === 'done' ? 10 * 60e3 : st === 'lobby' ? 20 * 60e3 : 2 * 3600e3)) continue;
     if (st === 'done') for (const w of (Array.isArray(g.winners) ? g.winners : Object.values(g.winners || {}))) if (!/^bot\d$/.test(w)) U[`wins/${g.round ? `${gid}_${g.round}_${w}` : `${gid}_${w}`}`] = { uid: w, gid, type: g.type || '', at: +g.updatedAt || now };
-    for (const c of ['games', 'hands', 'emotes', 'gchat']) U[`${c}/${gid}`] = null;
+    for (const c of ['games', 'hands', 'emotes', 'gchat', 'queue']) U[`${c}/${gid}`] = null;
   }
   if (Object.keys(U).length) { await rdb.ref().update(U); console.log('Mesas abandonadas cerradas.'); }
 } catch (e) { console.log('Mesas: no se pudieron revisar.'); }

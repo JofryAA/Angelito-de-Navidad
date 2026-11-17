@@ -1181,3 +1181,13 @@ body.touring #helper{display:none!important}
 .gc-m span{white-space:pre-wrap;word-break:break-word;font-size:.92rem}
 .gc-empty{margin:18px 0;text-align:center;color:rgba(255,255,255,.55);font-size:.86rem}
 .gc-form{display:flex;gap:8px}.gc-form .in{flex:1;min-width:0}.gc-form .btn{flex:none;width:48px;padding:0;font-size:1.1rem}
+/* 🙋 fila de espera */
+.gq{margin:14px 0 4px;padding:12px 14px;border-radius:18px;background:linear-gradient(135deg,rgba(236,188,92,.1),rgba(255,255,255,.03));border:1px solid rgba(236,188,92,.25);display:flex;flex-direction:column;gap:8px}
+.gq.in{border-color:rgba(60,207,131,.5)}
+.gq-h b{display:block;font-size:.92rem}.gq-h small{color:rgba(255,255,255,.6);font-size:.74rem}
+.gq-l{display:flex;flex-wrap:wrap;gap:6px}
+.gq-p{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;border-radius:999px;background:rgba(255,255,255,.07);font-size:.8rem;font-weight:600}
+.gq-p i{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:rgba(236,188,92,.85);color:#2a1a05;font-style:normal;font-size:.7rem;font-weight:800}
+.gq-p.me{background:rgba(60,207,131,.22)}
+.gq-n{margin:0;font-size:.8rem;color:#ffe2a3}
+.gq .btn{align-self:flex-start}

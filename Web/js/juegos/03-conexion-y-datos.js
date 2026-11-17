@@ -86,7 +86,7 @@ export function initGames(X) {
     }
   }
   // Borra una mesa con las fichas de cada asiento
-  function dropGame(g) { if (isLoc(g.id)) { const b = writeBatch(db); (g.players || []).forEach(s => b.delete(doc(db, 'games', g.id, 'hands', s))); b.delete(doc(db, 'games', g.id)); return b.commit(); } return rUpdate({ ['games/' + g.id]: null, ['hands/' + g.id]: null, ['emotes/' + g.id]: null, ['gchat/' + g.id]: null }); }
+  function dropGame(g) { if (isLoc(g.id)) { const b = writeBatch(db); (g.players || []).forEach(s => b.delete(doc(db, 'games', g.id, 'hands', s))); b.delete(doc(db, 'games', g.id)); return b.commit(); } return rUpdate({ ['games/' + g.id]: null, ['hands/' + g.id]: null, ['emotes/' + g.id]: null, ['gchat/' + g.id]: null, ['queue/' + g.id]: null }); }
   function stop() {
     SND.music(null); closeGame(); [G.subList, G.subWins].forEach(u => u && u());
     Object.assign(G, { subList: null, subWins: null, list: [], wins: [], seenTurn: '' }); G.credited.clear();
@@ -127,6 +127,7 @@ export function initGames(X) {
       onGameChange(prev); render();
     }, () => { G.cur = { id, gone: true }; render(); });
     G.chat = []; G.chatIds = null; G.chatUnread = 0;
+    G.queue = []; if (!isLoc(id)) G.subQ = RT.onValue(rr('queue/' + id), s => { const q = []; s.forEach(c => { q.push({ uid: c.key, ts: +c.val() || 0 }); }); G.queue = q.sort((a, b) => a.ts - b.ts); render(); }, () => { });
     if (!isLoc(id)) G.subChat = RT.onValue(RT.query(rr('gchat/' + id), RT.limitToLast(40)), s => {
       const arr = []; s.forEach(c => { const v = c.val() || {}; if (typeof v.t === 'string') arr.push({ id: c.key, uid: String(v.uid || ''), t: v.t.slice(0, 200), ts: +v.ts || 0 }); });
       const first = !G.chatIds, fresh = first ? [] : arr.filter(m => !G.chatIds.has(m.id) && m.uid !== me());

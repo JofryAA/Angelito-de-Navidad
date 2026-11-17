@@ -17,6 +17,7 @@
     if (a === 'del') return del();
     if (a === 'pass') return playDomino(me(), null);
     if (a === 'emo') return emotePicker();
+    if (a === 'queue' || a === 'unqueue') return setQueue(a === 'queue');
     if (a === 'peek') { G.peek = G.peek === G.cur?.seq ? -1 : G.cur?.seq; return renderView(); }
     if (a === 'snd') {
       const s2 = openModal(`<h3>🔊 Sonido del juego</h3><div class="stack" style="margin-top:12px">

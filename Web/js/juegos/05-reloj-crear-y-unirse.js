@@ -177,10 +177,10 @@
     return deal(g, g, g.players, { result: null, want: null, idle: 0, shown: null });
   }
   // Reparte una mano: cada asiento recibe sus fichas en secreto y la mesa se actualiza, todo en una sola escritura
-  async function deal(g, ng, players, extra) {
+  async function deal(g, ng, players, extra, usedQ) {
     const { hands, patch } = dealHand(ng);
     // en «transacción»: si alguien enseñó sus fichas en ese mismo instante, se reintenta con la mesa nueva (antes salía «sin permiso»)
-    return tx((t, gg) => { players.forEach(s => t.set(doc(db, 'games', g.id, 'hands', s), { tiles: hands[s] })); upd(t, gg, { ...patch, ...extra }); });
+    return tx((t, gg) => { players.forEach(s => t.set(doc(db, 'games', g.id, 'hands', s), { tiles: hands[s] })); (usedQ || []).forEach(u => t.set(doc(db, 'queue', g.id, u), null)); upd(t, gg, { ...patch, ...extra }); });
   }
   // "Otra partida": arranca de una vez con los mismos jugadores y sale quien ganó.
   async function again() {
@@ -190,16 +190,43 @@
     if (g.type === 'domino') {
       if (g.host !== me()) return tx((t, gg) => { if (gg.status === 'done' && !gg.want) upd(t, gg, { want: 'again' }); }); // reparte quien creó la mesa
       G.starting = true; setTimeout(() => { G.starting = false; }, 2000);
-      const ng = { ...g, hand: 0, nextStarter: typeof g.result?.seat === 'number' ? g.result.seat : -1 };
-      return deal(g, ng, g.players, { status: 'playing', round: (g.round || 0) + 1, winners: [], result: null, want: null, idle: 0, shown: null, scores: g.mode === 'parejas' ? [0, 0] : g.players.map(() => 0) });
+      const rot = rotation(g), np = rot ? rot.players : g.players;
+      const ng = { ...g, players: np, hand: 0, nextStarter: typeof g.result?.seat === 'number' ? g.result.seat : -1 };
+      return deal(g, ng, np, { players: np, status: 'playing', round: (g.round || 0) + 1, winners: [], result: null, want: null, idle: 0, shown: null, scores: g.mode === 'parejas' ? [0, 0] : np.map(() => 0) }, rot?.used);
     }
     const np = g.type === 'ahorcado' ? pickWord(g.cat) : null;
     return tx((t, gg) => {
       if (gg.status !== 'done') return;
-      const st = nextStarterOf(gg, gg.players), base = { status: 'playing', round: (gg.round || 0) + 1, turn: st, starter: st, winners: [], result: null };
-      if (gg.type === 'ahorcado') upd(t, gg, { ...base, word: np.word, wcat: np.cat, guessed: hangOpen(np.word), errors: 0, scores: gg.players.map(() => 0) });
+      const rot = rotation(gg), pl = rot ? rot.players : gg.players; (rot?.used || []).forEach(u => t.set(doc(db, 'queue', gg.id, u), null));
+      const st = nextStarterOf(gg, pl), base = { status: 'playing', round: (gg.round || 0) + 1, turn: st, starter: st, winners: [], result: null, players: pl };
+      if (gg.type === 'ahorcado') upd(t, gg, { ...base, word: np.word, wcat: np.cat, guessed: hangOpen(np.word), errors: 0, scores: pl.map(() => 0) });
       else upd(t, gg, { ...base, board: gg.type === 'c4' ? C4EMPTY : '.........', lastCell: -1 });
     });
+  }
+  // 🙋 Fila de espera («el que pierde sale»): al pedir otra partida, los que perdieron ceden su asiento a los primeros
+  // de la fila (primero los 🤖). En parejas entran en el mismo asiento, así las parejas no se mezclan. Empate: nadie sale.
+  function rotation(g) {
+    const q = (G.queue || []).map(x => x.uid).filter(u => !g.players.includes(u) && X.P(u)); if (!q.length || isLoc(g.id)) return null;
+    const win = new Set(g.winners || []); if (!win.size && g.type !== 'domino') return null;
+    const out = g.players.map((s, i) => ({ s, i })).filter(x => !win.has(x.s)).sort((a, b) => isBot(b.s) - isBot(a.s));
+    const players = g.players.slice(), used = [];
+    for (const o of out) { if (!q.length) break; const u = q.shift(); players[o.i] = u; used.push(u); }
+    return used.length ? { players, used } : null;
+  }
+  function queueHTML(g) {
+    if (isLoc(g.id) || g.status === 'lobby' && g.players.length < (g.max || 2)) return '';
+    const q = (G.queue || []).filter(x => !g.players.includes(x.uid) && X.P(x.uid)), inQ = q.some(x => x.uid === me()), seated = g.players.includes(me());
+    const rot = g.status === 'done' ? rotation(g) : null;
+    const who = s => s === me() ? 'ti' : seatName(s), gone = rot ? g.players.filter(s => !rot.players.includes(s)) : [];
+    const nxt = rot ? rot.used.map((u, k) => `${esc(u === me() ? 'Tú' : seatName(u))} entra${gone[k] ? ' por ' + esc(who(gone[k])) : ''}`).join(' · ') : '';
+    return `<div class="gq ${inQ ? 'in' : ''}"><div class="gq-h"><b>🙋 Fila para jugar</b><small>${q.length ? 'El que pierde sale y entra el siguiente' : 'Nadie esperando'}</small></div>
+      ${q.length ? `<div class="gq-l">${q.map((x, k) => `<span class="gq-p ${x.uid === me() ? 'me' : ''}"><i>${k + 1}</i>${esc(X.pEmoji(x.uid))} ${esc(x.uid === me() ? 'Tú' : seatName(x.uid))}</span>`).join('')}</div>` : ''}
+      ${nxt ? `<p class="gq-n">➡️ Próxima partida: ${nxt}</p>` : ''}
+      ${!seated ? `<button type="button" class="btn sm ${inQ ? '' : 'gold'}" data-gact="${inQ ? 'unqueue' : 'queue'}">${inQ ? 'Salir de la fila' : '🙋 Anotarme para jugar'}</button>` : ''}</div>`;
+  }
+  async function setQueue(on) {
+    const g = G.cur; if (!g || isLoc(g.id)) return;
+    try { await rUpdate({ [`queue/${g.id}/${me()}`]: on ? Date.now() : null }); toast(on ? '🙋 Estás en la fila: entras cuando alguien pierda' : 'Saliste de la fila'); } catch (e) { toast(gErr(e)); }
   }
   // Volver a la sala para cambiar jugadores (solo quien creó la mesa).
   async function rematch() {

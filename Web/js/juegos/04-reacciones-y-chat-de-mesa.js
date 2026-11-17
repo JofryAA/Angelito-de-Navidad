@@ -56,7 +56,7 @@
     s2.onclick = e => { const b = e.target.closest('[data-emo]'); if (!b) return; closeModal(); sendEmote(+b.dataset.emo); };
   }
   function closeGame() {
-    G.subEmo?.(); G.subEmo = null; G.subChat?.(); G.subChat = null; G.chat = []; G.chatIds = null; G.chatUnread = 0;
+    G.subEmo?.(); G.subEmo = null; G.subChat?.(); G.subChat = null; G.subQ?.(); G.subQ = null; G.queue = []; G.chat = []; G.chatIds = null; G.chatUnread = 0;
     [G.sub, G.subHand, ...Object.values(G.subBots)].forEach(u => u && u()); clearTimeout(G.botT); clearTimeout(G.clockT); clearTimeout(G.dogT); clearTimeout(G.nextT);
     Object.assign(G, { sub: null, subHand: null, subBots: {}, cur: null, hand: [], botHands: {}, turnKey: '', srv: null, srvHand: [], srvBots: {}, pend: 0, okSeq: 0 });
   }
@@ -122,7 +122,8 @@
     tx(async (t, c) => { if (!c.handOver) return; const sh = { ...(c.shown || {}) }; k.forEach(x => { if (!sh[x]) sh[x] = (mine[x] || []).join(',') || '-'; }); await upd(t, c, { shown: sh }); });
   }
   function onGameChange(prev) {
-    const g = G.cur; armClock(); sounds(prev, g); autoPass(); showTiles();
+    const g = G.cur;
+    if (g && prev && !prev.loading && prev.players && !prev.players.includes(me()) && g.players?.includes(me())) { toast('🙋 ¡Te tocó! Entraste a la mesa'); try { navigator.vibrate?.([80, 40, 80]); SND.fx('pop'); } catch { } } armClock(); sounds(prev, g); autoPass(); showTiles();
     fx(prev); hostDuties();
     if (!g || g.type !== 'domino') { maybeBot(); return; }
     const mine = g.players?.includes(me());
