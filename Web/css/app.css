@@ -851,3 +851,11 @@ body.chat-on #v-buzon>.sec-title{display:none}
 #c-count:not(:empty)::after{content:" · "}
 .gdel{width:42px;height:42px;color:#f19a9a}
 #c-mute.bellbtn{color:var(--muted)}#c-mute.bellbtn.on{color:#2b1a00}#c-mute.bellbtn.on .ic{stroke-width:2.2}
+#quotabar{position:fixed;left:12px;right:12px;top:calc(62px + env(safe-area-inset-top));z-index:122;padding:10px 14px;border-radius:14px;background:linear-gradient(135deg,#7a4b10,#5b2a12);color:#fff4dc;font-size:.84rem;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.35);animation:fade .4s ease}
+.fx-card{margin-top:14px;padding:14px;border-radius:16px;background:linear-gradient(135deg,rgba(227,174,75,.14),rgba(199,53,45,.1));border:1px solid rgba(227,174,75,.35)}
+.fx-card.on{border-color:rgba(44,154,100,.5);background:linear-gradient(135deg,rgba(44,154,100,.14),rgba(227,174,75,.1))}
+.fx-hd{display:flex;gap:10px;align-items:center;margin-bottom:6px}.fx-hd b{display:block}.fx-hd small{opacity:.8}
+.fx-ic{font-size:26px;animation:float 3s ease-in-out infinite}
+.fx-note{display:flex;gap:10px;align-items:flex-start;margin-top:10px;padding:12px 14px;border-radius:14px;background:rgba(227,174,75,.14);border:1px solid rgba(227,174,75,.35);text-align:left}
+.fx-note>span{font-size:22px}.fx-note b{display:block}.fx-note small{opacity:.85;line-height:1.35;display:block;margin-top:2px}
+.fx-note.go{background:rgba(44,154,100,.16);border-color:rgba(44,154,100,.45);animation:pulse 2.4s ease-in-out infinite}

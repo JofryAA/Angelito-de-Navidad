@@ -268,12 +268,15 @@ async function repairData(auto) {
   location.reload();
 }
 // Vigilante: si hay internet y el servidor responde pero la lista en vivo no llega, la copia local está trabada → se repara sola (una vez).
+let hcN = 0, hcNext = 0; // cada revisión al servidor espera el doble que la anterior (20 s → 40 s → … máx. 10 min)
 async function healthCheck() {
-  if (navigator.onLine === false || document.hidden || typeof getDocsFromServer !== 'function') return;
+  if (navigator.onLine === false || document.hidden || typeof getDocsFromServer !== 'function' || quotaOut()) return;
   const stuckPeople = !SYNC.people, stuckWishes = !!S.me && !SYNC.wishes && Date.now() - SYNC.wishesT0 > 9000;
-  if (!stuckPeople && !stuckWishes) { $('#datafail').hidden = true; return; }
+  if (!stuckPeople && !stuckWishes) { $('#datafail').hidden = true; hcN = 0; hcNext = 0; return; }
+  if (Date.now() < hcNext) return;
+  hcNext = Date.now() + Math.min(600e3, 20e3 * 2 ** hcN++);
   let ok = false;
-  try { const r = await getDocsFromServer(collection(db, 'participants')); ok = true; if (stuckPeople && !SYNC.people) { S.participants = r.docs.map(d => fixPerson({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at)); S.me = S.uid ? P(S.uid) || null : null; render(); } } catch (e) { console.warn('health', e); }
+  try { const r = await getDocsFromServer(collection(db, 'participants')); ok = true; if (stuckPeople && !SYNC.people) { S.participants = r.docs.map(d => fixPerson({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at)); S.me = S.uid ? P(S.uid) || null : null; render(); } } catch (e) { console.warn('health', e); if (quotaCheck(e)) return; }
   if (SYNC.people && (!S.me || SYNC.wishes)) return;
   let done = 0; try { done = +sessionStorage.getItem('angelito:repaired') || 0; } catch { done = 1; } // sin sessionStorage no se arriesga un bucle de recargas
   if (ok && !done) return repairData(true);
@@ -299,8 +302,27 @@ const retryUserSubs = () => {
     subRetries++; startUserSubs(auth.currentUser); syncQuestions(true); syncGuesses(true); render();
   }, 1200 + subRetries * 800);
 };
+// 🧯 Freno de cuota: si Firebase dice «se acabó la cuota de hoy» (resource-exhausted / 429), TODO se detiene
+// 15 minutos (bots, latidos, reintentos) en vez de insistir y gastar más. Los juegos contra 🤖 siguen sin internet.
+let quotaUntil = 0; try { quotaUntil = +localStorage.getItem('angelito:quota') || 0; } catch { }
+const quotaOut = () => Date.now() < quotaUntil;
+const isQuotaErr = e => /resource-exhausted|quota|429/i.test(String(e?.code || '') + ' ' + String(e?.message || ''));
+function quotaCheck(e) {
+  if (!isQuotaErr(e)) return false;
+  if (!quotaOut()) { quotaUntil = Date.now() + 15 * 60e3; try { localStorage.setItem('angelito:quota', quotaUntil); } catch { } setTimeout(quotaBanner, 0); setTimeout(() => { quotaBanner(); if (auth.currentUser && S.me) { subRetries = 0; startUserSubs(auth.currentUser); } }, 15 * 60e3 + 500); }
+  return true;
+}
+function quotaBanner() {
+  let b = document.getElementById('quotabar');
+  if (!quotaOut()) { b?.remove(); return; }
+  if (!b) { b = document.createElement('div'); b.id = 'quotabar'; document.body.appendChild(b); }
+  b.innerHTML = '⏳ Mucha actividad hoy: la app está en pausa unos minutos para no pasarse del límite gratis. Lo que ya ves sigue aquí y los juegos contra 🤖 funcionan.';
+}
+window.__quota = { out: quotaOut, check: quotaCheck };
+if (quotaOut()) setTimeout(quotaBanner, 1500);
 const ufail = what => e => {
   console.warn(what, e);
+  if (quotaCheck(e)) return; // sin cuota no se reintenta: se reanuda solo cuando pase el freno
   userSubDenied = true; if (S.me) retryUserSubs(); // cualquier fallo se reintenta (antes solo el de permisos)
 };
 // Las colecciones del grupo (deseos, chat, ideas…) solo se piden cuando la cuenta YA tiene su ficha de participante.
@@ -357,8 +379,9 @@ function startUserSubs(user) {
     unsubUser.push(onSnapshot(query(collection(db, 'notices'), orderBy('ts', 'desc'), limit(30)), s => { S.notices = rows(s); render(); }, ufail('notices')));
     unsubUser.push(onSnapshot(doc(db, 'party', 'live'), s => { S.live = s.exists() ? s.data() : null; render(); }, () => { }));
     unsubUser.push(onSnapshot(doc(db, 'stats', 'questions'), s => { S.qCount = s.exists() ? (s.data().count || 0) : 0; render(); }, ufail('stats')));
-    unsubUser.push(onSnapshot(collection(db, 'presence'), s => { S.presence = Object.fromEntries(s.docs.map(d => [d.id, { ts: +d.data().ts || 0, on: !!d.data().on }])); try { renderChat(); } catch { } }, () => { })); beat(true);
-    unsubUser.push(onSnapshot(collection(db, 'chatSeen'), s => { S.chatSeenAll = Object.fromEntries(s.docs.map(d => [d.id, +d.data().ts || 0])); try { renderChat(); renderBadges(); } catch { } }, () => { }));
+    // 💸 cuota: el «en línea» y el «visto por» del grupo solo se escuchan con el chat abierto; siempre solo lo tuyo
+    unsubUser.push(onSnapshot(doc(db, 'chatSeen', user.uid), s => { S.chatSeenAll = { ...(S.chatSeenAll || {}), [user.uid]: s.exists() ? +s.data().ts || 0 : 0 }; try { renderBadges(); } catch { } }, () => { }));
+    unsubUser.push(() => liveGroup(false)); beat(true); setTimeout(liveGroupSync, 400);
     unsubUser.push(onSnapshot(doc(db, 'thanks', user.uid), s => { S.myThanks = s.exists() ? s.data() : null; render(); }, ufail('thanks')));
     unsubUser.push(onSnapshot(doc(db, 'wishPick', user.uid), s => { S.wishPick = s.exists() ? s.data() : null; render(); }, ufail('wishPick')));
     unsubUser.push(onSnapshot(collection(db, 'memories'), s => { S.memories = rows(s); render(); }, ufail('memories')));
@@ -684,7 +707,7 @@ async function resetPin(pid, tempPin) {
   (await q('assignments', 'recipient', pid)).forEach(d => { if (d.id !== pid) put(d.ref, { ...d.data(), recipient: nid }); });
   (await q('questions', 'to', pid)).forEach(d => put(d.ref, { ...d.data(), to: nid }));
   for (const c of ['wishes', 'wishImg', 'chatImg', 'activitySignups', 'suggestions', 'questionAuthors', 'suggestionAuthors'])
-    (await q(c, 'uid', pid)).forEach(d => put(d.ref, { ...d.data(), uid: nid }));
+    (await q(c, 'uid', pid).catch(() => ({ forEach() { } }))).forEach(d => put(d.ref, { ...d.data(), uid: nid })); // los autores de anónimos están sellados: si no se pueden leer, se dejan
   (await q('activityPicks', 'uid', pid)).forEach(d => { put(R('activityPicks', `${d.data().act}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
   (await q('votes', 'uid', pid)).forEach(d => { put(R('votes', `${d.data().act}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
   (await q('votes', 'choice', pid)).forEach(d => { if (d.data().uid !== pid) put(d.ref, { ...d.data(), choice: nid }); });
@@ -1298,6 +1321,17 @@ function maybeTour() {
   tourT = setTimeout(function go() { tourT = null; if (!S.me) return; if ($('#modal').classList.contains('on') || S.spinning || S.forcePin || $('#tourx')) { tourT = setTimeout(go, 3000); return; } openTour(); }, 900);
 }
 /* ---------- lo que te toca ahora (cambia según el momento) ---------- */
+// 🤫 Modo secreto: a quién le regalas NO se nota en ninguna parte (inicio, deseos, etiquetas, orden de la lista)
+// a menos que pongas tu PIN. Se vuelve a ocultar a los 2 minutos o en cuanto sales de la app.
+let secT = 0;
+const secretOpen = () => Date.now() < (S.secretUntil || 0);
+function openSecret() { S.secretUntil = Date.now() + 120e3; clearTimeout(secT); secT = setTimeout(lockSecret, 120e3); }
+function lockSecret() { if (!S.secretUntil) return; S.secretUntil = 0; clearTimeout(secT); render(); }
+async function unlockSecret() {
+  if (!(await askPin('🤫 Ver tu persona', 'Confirma tu PIN. Se oculta sola en 2 minutos o al salir de la app.'))) return false;
+  openSecret(); render(); return true;
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) lockSecret(); });
 function renderNext() {
   const box = $('#h-next'); if (!box) return;
   if (!S.me) { box.innerHTML = ''; return; }
@@ -1307,15 +1341,16 @@ function renderNext() {
   if (evDay && evDay === today) h = `<div class="card nextc"><div class="nx-e">🎉</div><div class="grow"><b>¡Hoy es el angelito!</b><div class="muted small">${c.place ? '📍 ' + esc(c.place) + ' · ' : ''}${esc(hm(new Date(c.eventDate)))}</div></div><a class="btn sm gold" href="#actividades">Ver agenda</a></div>`;
   else if (ready && !A?.revealed) h = `<a class="card nextc hot" href="#ruleta"><div class="nx-e spin">🎡</div><div class="grow"><b>¡Ya puedes girar la ruleta!</b><div class="muted small">Descubre a quién le vas a regalar.</div></div><span class="btn sm gold">Girar ahora</span></a>`;
   else if (ready && A?.revealed && A.recipient && P(A.recipient)) {
-    const R = P(A.recipient);
-    h = `<div class="card nextc"><div class="nx-e">🤫</div><div class="grow"><b>Le regalas a <button class="peek" id="nx-peek">${S.peek ? esc(R.emoji + ' ' + R.name) : '•••• 👁️'}</button></b><div class="muted small">Es secreto. Toca para ver.</div>
-      <div class="qa" style="margin-top:8px"><button class="btn sm gold" id="nx-list">🎁 Ver su lista</button>${mod('pistas') ? '<a class="btn sm" href="#ruleta">💌 Mandar una pista</a>' : ''}</div></div></div>`;
+    const R = P(A.recipient), op = secretOpen();
+    h = `<div class="card nextc ${op ? '' : 'sec-lock'}"><div class="nx-e">${op ? esc(R.emoji) : '🤫'}</div><div class="grow"><b>${op ? 'Le regalas a ' + esc(R.name) : 'Tu persona es secreta'}</b><div class="muted small">${op ? 'Se oculta solo en 2 minutos o al salir de la app.' : 'Nadie que mire tu teléfono puede saberlo: se ve solo con tu PIN.'}</div>
+      <div class="qa" style="margin-top:8px">${op ? '<button class="btn sm gold" id="nx-list">🎁 Ver su lista</button><button class="btn sm" id="nx-lock">🔒 Ocultar</button>' : '<button class="btn sm gold" id="nx-unlock">🔐 Ver con PIN</button>'}${mod('pistas') ? '<a class="btn sm" href="#ruleta">💌 Mandar una pista</a>' : ''}</div></div></div>`;
   }
   box.innerHTML = h;
 }
 document.addEventListener('click', e => {
-  if (e.target.closest('#nx-peek')) { S.peek = !S.peek; renderNext(); if (S.peek) setTimeout(() => { S.peek = false; renderNext(); }, 4000); }
-  if (e.target.closest('#nx-list') && S.assignment?.recipient) { S.wishPid = S.assignment.recipient; location.hash = 'deseos'; render(); }
+  if (e.target.closest('#nx-unlock')) unlockSecret();
+  if (e.target.closest('#nx-lock')) lockSecret();
+  if (e.target.closest('#nx-list') && S.assignment?.recipient && secretOpen()) { S.wishPid = S.assignment.recipient; location.hash = 'deseos'; render(); }
 });
 // 💌 El buzón anónimo en Inicio, para que nadie se lo pierda
 function anonCardHTML() {
@@ -1372,7 +1407,7 @@ function renderWheel() {
   if (!S.me) {
     top.innerHTML = S.authReady ? needLogin('Entra con tu nombre y tu PIN para girar.') : ''; btn.style.display = 'none'; msg.textContent = '';
   } else {
-    top.innerHTML = `<div class="spinpass"><div class="sp-top"><span class="sp-av"><i></i><span>${esc(S.me.emoji)}</span></span><div class="grow"><small>Vas a girar como</small><b>${esc(S.me.name)}</b></div></div><div class="wc-st" id="wc-st"></div></div>`;
+    top.innerHTML = `<div class="spinpass"><div class="sp-top"><span class="sp-av"><i></i><span>${esc(S.me.emoji)}</span></span><div class="grow"><small>Vas a girar como</small><b>${esc(S.me.name)}</b></div></div><div class="wc-st" id="wc-st"></div></div>${fixBanner()}`;
     if (!S.drawMeta || !drawReady() || !S.drawMeta.ids.includes(S.uid)) msg.textContent = 'La ruleta está inhabilitada por ahora. ¡Vuelve pronto! 🎄';
     else if (!S.assignment) msg.textContent = 'Cargando tu sorteo…';
     else { canSpin = true; msg.textContent = S.assignment.revealed ? 'Ya giraste. Puedes volver a verlo con tu PIN.' : `¡Mucha suerte, ${S.me.first}! 🍀`; }
@@ -1449,6 +1484,8 @@ $('#spinBtn').addEventListener('click', async e => {
 $('#spinBtn').addEventListener('click', async () => {
   if (S.spinning || !S.me || !S.assignment) return;
   const a = S.assignment, rid = a.recipient;
+  if (fixOf()?.status === 'running') return toast('🔀 El ajuste se está aplicando. Espera un momento…');
+  const fd = fixDone(); if (fd && !a.revealed && !fixAccepted(fd) && !(await fixTerms(fd))) return;
   // Siempre (al girar y cada vez que quiera volver a verlo): confirmar privacidad + PIN
   if (!(await privacyGate(a.revealed))) return;
   if (!(await askPin(`Hola, ${S.me.first} 👋`, a.revealed ? 'Confirma tu PIN para ver de nuevo a quién te tocó.' : 'Confirma tu PIN para girar la ruleta.'))) return;
@@ -1485,7 +1522,8 @@ function showReveal(rid) {
   const w = S.wishes.filter(x => x.uid === rid);
   const s = openModal(`<div class="center">
     <div style="font-size:54px">${esc(pEmoji(rid))}</div>
-    <p class="muted">${esc(S.me.first)}, eres el angelito de…</p>
+    ${fixDone() ? `<span class="badge">🔀 Tu persona fue reasignada</span>` : ''}
+    <p class="muted">${esc(S.me.first)}, ${fixDone() ? 'tu persona definitiva es…' : 'eres el angelito de…'}</p>
     <div class="reveal-name">${esc(pName(rid))}</div>
     ${S.event.budget ? `<span class="badge">💰 Presupuesto: ${esc(S.event.budget)}</span>` : ''}
   </div>
@@ -1502,7 +1540,7 @@ function showReveal(rid) {
   }, 1000);
   s.onclick = e => {
     const x = e.target.closest('[data-a]')?.dataset.a; if (!x) return;
-    closeModal(); if (x === 'list') { S.wishPid = rid; location.hash = 'deseos'; render(); }
+    closeModal(); if (x === 'list') { openSecret(); S.wishPid = rid; location.hash = 'deseos'; render(); }
   };
 }
 
@@ -1518,7 +1556,7 @@ function renderWishes() {
   if (!S.wishPid || !P(S.wishPid)) S.wishPid = S.uid;
   const mine = S.wishPid === S.uid;
   const items = S.wishes.filter(w => w.uid === S.wishPid).sort((a, b) => (b.top ? 1 : 0) - (a.top ? 1 : 0));
-  const isRec = !mine && S.assignment?.revealed && S.assignment.recipient === S.wishPid;
+  const isRec = !mine && S.assignment?.revealed && secretOpen() && S.assignment.recipient === S.wishPid;
   const keep = { t: $('#w-text')?.value || '', l: $('#w-link')?.value || '', p: $('#w-price')?.value || '', f: document.activeElement?.id, sl: $('#w-strip')?.scrollLeft || 0 };
   const many = S.participants.length > 8;
   root.innerHTML = `${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}
@@ -1555,7 +1593,7 @@ function renderWishes() {
 }
 // Orden: yo, la persona que me tocó (si ya la vi), quienes tienen deseos y luego el resto, por nombre.
 function wishStrip() {
-  const rec = S.assignment?.revealed ? S.assignment.recipient : null;
+  const rec = S.assignment?.revealed && secretOpen() ? S.assignment.recipient : null; // sin PIN no se adelanta ni se marca
   const cnt = id => S.wishes.filter(w => w.uid === id).length;
   const q = normName(S.wishQ || '');
   const rank = p => p.id === S.uid ? 0 : p.id === rec ? 1 : cnt(p.id) ? 2 : 3;
@@ -2645,6 +2683,7 @@ function renderAdmin() {
     : drawReady() ? `✅ Sorteo listo · <b>${spun} de ${S.participants.length}</b> ya giraron. Las parejas no se muestran aquí.`
       : '⚠️ Los participantes cambiaron después del sorteo. Vuelve a generarlo.';
   $('#d-gen').textContent = hasDraw ? '🧹 Limpiar sorteo' : '🎡 Generar sorteo';
+  renderFixAdmin();
   $('#d-gen').classList.toggle('danger', !!hasDraw);
   renderHistory();
   $('#q-count').textContent = `${nMsg(S.qCount)} en el buzón · ${isRevealed() ? 'abiertos ahora' : 'se abren el ' + (revealWhen() || 'día del evento')}`;
@@ -2868,6 +2907,69 @@ $('#p-list').addEventListener('click', async e => {
     await b2.commit(); toast('Participante eliminado');
   } catch (err) { toast(authErr(err)); }
 });
+// 🔀 Ajuste del sorteo (switch): si una pareja quedó fuera de las restricciones, el organizador programa la fecha
+// y hora; a esa hora el servidor (push/send.mjs) hace cambios al azar respetando TODAS las restricciones y todos
+// vuelven a girar. Nadie ve cuántas parejas cambiaron ni cuáles: el aviso y los pasos son iguales para todos.
+const fixOf = () => S.event?.fix || null;
+const fixWhen = f => new Date(+f.at).toLocaleString('es-DO', { weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' });
+function fixBad() { if (!S.drawMeta || !S.assignments) return 0; const bl = blockedSet(); return (S.drawMeta.ids || []).filter(g => { const r = S.assignments[g]?.recipient; return r && bl.has(g + '>' + r); }).length; }
+function renderFixAdmin() {
+  const box = $('#fx-box'); if (!box) return;
+  const f = fixOf(), bad = S.isOwner ? fixBad() : 0, live = f && (f.status === 'scheduled' || f.status === 'running');
+  if (!S.isOwner || !S.drawMeta) { if (box.innerHTML) box.innerHTML = ''; return; }
+  const inDraw = S.participants.filter(p => S.drawMeta.ids?.includes(p.id)).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  const drops = (f?.drop || []).map(pName).filter(Boolean);
+  const def = new Date(Date.now() + 864e5); def.setHours(21, 0, 0, 0);
+  const loc = d => new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+  box.innerHTML = `<div class="fx-card ${live ? 'on' : ''}"><div class="fx-hd"><span class="fx-ic">🔀</span><div class="grow"><b>Ajuste del sorteo</b><small>${f?.status === 'scheduled' ? 'Programado para el ' + esc(fixWhen(f)) : f?.status === 'running' ? 'Aplicando ahora…' : f?.status === 'failed' ? 'El último intento no se pudo aplicar. Prográmalo otra vez.' : bad ? 'Hay ' + bad + (bad === 1 ? ' pareja que no cumple' : ' parejas que no cumplen') + ' las restricciones' : 'El sorteo cumple las restricciones'}</small></div></div>
+    ${live ? `<p class="muted small">A esa hora el sistema hace los cambios al azar (respetando todas las restricciones) y todos vuelven a girar. Los cambios se hacen primero con quienes aún no han girado. Nadie sabrá cuántos ni cuáles cambiaron.</p>${drops.length ? `<p class="muted small">👋 Sale del sorteo: <b>${esc(drops.join(', '))}</b></p>` : ''}${f.status === 'scheduled' ? '<div class="actions"><button class="btn sm" id="fx-cancel">Cancelar ajuste</button></div>' : ''}`
+    : `<p class="muted small">Elige cuándo se hace. Se avisa a todos que habrá un <b>switch</b> (sin decir cuántos ni por qué) y luego cada quien vuelve a girar su ruleta.</p>
+    <label class="field" style="margin-top:8px"><span>Sacar a alguien del sorteo (opcional)</span><select class="in" id="fx-drop"><option value="">Nadie</option>${inDraw.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${S.assignments?.[p.id]?.revealed ? '' : ' · no ha girado'}</option>`).join('')}</select></label>
+    <label class="field" style="margin-top:8px"><span>Fecha y hora del ajuste</span><input class="in" type="datetime-local" id="fx-at" value="${loc(def)}"></label>
+    <div class="actions"><button class="btn gold" id="fx-go">🔀 Programar ajuste</button></div>`}</div>`;
+}
+document.addEventListener('click', async e => {
+  if (e.target.closest('#fx-go')) {
+    const at = new Date($('#fx-at')?.value || '').getTime();
+    if (!at || at < Date.now() - 60e3) return toast('Elige una fecha y hora que no haya pasado');
+    const dr = $('#fx-drop')?.value || '', f = { id: Date.now().toString(36), at, status: 'scheduled', ...(dr ? { drop: [dr] } : {}) };
+    if (!dr && !fixBad()) return toast('El sorteo ya cumple las restricciones: no hace falta ajuste');
+    if (!(await confirmBox('🔀 Programar el ajuste', `El ${fixWhen(f)} el sistema hará el switch${dr ? ' y sacará del sorteo a ' + pName(dr) + ' (se borra su cuenta)' : ''}. Todos volverán a girar. Se enviará un aviso a todo el grupo.`, 'Programar'))) return;
+    try {
+      const b = writeBatch(adb);
+      b.set(doc(adb, 'config', 'event'), { fix: f }, { merge: true });
+      b.set(doc(collection(adb, 'notices')), { title: '🔀 Ajuste del sorteo', body: `El ${fixWhen(f)} se hará un switch en el sorteo para que todo quede justo. Ese día te llega un aviso: vuelve a girar tu ruleta para ver tu persona definitiva. 🤫 No comentes tu resultado con nadie.`, target: 'all', ts: Date.now(), at: serverTimestamp(), dev: DEV });
+      await b.commit(); toast('🔀 Ajuste programado y aviso enviado');
+    } catch (err) { toast(authErr(err)); }
+  }
+  if (e.target.closest('#fx-cancel')) {
+    if (!(await confirmBox('Cancelar el ajuste', 'El sorteo se queda como está.', 'Cancelar ajuste'))) return;
+    try { await setDoc(doc(adb, 'config', 'event'), { fix: deleteField() }, { merge: true }); toast('Ajuste cancelado'); } catch (err) { toast(authErr(err)); }
+  }
+});
+// Del lado de cada persona: aviso en la ruleta + términos antes de volver a girar + el mismo mensaje para todos.
+const fixDone = () => { const f = fixOf(); return f?.status === 'done' ? f : null; };
+const fixAccepted = f => { try { return localStorage.getItem('angelito:fixok') === f.id; } catch { return false; } };
+function fixBanner() {
+  const f = fixOf(); if (!f || !S.drawMeta?.ids?.includes(S.uid)) return '';
+  if (f.status === 'scheduled' || f.status === 'running') return `<div class="fx-note"><span>🔀</span><div><b>Habrá un ajuste en el sorteo</b><small>${f.status === 'running' ? 'Se está aplicando ahora mismo…' : 'El ' + esc(fixWhen(f))} · Para que todo quede justo se hará un switch. Cuando esté listo, todos vuelven a girar. 🤫</small></div></div>`;
+  if (f.status === 'done' && !S.assignment?.revealed) return `<div class="fx-note go"><span>🔀</span><div><b>El ajuste del sorteo ya está listo</b><small>Todos vuelven a girar su ruleta para ver su persona definitiva.</small></div></div>`;
+  return '';
+}
+function fixTerms(f) {
+  return new Promise(res => {
+    const items = ['Entiendo que el sorteo tuvo un ajuste y que todos vuelven a girar', 'No voy a comentar ni comparar mi resultado con nadie', 'Mi persona definitiva es la que salga ahora'];
+    const s = openModal(`<div class="pg"><div class="pg-ic">🔀</div><h3>Ajuste del sorteo</h3>
+      <p class="muted small">Para que todo quedara justo se hizo un switch. No se dice a quiénes ni cuántos: así nadie tiene pistas y la sorpresa se mantiene. Acepta para girar:</p>
+      <div class="pg-list">${items.map((t, i) => `<button type="button" class="pg-it" style="--d:${i * 80}ms"><span class="pg-ck">${ic('check', 16)}</span><span>${t}</span></button>`).join('')}</div>
+      <div class="actions"><button class="btn" data-a="no">Ahora no</button><button class="btn gold" data-a="ok" disabled>Acepto</button></div></div>`);
+    s.onclick = e => {
+      const it = e.target.closest('.pg-it'); if (it) { it.classList.toggle('on'); s.querySelector('[data-a=ok]').disabled = s.querySelectorAll('.pg-it.on').length < items.length; return; }
+      const a = e.target.closest('[data-a]')?.dataset.a; if (!a || (a === 'ok' && s.querySelectorAll('.pg-it.on').length < items.length)) return;
+      closeModal(); if (a === 'ok') try { localStorage.setItem('angelito:fixok', f.id); } catch { } res(a === 'ok');
+    };
+  });
+}
 // Restricciones: pares { a: quien regala, b: a quien no le puede salir, both: también al revés }
 function blockedSet() { const s = new Set(); for (const r of S.drawRules || []) { s.add(r.a + '>' + r.b); if (r.both) s.add(r.b + '>' + r.a); } return s; }
 // ---- Sorteo con restricciones: método seguro ----
@@ -3177,7 +3279,7 @@ updKind();
 $('#q-clear').addEventListener('click', async () => {
   if (!(await confirmBox('¿Borrar todos los anónimos?', 'Se eliminarán todos los mensajes. No se puede deshacer.', 'Borrar todo'))) return;
   try {
-    const docs = [...(await getDocs(collection(adb, 'questions'))).docs, ...(await getDocs(collection(adb, 'questionAuthors'))).docs];
+    const qd = (await getDocs(collection(adb, 'questions'))).docs, docs = [...qd, ...qd.map(d => ({ ref: doc(adb, 'questionAuthors', d.id) }))]; // los autores no se leen: se borran por su mismo id
     for (let i = 0; i < docs.length; i += 400) { const b = writeBatch(adb); docs.slice(i, i + 400).forEach(d => b.delete(d.ref)); await b.commit(); }
     await setDoc(doc(adb, 'stats', 'questions'), { count: 0 }); $('#q-adm').innerHTML = ''; toast('Buzón vaciado');
   } catch (err) { toast(authErr(err)); }
@@ -3186,12 +3288,13 @@ $('#q-clear').addEventListener('click', async () => {
 async function loadAdminQuestions() {
   const box = $('#q-adm'); box.innerHTML = '<p class="muted small"><span class="spin-dots"></span> Cargando…</p>';
   try {
-    const [qs, as] = await Promise.all([getDocs(collection(adb, 'questions')), getDocs(collection(adb, 'questionAuthors'))]);
-    const authors = Object.fromEntries(as.docs.map(d => [d.id, d.data().uid]));
+    // 🔒 El autor de cada anónimo queda sellado hasta la revelación (lo exigen también las reglas de la base)
+    const qs = await getDocs(collection(adb, 'questions')), sealed = !isRevealed();
+    const authors = sealed ? {} : Object.fromEntries((await getDocs(collection(adb, 'questionAuthors')).catch(() => ({ docs: [] }))).docs.map(d => [d.id, d.data().uid]));
     const list = qs.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at));
-    box.innerHTML = list.length ? `<p class="muted small">🤫 Solo tú ves esto. Los participantes nunca ven el autor.</p>` + list.map(q => `
+    box.innerHTML = list.length ? (sealed ? `<p class="muted small">🔒 Los autores están sellados hasta la revelación: nadie puede verlos antes, ni siquiera el organizador.</p>` : `<p class="muted small">🤫 Solo tú ves esto. Los participantes nunca ven el autor.</p>`) + list.map(q => `
       <div class="item"><span style="font-size:22px">${esc(authors[q.id] ? pEmoji(authors[q.id]) : '❔')}</span><div class="grow">
-        <div class="muted small"><b style="color:var(--gold)">De: ${esc(authors[q.id] ? pName(authors[q.id]) : 'Desconocido')}</b> → ${q.to ? esc(pName(q.to)) : 'Todos'}</div>
+        <div class="muted small"><b style="color:var(--gold)">De: ${sealed ? '🔒 Sellado' : esc(authors[q.id] ? pName(authors[q.id]) : 'Desconocido')}</b> → ${q.to ? esc(pName(q.to)) : 'Todos'}</div>
         <div class="t" style="margin-top:4px">${esc(q.text)}</div></div>
         <button class="x" data-qdel="${esc(q.id)}" aria-label="Borrar">✕</button></div>`).join('')
       : '<p class="muted small">El buzón está vacío.</p>';
@@ -3601,7 +3704,7 @@ function checkEvents() {
   const viewingChat = !document.hidden && $('#v-buzon').classList.contains('on') && S.buz === 'c';
   const tagged = newMsgs.filter(m => (m.mentions || []).includes(S.uid) || (m.mentions || []).includes('all'));
   if (tagged.length && !viewingChat) { const m = tagged[tagged.length - 1]; notifyCat('mencion', `📣 ${shortName(P(m.uid)) || 'Alguien'} te mencionó`, m.text.slice(0, 120), './#chat'); if (navigator.vibrate) try { navigator.vibrate([60, 40, 60]); } catch { } }
-  else if (newMsgs.length && !viewingChat) { const m = newMsgs[newMsgs.length - 1]; notifyCat('chat', `💬 ${shortName(P(m.uid)) || 'Chat'}`, m.text.slice(0, 120), './#chat', () => `💬 ${chatUnread()} mensajes nuevos en el chat`); }
+  else if (newMsgs.length && !viewingChat) { const m = newMsgs[newMsgs.length - 1]; const who = shortName(P(m.uid)) || 'Chat', txt = (m.text || '').trim() || '📷 Foto'; notifyCat('chat', `💬 ${who}`, txt.slice(0, 140), './#chat', () => `💬 ${who} (${chatUnread()} mensajes)`); } // como WhatsApp: nombre arriba, mensaje abajo
   const newSugs = added('sugs').filter(id => !S.myCreated.has(id) && S.suggestions.find(x => x.id === id)?.uid !== S.uid);
   if (newSugs.length) { const x = S.suggestions.find(y => y.id === newSugs[newSugs.length - 1]); notifyCat('sugerencias', '💡 Nueva sugerencia', (x?.text || '').slice(0, 120) + ' · ¡Vota 👍!', './#sugerencias', n => `💡 ${n} sugerencias nuevas para votar`); }
   if (now.rec && now.rec === was.rec) { const nw = added('recWishes'); if (nw.length) { const w = S.wishes.find(x => x.id === nw[nw.length - 1]); notifyCat('deseos', '🎁 Tu persona agregó un deseo nuevo', 'Entra a verlo 👀', './#deseos', n => `🎁 Tu persona agregó ${n} deseos nuevos`); } }
@@ -4433,7 +4536,7 @@ $('#ny-go').addEventListener('click', async () => {
     try {
       { const b0 = writeBatch(adb); b0.delete(doc(adb, 'config', 'draw')); await b0.commit(); }
       if (wipeMedia) { const ph = (await getDocs(collection(adb, 'photos'))).docs.map(d => d.id); await commitOps(ph.map(id => ['del', doc(adb, 'photosFull', id)])); }
-      for (const c of cols) { const ds = (await getDocs(collection(adb, c))).docs; await commitOps(ds.map(d => ['del', d.ref])); }
+      for (const c of cols) { if (c === 'questionAuthors') continue; const ds = (await getDocs(collection(adb, c))).docs; if (c === 'questions') await commitOps(ds.map(d => ['del', doc(adb, 'questionAuthors', d.id)])); await commitOps(ds.map(d => ['del', d.ref])); }
       const b = writeBatch(adb);
       b.set(doc(adb, 'stats', 'questions'), { count: 0 });
       b.set(doc(adb, 'config', 'event'), { eventDate: '', eventAt: null, revealDate: '', revealAt: null, rsvpDeadline: '', revealNow: false, guessesOpen: false, guessesLocked: false, guessWinner: '', angelLocked: false, registrationOpen: true }, { merge: true });
@@ -4514,20 +4617,36 @@ $('#datafail-btn').addEventListener('click', () => repairData());
 /* ---------- 🟢 en línea: punto verde (conectado) o rojo (sin internet) en tu nombre, y quién más está conectado ---------- */
 const netState = () => { document.body.classList.toggle('net-off', navigator.onLine === false); $$('.netdot').forEach(d => d.className = 'netdot ' + (navigator.onLine === false ? 'off' : 'on')); try { renderChat(); } catch { } beat(); };
 addEventListener('online', netState); addEventListener('offline', netState);
-const ONLINE_MS = 150e3; // se cuenta «en línea» si la app dio señal en los últimos 2 minutos y medio
+const ONLINE_MS = 9 * 60e3; // «en línea» = dio señal en los últimos 9 minutos (la señal va cada 4: así se ahorra cuota)
 const isOnline = uid => uid === S.uid ? navigator.onLine !== false && !document.hidden : !!(S.presence?.[uid]?.on && Date.now() - (S.presence[uid].ts || 0) < ONLINE_MS);
 const onlineIds = () => S.participants.filter(p => isOnline(p.id)).map(p => p.id);
 let beatT = 0, beatLast = 0;
-function beat(force) { // «sigo aquí» cada minuto mientras la app está abierta y a la vista
-  clearTimeout(beatT); if (!S.me || navigator.onLine === false) return;
+function beat(force) { // «sigo aquí» cada 4 minutos mientras la app está a la vista
+  clearTimeout(beatT); if (!S.me || navigator.onLine === false || quotaOut()) return;
   const on = !document.hidden;
-  if (force || !on || Date.now() - beatLast > 55e3) { beatLast = Date.now(); fsSetDoc(doc(db, 'presence', S.uid), { ts: Date.now(), on, at: serverTimestamp() }).catch(() => { }); }
-  if (on) beatT = setTimeout(beat, 60e3);
+  if (force || !on || Date.now() - beatLast > 235e3) { beatLast = Date.now(); fsSetDoc(doc(db, 'presence', S.uid), { ts: Date.now(), on, at: serverTimestamp() }).catch(quotaCheck); }
+  if (on) beatT = setTimeout(beat, 240e3);
 }
+// Escuchas del grupo (en línea + visto por): se abren al entrar al chat y se cierran 20 s después de salir.
+let groupUn = null, groupOffT = 0;
+function liveGroup(on) {
+  clearTimeout(groupOffT);
+  if (on && !groupUn && S.me && !quotaOut()) {
+    const a = onSnapshot(collection(db, 'presence'), s => { S.presence = Object.fromEntries(s.docs.map(d => [d.id, { ts: +d.data().ts || 0, on: !!d.data().on }])); try { renderChat(); } catch { } }, quotaCheck);
+    const b = onSnapshot(collection(db, 'chatSeen'), s => { S.chatSeenAll = Object.fromEntries(s.docs.map(d => [d.id, +d.data().ts || 0])); try { renderChat(); renderBadges(); } catch { } }, quotaCheck);
+    groupUn = () => { a(); b(); };
+  } else if (!on && groupUn) { groupUn(); groupUn = null; }
+}
+function liveGroupSync() {
+  const want = !!S.me && !document.hidden && $('#v-buzon')?.classList.contains('on') && S.buz === 'c';
+  if (want) liveGroup(true); else if (groupUn && !groupOffT) groupOffT = setTimeout(() => { groupOffT = 0; liveGroup(false); }, 20e3);
+}
+setInterval(liveGroupSync, 3000); document.addEventListener('visibilitychange', liveGroupSync); addEventListener('hashchange', () => setTimeout(liveGroupSync, 50));
 document.addEventListener('visibilitychange', () => beat(true));
 setInterval(() => { if (S.me && $('#v-buzon')?.classList.contains('on')) renderChat(); }, 60e3); // el «en línea» se apaga solo si alguien se va sin avisar
 const agoTxt = t => { const m = Math.round((Date.now() - t) / 60e3); return m < 1 ? 'hace un momento' : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : m < 2880 ? 'ayer' : `hace ${Math.round(m / 1440)} días`; };
-function showOnline() {
+async function showOnline() {
+  if (!groupUn && !quotaOut()) try { const r = await getDocs(collection(db, 'presence')); S.presence = Object.fromEntries(r.docs.map(d => [d.id, { ts: +d.data().ts || 0, on: !!d.data().on }])); } catch (e) { quotaCheck(e); }
   const on = S.participants.filter(p => isOnline(p.id)).sort((a, b) => (b.id === S.uid) - (a.id === S.uid) || a.name.localeCompare(b.name, 'es'));
   const off = S.participants.filter(p => !isOnline(p.id)).sort((a, b) => (S.presence?.[b.id]?.ts || 0) - (S.presence?.[a.id]?.ts || 0));
   const row = (p, live) => `<div class="rxw-row"><span class="rxw-av on-av">${esc(p.emoji)}<i class="netdot ${live ? 'on' : 'off'}"></i></span><span class="grow"><b>${p.id === S.uid ? 'Tú' : esc(p.name)}</b><small>${live ? 'En línea' : S.presence?.[p.id]?.ts ? 'Se conectó ' + agoTxt(S.presence[p.id].ts) : 'Todavía no ha entrado'}</small></span></div>`;

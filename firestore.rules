@@ -50,8 +50,9 @@ service cloud.firestore {
     function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
 
     // El organizador principal puede leer y corregir cualquier dato (por ejemplo, al restablecer un PIN).
-    match /{document=**} {
-      allow read, write: if isOwner();
+    // El organizador principal puede todo, MENOS leer quién escribió cada anónimo (eso tiene su propia regla abajo).
+    match /{col}/{rest=**} {
+      allow read, write: if isOwner() && col != 'questionAuthors';
     }
 
     // ---------- equipo organizador ----------
@@ -345,8 +346,10 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
     // Autor de cada mensaje anónimo: SOLO el organizador principal.
+    // Sellado hasta la revelación: antes nadie puede leerlo (ni el organizador desde la app).
     match /questionAuthors/{id} {
-      allow read, delete: if isOwner();
+      allow read: if isOwner() && revealed();
+      allow delete: if isOwner();
       allow create: if isParticipant() && request.resource.data.keys().hasOnly(['uid'])
         && request.resource.data.uid == me()
         && existsAfter(/databases/$(database)/documents/questions/$(id))

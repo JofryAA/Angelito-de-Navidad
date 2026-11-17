@@ -48,7 +48,62 @@ if (hourL >= 9 && hourL < 20 && evDay) {
 }
 const remKey = k => `${k}:${evDay}`;
 const remDue = dueRem.filter(k => !remSent.has(remKey(k)));
-const nothing = !PRUEBA && !remDue.length && invQ.empty && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
+// 🔀 Ajuste programado del sorteo (lo programa el organizador). Aquí NUNCA se escriben nombres ni parejas en el
+// registro: GitHub guarda estos registros y otras personas podrían leerlos.
+let fixReady = false;
+const fx = ev.fix;
+if (fx && fx.status === 'scheduled' && +fx.at <= now && draw?.ids?.length) {
+  try { fixReady = await runFix(fx); console.log(fixReady ? 'Ajuste del sorteo aplicado.' : 'Ajuste del sorteo: nada que aplicar.'); }
+  catch (e) { console.log('Ajuste del sorteo: no se pudo aplicar.'); await db.doc('config/event').set({ fix: { ...fx, status: 'failed' } }, { merge: true }).catch(() => { }); }
+}
+async function runFix(fx) {
+  const evRef = db.doc('config/event');
+  const claimed = await db.runTransaction(async t => { const f = (await t.get(evRef)).data()?.fix; if (!f || f.id !== fx.id || f.status !== 'scheduled') return false; t.set(evRef, { fix: { ...f, status: 'running' } }, { merge: true }); return true; });
+  if (!claimed) return false;
+  const drop = (fx.drop || []).filter(d => draw.ids.includes(d)), ids = draw.ids.filter(g => !drop.includes(g)), rec = {}, spun = new Set();
+  for (const d of (await db.collection('assignments').get()).docs) if (draw.ids.includes(d.id)) { rec[d.id] = d.data().recipient; if (d.data().revealed) spun.add(d.id); }
+  const orig = { ...rec };
+  // 👋 quien sale del sorteo: a quien le regalaba a esa persona le pasa la persona que le tocaba a ella (se cierra la cadena)
+  for (const d of drop) { const g = Object.keys(rec).find(k => rec[k] === d); if (g) rec[g] = rec[d]; delete rec[d]; }
+  const pairs = (await db.doc('drawRules/main').get()).data()?.pairs || [], blocked = new Set();
+  for (const r of pairs) { blocked.add(r.a + '>' + r.b); if (r.both) blocked.add(r.b + '>' + r.a); }
+  const ok = (g, r) => !!r && g !== r && !blocked.has(g + '>' + r);
+  const before = orig, givers = ids.filter(g => rec[g]);
+  const rnd = n => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; };
+  // cambia la persona de «v» con la de otro al azar, siempre que los dos queden cumpliendo las restricciones
+  const swap = (v, avoid) => {
+    const opts = givers.filter(y => y !== v && !avoid.includes(y) && ok(v, rec[y]) && ok(y, rec[v]));
+    if (!opts.length) return null;
+    const fresh = opts.filter(y => !spun.has(y)), pool = fresh.length ? fresh : opts; // primero con quienes AÚN NO han girado: nunca vieron su persona, así que no deja rastro
+    const y = pool[rnd(pool.length)]; [rec[v], rec[y]] = [rec[y], rec[v]]; return y;
+  };
+  for (const v of givers) if (!ok(v, rec[v])) {
+    const y = swap(v, []); if (!y) throw new Error('sin salida');
+    swap(v, [y]); // segundo cambio: así nadie puede deducir la pareja nueva a partir de la vieja
+  }
+  if (givers.some(g => !ok(g, rec[g]))) throw new Error('incumple');
+  const changed = givers.filter(g => rec[g] !== before[g]);
+  const touchedRec = new Set(changed.flatMap(g => [before[g], rec[g]]));
+  const ops = [];
+  for (const g of givers) ops.push(b => b.set(db.doc('assignments/' + g), { recipient: rec[g], revealed: false, revealedAt: FieldValue.delete() }, { merge: true }));
+  for (const g of changed) for (const c of ['giftStatus', 'wishPick', 'hintsSent']) ops.push(b => b.delete(db.doc(`${c}/${g}`)));
+  for (const r of touchedRec) ops.push(b => b.delete(db.doc('giftIncoming/' + r)));
+  for (const d of (await db.collection('hints').get()).docs) if (touchedRec.has(d.data().to)) ops.push(b => b.delete(d.ref));
+  if (drop.length) {
+    ops.push(b => b.set(db.doc('config/draw'), { ids, n: ids.length }, { merge: true }));
+    for (const d of drop) {
+      const pp = (await db.doc('participants/' + d).get()).data() || {};
+      if (pp.nameKey) ops.push(b => b.delete(db.doc('names/' + pp.nameKey)));
+      for (const c of ['participants', 'assignments', 'attendance', 'profiles', 'staff', 'giftStatus', 'giftIncoming', 'guesses', 'angelGuess', 'wishPick', 'thanks', 'hintsSent', 'fcmTokens', 'presence', 'chatSeen']) ops.push(b => b.delete(db.doc(`${c}/${d}`)));
+      ops.push(b => b.set(db.doc('banned/' + d), { at: FieldValue.serverTimestamp() }));
+      for (const c of ['wishes', 'wishImg', 'activitySignups', 'sugVotes', 'chatReacts', 'votes']) for (const w of (await db.collection(c).where('uid', '==', d).get()).docs) ops.push(b => b.delete(w.ref));
+    }
+  }
+  ops.push(b => b.set(evRef, { fix: { ...fx, status: 'done', doneAt: Date.now() } }, { merge: true }));
+  for (let i = 0; i < ops.length; i += 400) { const b = db.batch(); ops.slice(i, i + 400).forEach(f => f(b)); await b.commit(); }
+  return true;
+}
+const nothing = !PRUEBA && !fixReady && !remDue.length && invQ.empty && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
   && !(open && st.revealSent !== openKey) && hintsQ.docs.every(d => seenH.has(d.id));
 if (nothing) { await stateRef.set({ last: now }, { merge: true }); console.log('Nada nuevo.'); process.exit(0); }
 
@@ -72,7 +127,8 @@ if (chat.length) {
     const tag = mine.filter(m => (m.mentions || []).includes(uid) || (m.mentions || []).includes('all'));
     if (tag.length) { const m = tag[tag.length - 1]; put(uid, 'mencion', { title: (m.mentions || []).includes('all') ? `📣 ${short(m.uid)} avisó a todo el grupo` : `📣 ${short(m.uid)} te mencionó`, body: m.text.slice(0, 140), url: '#chat' }); continue; }
     const m = mine[mine.length - 1];
-    put(uid, 'chat', { title: mine.length === 1 ? '💬 Nuevo mensaje en el chat' : `💬 ${mine.length} mensajes nuevos en el chat`, body: `${short(m.uid)}: ${m.text.slice(0, 120)}`, url: '#chat' });
+    const txt = (m.text || '').trim() || (m.hasImg ? '📷 Foto' : 'Mensaje');
+    put(uid, 'chat', { title: `💬 ${short(m.uid)}`, body: txt.slice(0, 140) + (mine.length > 1 ? ` · +${mine.length - 1} más` : ''), url: '#chat' }); // como WhatsApp: el nombre arriba, el mensaje abajo
   }
 }
 // 📣 avisos del organizador
@@ -82,6 +138,8 @@ for (const n of noticesQ.docs.map(d => d.data()))
 for (const d of actsQ.docs) {
   const a = d.data(); for (const uid of all) put(uid, 'actividades', { title: `📅 Nueva actividad: ${a.title}`, body: a.date || '', url: `#actividad-${d.id}`, skipDev: a.dev || '' });
 }
+// 🔀 ajuste del sorteo listo: el MISMO aviso para todos
+if (fixReady) for (const uid of draw.ids || []) put(uid, 'avisos', { title: '🔀 El ajuste del sorteo está listo', body: 'Entra y gira tu ruleta otra vez para ver tu persona definitiva. 🤫', url: '#ruleta' });
 // 🎡 sorteo listo
 if (draw && ms(draw.at) > since) for (const uid of draw.ids || []) put(uid, 'avisos', { title: '🎡 ¡La ruleta ya está habilitada!', body: 'Entra y descubre a quién te toca regalar.', url: '#ruleta' });
 // 💌 buzón anónimo abierto (por fecha u hora, o porque el organizador lo abrió)

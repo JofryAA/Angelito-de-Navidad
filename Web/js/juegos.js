@@ -397,10 +397,11 @@ export function initGames(X) {
     return o;
   }
 
+  const qOut = () => !!window.__quota?.out();
   function ensure() {
-    if (!S.me) return;
-    if (!G.subList) { const mix = () => { G.list = [...localGames(), ...(G.remote || [])].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)); }; if (!G.lHook) { G.lHook = () => { mix(); render(); }; lListSubs.add(G.lHook); } mix(); G.subList = onSnapshot(query(collection(db, 'games'), orderBy('updatedAt', 'desc'), limit(40)), s => { G.remote = s.docs.map(d => ({ id: d.id, ...sane(d.data()) })); mix(); creditWins(); cleanupStale(); render(); }, e => { console.warn('games', e); G.subList = null; }); }
-    if (!G.subWins) G.subWins = onSnapshot(query(collection(db, 'gameWins'), limit(1000)), s => { G.wins = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, e => { console.warn('gameWins', e); G.subWins = null; });
+    if (!S.me || qOut()) return; clearTimeout(G.offT2);
+    if (!G.subList) { const mix = () => { G.list = [...localGames(), ...(G.remote || [])].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)); }; if (!G.lHook) { G.lHook = () => { mix(); render(); }; lListSubs.add(G.lHook); } mix(); G.subList = onSnapshot(query(collection(db, 'games'), orderBy('updatedAt', 'desc'), limit(25)), s => { G.remote = s.docs.map(d => ({ id: d.id, ...sane(d.data()) })); mix(); creditWins(); cleanupStale(); render(); }, e => { console.warn('games', e); window.__quota?.check(e); G.subList = null; }); }
+    if (!G.subWins) G.subWins = onSnapshot(query(collection(db, 'gameWins'), limit(1000)), s => { G.wins = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, e => { console.warn('gameWins', e); window.__quota?.check(e); G.subWins = null; });
   }
   // Borra una mesa con las fichas de cada asiento
   function dropGame(g) { const b = writeBatch(db); (g.players || []).forEach(s => b.delete(doc(db, 'games', g.id, 'hands', s))); b.delete(doc(db, 'games', g.id)); return b.commit(); }
@@ -612,9 +613,10 @@ export function initGames(X) {
     if (G.busy || G.cur?.id !== gid) return false; G.busy = true;
     try {
       if (isLoc(gid)) { const s = lsnap('games/' + gid); if (!s.exists()) throw new Error('La mesa ya no existe'); const ops = [], t = { get: async r => lsnap(r.path), update: (r, v) => ops.push(() => lmerge(r.path, v)), set: (r, v) => ops.push(() => lput(r.path, v)) }; await fn(t, { id: gid, ...sane(s.data()) }); ops.forEach(f => f()); return true; }
+      if (qOut()) { if (Date.now() - (G.offT || 0) > 8000) { G.offT = Date.now(); toast('⏳ Las partidas en línea están en pausa unos minutos (límite gratis de hoy). Contra 🤖 sí puedes jugar.'); } return false; }
       if (navigator.onLine === false) { if (Date.now() - (G.offT || 0) > 8000) { G.offT = Date.now(); toast('📡 Sin internet: esta partida es en línea. Al volver la conexión sigues jugando.'); } return false; }
       await fsTx(db, async t => { const s = await t.get(doc(db, 'games', gid)); if (!s.exists()) throw new Error('La mesa ya no existe'); return fn(t, { id: s.id, ...sane(s.data()) }); }); return true; }
-    catch (e) { const m = e?.code === 'permission-denied' ? 'No se pudo. Revisa que la hora de tu teléfono esté en automático.' : e?.code ? X.authErr(e) : (e.message || 'No se pudo'); if (!QUIET.includes(m)) toast(m); console.warn('juego', e); return false; }
+    catch (e) { if (window.__quota?.check(e)) { toast('⏳ Las partidas en línea están en pausa unos minutos (límite gratis de hoy).'); return false; } const m = e?.code === 'permission-denied' ? 'No se pudo. Revisa que la hora de tu teléfono esté en automático.' : e?.code ? X.authErr(e) : (e.message || 'No se pudo'); if (!QUIET.includes(m)) toast(m); console.warn('juego', e); return false; }
     finally { G.busy = false; }
   }
   const upd = (t, g, patch) => t.update(doc(db, 'games', g.id), { ...patch, seq: (g.seq || 0) + 1, updatedAt: Date.now() });
@@ -789,6 +791,7 @@ export function initGames(X) {
   function maybeBot() {
     const g0 = G.cur; clearTimeout(G.botT);
     if (!live(g0) || g0.host !== me()) return;
+    if (qOut() && !isLoc(g0.id)) return; // sin cuota los 🤖 de mesas en línea esperan (no reintentan en bucle)
     if (document.hidden) return; // si quien creó la mesa no la está viendo, los 🤖 esperan (no gastan nada)
     const seat0 = g0.players[g0.turn]; if (!isBot(seat0)) return;
     G.botT = setTimeout(() => {
@@ -1048,7 +1051,7 @@ export function initGames(X) {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) maybeBot(); });
   // Vigilante: si le toca a un 🤖 y nada está en camino (p. ej. se perdió una jugada por mala señal), lo despierta.
   setInterval(() => {
-    const g = G.cur; if (!live(g) || g.host !== me() || document.hidden || G.busy || G.pend) return;
+    const g = G.cur; if (!live(g) || g.host !== me() || document.hidden || G.busy || G.pend || (qOut() && !isLoc(g.id))) return;
     if (!isBot(g.players[g.turn])) { G.botWait = 0; return; }
     G.botWait = (G.botWait || 0) + 1; if (G.botWait >= 2) { G.botWait = 0; maybeBot(); }
   }, 1500);
@@ -1115,5 +1118,14 @@ export function initGames(X) {
     }
   });
 
-  return { render: renderView, stop, leaveView: () => { SND.music(null); const g = G.cur; if (g && !(g.status === 'playing' && Array.isArray(g.players) && g.players.includes(me()))) closeGame(); }, isOpen: () => !!G.cur, active: () => G.list.filter(g => g.status === 'playing' && g.players?.includes(me()) && g.players[g.turn] === me() && !g.handOver).length };
+  return { render: renderView, stop, leaveView: () => {
+    SND.music(null); const g = G.cur; if (g && !(g.status === 'playing' && Array.isArray(g.players) && g.players.includes(me()))) closeGame();
+    // 💸 cuota: fuera de Juegos la lista de mesas se suelta (cada jugada de cualquiera costaba una lectura a todos),
+    // salvo que estés en una partida en curso (para el aviso de «te toca»).
+    clearTimeout(G.offT2); G.offT2 = setTimeout(() => {
+      if (location.hash.slice(1).startsWith('juego') || location.hash === '#juegos' || !G.subList) return;
+      if (G.list.some(x => x.status === 'playing' && !isLoc(x.id) && x.players?.includes(me()))) return;
+      G.subList(); G.subList = null;
+    }, 30e3);
+  }, isOpen: () => !!G.cur, active: () => G.list.filter(g => g.status === 'playing' && g.players?.includes(me()) && g.players[g.turn] === me() && !g.handOver).length };
 }
