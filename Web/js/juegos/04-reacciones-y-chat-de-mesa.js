@@ -50,14 +50,52 @@
     if (chatOpen()) return closeChat(); closeTray();
     G.chatUnread = 0; chatBadge();
     const p = document.createElement('div'); p.id = 'gchat-panel';
-    p.innerHTML = `<div class="gcp-h"><b>💬 Chat de la mesa</b><small>solo esta sala</small><button type="button" class="gcp-x" aria-label="Cerrar chat">✕</button></div><div class="gc-list"></div>
+    p.innerHTML = `<div class="gcp-h"><i class="gcp-grip" aria-hidden="true"></i><b>💬 Chat de la mesa</b><small>arrástralo · deslízalo arriba para quitarlo</small><button type="button" class="gcp-x" aria-label="Cerrar chat">✕</button></div><div class="gc-list"></div>
       <form class="gc-form"><input class="in" maxlength="200" placeholder="Escribe algo… 😏" autocomplete="off" enterkeyhint="send"><button class="btn gold" type="submit" aria-label="Enviar">➤</button></form>`;
     document.body.appendChild(p); paintChat();
+    try { const t = +localStorage.getItem('angelito:gchatTop'); if (t) p.style.top = Math.min(innerHeight - 200, t) + 'px'; } catch { }
     const f = p.querySelector('.gc-form');
     f.onsubmit = e => { e.preventDefault(); const i = f.querySelector('input'); sendChat(i.value); i.value = ''; };
     p.querySelector('.gcp-x').onclick = closeChat;
   }
   function closeTray() { document.getElementById('gq-tray')?.remove(); }
+  /* ✋ Interactivo: los botones flotantes se arrastran a donde quieras (se pegan al borde más cercano y se recuerda
+     el lugar), y el panel del chat se arrastra por su barra: si lo lanzas hacia arriba o abajo, se quita. */
+  const FAB_KEY = 'angelito:gfab';
+  function fabPos() { try { return JSON.parse(localStorage.getItem(FAB_KEY) || 'null'); } catch { return null; } }
+  function placeFab(el) { const p = fabPos(); if (!p || !el) return; el.style.top = Math.max(70, Math.min(innerHeight - 130, p.y)) + 'px'; el.style.left = p.side === 'l' ? '10px' : 'auto'; el.style.right = p.side === 'l' ? 'auto' : '10px'; }
+  let fabDrag = null;
+  document.addEventListener('pointerdown', e => {
+    const f = e.target.closest('.gfab'); if (!f) return;
+    const r = f.getBoundingClientRect(); fabDrag = { f, x0: e.clientX, y0: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false };
+  }, true);
+  document.addEventListener('pointermove', e => {
+    if (!fabDrag) return; const d = fabDrag;
+    if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 8) return;
+    d.moved = true; d.f.classList.add('drag'); closeTray();
+    d.f.style.left = (e.clientX - d.dx) + 'px'; d.f.style.right = 'auto'; d.f.style.top = Math.max(60, Math.min(innerHeight - 110, e.clientY - d.dy)) + 'px';
+  }, { passive: true });
+  const fabUp = () => {
+    const d = fabDrag; fabDrag = null; if (!d?.moved) return;
+    const r = d.f.getBoundingClientRect(), side = r.left + r.width / 2 < innerWidth / 2 ? 'l' : 'r';
+    d.f.classList.remove('drag'); try { localStorage.setItem(FAB_KEY, JSON.stringify({ side, y: r.top })); } catch { }
+    placeFab(d.f); G.fabMovedAt = Date.now(); // el «clic» que viene al soltar no abre nada
+  };
+  document.addEventListener('pointerup', fabUp, true); document.addEventListener('pointercancel', fabUp, true);
+  document.addEventListener('click', e => { if (e.target.closest('.gfab') && Date.now() - (G.fabMovedAt || 0) < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
+  new MutationObserver(() => { const f = document.querySelector('.gfab:not([data-placed])'); if (f) { f.dataset.placed = 1; placeFab(f); } }).observe(document.body, { childList: true, subtree: true });
+  // panel del chat: arrastrar por la barra de arriba; si se suelta lejos, se quita
+  let chDrag = null;
+  document.addEventListener('pointerdown', e => { const h = e.target.closest('#gchat-panel .gcp-h'); if (!h || e.target.closest('button')) return; const p = h.parentElement; chDrag = { p, y0: e.clientY, top: p.getBoundingClientRect().top }; p.classList.add('drag'); }, true);
+  document.addEventListener('pointermove', e => { if (!chDrag) return; const dy = e.clientY - chDrag.y0; chDrag.dy = dy; chDrag.p.style.top = Math.max(-200, chDrag.top + dy) + 'px'; chDrag.p.style.opacity = Math.max(.3, 1 - Math.max(0, -dy - 60) / 200); }, { passive: true });
+  document.addEventListener('pointerup', () => {
+    const d = chDrag; chDrag = null; if (!d) return; d.p.classList.remove('drag');
+    if ((d.dy || 0) < -70) { closeChat(); return; } // lanzado hacia arriba: se quita
+    const top = d.p.getBoundingClientRect().top;
+    if (top > innerHeight - 120) { closeChat(); return; } // bajado hasta el fondo: se quita
+    d.p.style.opacity = ''; try { localStorage.setItem('angelito:gchatTop', Math.max(56, Math.round(top))); } catch { }
+  }, true);
+
   function emotePicker(anchor) {
     if (document.getElementById('gq-tray')) return closeTray();
     const g = G.cur; if (!g?.players?.includes(me())) return toast('Solo los que están en la mesa pueden reaccionar');

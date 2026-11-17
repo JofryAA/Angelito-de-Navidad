@@ -63,3 +63,9 @@ body.logged .hero p.cdmsg:not([hidden]){display:block;margin:10px 0 0;max-width:
 .pk-b{border:0;border-radius:999px;padding:6px 12px;font-weight:800;font-size:.8rem;color:#2a1a05;background:linear-gradient(180deg,#ffd77e,#e3ae4b)}
 .pk-x{border:0;width:30px;height:30px;border-radius:50%;background:#3a3122;color:#ffe2a3;font-weight:800}
 @keyframes pickPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+/* ✋ botones flotantes que se arrastran y chat que se mueve/quita */
+.gfab{touch-action:none;transition:top .25s,left .25s,right .25s}
+.gfab.drag{transition:none;opacity:.85}.gfab.drag .gfab-b{transform:scale(1.08)}
+.gcp-h{cursor:grab;touch-action:none;user-select:none;position:relative;padding-top:6px}
+.gcp-grip{position:absolute;top:-2px;left:50%;width:38px;height:4px;margin-left:-19px;border-radius:2px;background:#3a5a4a}
+#gchat-panel.drag{transition:none;animation:none}
