@@ -259,13 +259,14 @@ function renderSuggestions() {
   try { if (localStorage.getItem('angelito:signIdeas') === '1') setSign(true); } catch { }
   const list = $('#s-list');
   if (!S.me && !S.isAdmin) { list.innerHTML = ''; return; }
-  const votes = id => S.sugVotes.filter(v => v.sug === id);
-  const items = [...S.suggestions].sort((a, b) => votes(b.id).length - votes(a.id).length || sTs(b) - sTs(a));
+  // 👍 me gusta / 👎 no me gusta (los votos viejos sin «v» cuentan como 👍). Ordena por la diferencia.
+  const votes = id => S.sugVotes.filter(v => v.sug === id && (v.v ?? 1) > 0), nays = id => S.sugVotes.filter(v => v.sug === id && v.v === -1), score = id => votes(id).length - nays(id).length;
+  const items = [...S.suggestions].sort((a, b) => score(b.id) - score(a.id) || votes(b.id).length - votes(a.id).length || sTs(b) - sTs(a));
   const max = Math.max(1, ...items.map(x => votes(x.id).length));
-  list.innerHTML = items.length ? `<div class="h2row" style="margin-top:0"><h2>Ideas del grupo</h2><span class="tag">${items.length} ${items.length === 1 ? 'idea' : 'ideas'}</span></div><p class="muted small" style="margin:-6px 0 12px">Toca 👍 en las que te gusten: las más votadas suben.</p><div class="stack">${items.map((x, k) => {
-    const st = ST[x.status] || ST.nueva, au = S.sugAuthors[x.id], vs = votes(x.id), mine = vs.some(v => v.uid === S.uid), top = k < 3 && vs.length > 0;
+  list.innerHTML = items.length ? `<div class="h2row" style="margin-top:0"><h2>Ideas del grupo</h2><span class="tag">${items.length} ${items.length === 1 ? 'idea' : 'ideas'}</span></div><p class="muted small" style="margin:-6px 0 12px">Vota 👍 si te gusta o 👎 si no: las mejores suben.</p><div class="stack">${items.map((x, k) => {
+    const st = ST[x.status] || ST.nueva, au = S.sugAuthors[x.id], vs = votes(x.id), ns = nays(x.id), mine = vs.some(v => v.uid === S.uid), mineN = ns.some(v => v.uid === S.uid), top = k < 3 && score(x.id) > 0;
     return `<div class="sug2 ${top ? 'top' : ''} s-${esc(x.status || 'nueva')}" style="--d:${Math.min(k, 8) * 50}ms;--v:${vs.length / max * 100}%">
-      <button class="vote2 ${mine ? 'on' : ''}" data-svote="${esc(x.id)}" ${S.me ? '' : 'disabled'} aria-label="Apoyar"><span class="v-th">👍</span><b>${vs.length}</b></button>
+      <div class="vote3"><button class="vote2 ${mine ? 'on' : ''}" data-svote="${esc(x.id)}" data-vv="1" ${S.me ? '' : 'disabled'} aria-label="Me gusta"><span class="v-th">👍</span><b>${vs.length}</b></button><button class="vote2 nay ${mineN ? 'on' : ''}" data-svote="${esc(x.id)}" data-vv="-1" ${S.me ? '' : 'disabled'} aria-label="No me gusta"><span class="v-th">👎</span><b>${ns.length}</b></button></div>
       <div class="s2-b"><div class="s2-top">${top ? `<span class="s2-rank">${['🥇', '🥈', '🥉'][k]} Top ${k + 1}</span>` : ''}${x.status && x.status !== 'nueva' ? `<span class="st2 ${esc(x.status)}">${st[0]} ${st[1]}</span>` : ''}</div>
         <div class="txt">${esc(x.text)}</div>
         <div class="s2-meta">${x.signed && x.uid ? `<span class="s2-av">${esc(pEmoji(x.uid))}</span>${esc(pName(x.uid))}` : '<span class="s2-av">🕶️</span>Anónima'}</div>
@@ -306,8 +307,9 @@ $('#s-list').addEventListener('click', async e => {
   try {
     if (vt && S.me) {
       const id = `${vt.dataset.svote}__${esc(S.uid)}`;
-      if (S.sugVotes.some(v => v.id === id)) { const w = writeBatch(db); w.delete(doc(db, 'sugVotes', id)); await w.commit(); }
-      else { await setDoc(doc(db, 'sugVotes', id), { sug: vt.dataset.svote, uid: S.uid, at: serverTimestamp() }); }
+      const want = +vt.dataset.vv || 1, cur = S.sugVotes.find(v => v.id === id);
+      if (cur && (cur.v ?? 1) === want) { const w = writeBatch(db); w.delete(doc(db, 'sugVotes', id)); await w.commit(); } // tocar el mismo otra vez lo quita
+      else await setDoc(doc(db, 'sugVotes', id), { sug: vt.dataset.svote, uid: S.uid, v: want, at: serverTimestamp() }); // o cambia de 👍 a 👎
     }
     if (st) await setDoc(doc(adb, 'suggestions', st.dataset.sid), { status: st.dataset.sst }, { merge: true });
     if (del && await confirmBox('¿Borrar esta sugerencia?', 'No se puede deshacer.', 'Borrar')) {

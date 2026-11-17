@@ -385,8 +385,11 @@ service cloud.firestore {
       allow read: if member();
       allow create: if isParticipant() && request.resource.data.uid == me()
         && id == request.resource.data.sug + '__' + me()
-        && request.resource.data.keys().hasOnly(['sug', 'uid', 'at']) && tsOk(request.resource.data)
+        && request.resource.data.keys().hasOnly(['sug', 'uid', 'at', 'v']) && request.resource.data.get('v', 1) in [1, -1] && tsOk(request.resource.data)
         && exists(/databases/$(database)/documents/suggestions/$(request.resource.data.sug));
+      // cambiar de 👍 a 👎 (o al revés): solo el voto y la hora
+      allow update: if isParticipant() && resource.data.uid == me() && request.resource.data.uid == me() && request.resource.data.sug == resource.data.sug
+        && request.resource.data.keys().hasOnly(['sug', 'uid', 'at', 'v']) && request.resource.data.get('v', 1) in [1, -1] && tsOk(request.resource.data);
       allow delete: if can('moderar') || (signedIn() && resource.data.uid == me()) || goneAfter(resource.data.uid);
     }
     // Autor real de cada sugerencia: SOLO el organizador principal.

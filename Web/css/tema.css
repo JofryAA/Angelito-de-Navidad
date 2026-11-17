@@ -1352,3 +1352,8 @@ body.logged .hero p.cdmsg:not([hidden]){display:block;margin:10px 0 0;max-width:
 .secbar.open{background:linear-gradient(160deg,#143826,#0d2419);border-color:#2f7a52}
 .secbar .sb-e{font-size:24px}.secbar b{display:block;font-size:.9rem}.secbar small{color:var(--muted);font-size:.74rem}
 .secbar .btn{flex:none}
+/* 👍 / 👎 en las ideas */
+.vote3{flex:none;display:flex;flex-direction:column;gap:6px}
+.vote3 .vote2{min-height:48px;width:52px;border-radius:14px}
+.vote3 .vote2 .v-th{font-size:17px}.vote3 .vote2 b{font-size:.9rem}
+.vote2.nay.on{background:#7a2a2a;border-color:transparent;box-shadow:0 6px 14px rgba(122,42,42,.4)}
