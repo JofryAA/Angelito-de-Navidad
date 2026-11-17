@@ -10,6 +10,8 @@ jobs:
         run: |
           printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
           gcloud auth activate-service-account --key-file="$RUNNER_TEMP/sa.json" -q
+          gcloud services enable firebasedatabase.googleapis.com --project angelito-2026 2>&1 | tail -3 || true
+          sleep 20
           T=$(gcloud auth print-access-token)
           U=https://firebasedatabase.googleapis.com/v1beta/projects/angelito-2026/locations/us-central1/instances
           curl -s -H "Authorization: Bearer $T" "$U" | head -c 600; echo
