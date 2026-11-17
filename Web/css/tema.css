@@ -1314,3 +1314,35 @@ body.touring #helper{display:none!important}
 #v-juegos .seat i.tbar{position:absolute;left:12px;right:12px;bottom:5px}
 #v-juegos .myhand .tline{height:5px;margin:2px 0 8px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
 #v-juegos .myhand .tline i.tbar{position:absolute;inset:0;height:auto}
+
+/* ================= 🎮 Juegos sin transparencias: todos los componentes con fondo sólido
+   (lo transparente solo queda en el fondo de la pantalla, como en el resto de la app) ================= */
+#v-juegos{--card:#132e21;--card2:#183a2a;--line:#24493a}
+#v-juegos *,#gq-tray,#gchat-panel,#g-emos .gemo{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+#v-juegos .seat{background:var(--surf)!important}
+#v-juegos .seat.turn{background:linear-gradient(165deg,#3a3014,#1f2a15)!important}
+#v-juegos .seat.ta{background:linear-gradient(165deg,#1d5a3b,#10261c)!important}#v-juegos .seat.tb{background:linear-gradient(165deg,#5a2236,#1d1418)!important}
+#v-juegos .seat .se{background:#1c4231}
+#v-juegos .score2,#v-juegos .sb2,#v-juegos .sb-t,#v-juegos .sb-goal{background-color:#112c21}
+#v-juegos .glog{background:#10261c!important;border-color:#24493a!important}
+#v-juegos .mt-tag{background:#0b1d14}
+#v-juegos .myhand{background:linear-gradient(180deg,#22160a,#140d05)!important}
+#v-juegos .pq{background:linear-gradient(180deg,#123222,#0b2016)!important}
+#v-juegos .pq-cmp span{background:#1b3a2b}
+#v-juegos .gq{background:linear-gradient(160deg,#2a2412,#15130b)}
+#v-juegos .gq-p{background:#1d3328}#v-juegos .gq-p.me{background:#1f5a3d}
+#v-juegos .tn,#v-juegos .tn-cta{background:linear-gradient(160deg,#3a2a0c,#171106)}
+#v-juegos .tn-m{background:#120d05;border-color:#3a3122}#v-juegos .tn-t+.tn-t{border-top-color:#2c2518}
+#v-juegos .tn-t.w{background:#1f5a3d}#v-juegos .tn-p{background:#2a2414}#v-juegos .tn-p.me{background:#1f5a3d}
+#v-juegos .tn-me{background:#143826;border-color:#2f7a52}
+#v-juegos .iconbtn,#v-juegos .backbtn{background:#132e21!important;border-color:#24493a!important}
+#v-juegos .emo-chip{background:#3a2f14;border-color:#7a6230}
+#v-juegos .ttt .tc{background:linear-gradient(160deg,#1c2a33,#121c22)!important}
+#v-juegos .hkb button.miss{opacity:1;background:linear-gradient(180deg,#4a2222,#2e1313);color:#c99}
+#gq-tray{background:#0f2419;border-color:#5a4a22}
+.gqt-e button{background:#1a3528}.gqt-p button{background:#3a2f14;border-color:#6a5628}
+#gchat-panel{background:#0f2419;border-color:#24493a}
+#gchat-panel .gc-list{background:#0a1a12}
+#gchat-panel .gc-m,.gc-m{background:#1d3a2c}#gchat-panel .gc-m.me,.gc-m.me{background:#1f5a3d}
+.gcp-x{background:#1d3a2c}
+#g-emos .gemo{background:#0f2419}
