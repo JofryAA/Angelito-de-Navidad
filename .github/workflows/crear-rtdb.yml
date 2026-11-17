@@ -1,0 +1,17 @@
+# Una sola vez: crea la Realtime Database (para los juegos) con la cuenta de servicio.
+name: Crear base de juegos
+on: workflow_dispatch
+jobs:
+  crear:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          gcloud auth activate-service-account --key-file="$RUNNER_TEMP/sa.json" -q
+          T=$(gcloud auth print-access-token)
+          U=https://firebasedatabase.googleapis.com/v1beta/projects/angelito-2026/locations/us-central1/instances
+          curl -s -H "Authorization: Bearer $T" "$U" | head -c 600; echo
+          curl -s -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" "$U?databaseId=angelito-2026-default-rtdb" -d '{"type":"DEFAULT_DATABASE"}' | head -c 800; echo
+          rm -f "$RUNNER_TEMP/sa.json"
