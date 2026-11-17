@@ -12,6 +12,10 @@ on:
         description: 'Hacer YA el ajuste (switch) del sorteo'
         type: boolean
         default: false
+      errores:
+        description: 'Mostrar los errores de la app de las últimas 24 h'
+        type: boolean
+        default: false
       copia:
         description: 'Hacer YA una copia de seguridad'
         type: boolean
@@ -47,6 +51,7 @@ jobs:
           PRUEBA: ${{ inputs.prueba && '1' || '' }}
           AJUSTE: ${{ inputs.ajuste && '1' || '' }}
           COPIA: ${{ inputs.copia && '1' || '' }}
+          ERRORES: ${{ inputs.errores && '1' || '' }}
           RESTAURAR: ${{ inputs.restaurar }}
           COLECCIONES: ${{ inputs.colecciones }}
           CONFIRMAR: ${{ inputs.confirmar }}

@@ -62,10 +62,10 @@ if (process.env.RESTAURAR) {
 // 🗄️ Copia de seguridad de cada noche
 try { await nightlyBackup({ db, rdb: getDatabase(), sa: SA, st, stateRef, now, force: process.env.COPIA === '1' }); } catch (e) { console.log('Copia de seguridad: falló (' + String(e?.message || e).slice(0, 80) + ').'); }
 // 🐞 Errores de la app: cada hora se resume en el registro (solo el mensaje técnico) y se borran los de más de 7 días
-if (!st.errAt || now - st.errAt > 3600e3) {
+if (!st.errAt || now - st.errAt > 3600e3 || process.env.ERRORES === '1') {
   try {
     const r = getDatabase().ref('errs'), all = (await r.orderByChild('ts').startAt(now - 7 * 864e5).get()).val() || {}, by = {};
-    for (const v of Object.values(all)) if ((+v.ts || 0) > (st.errAt || now - 3600e3)) { const k = String(v.m).slice(0, 90) + ' @ ' + String(v.s || '').slice(0, 60); by[k] = (by[k] || 0) + 1; }
+    for (const v of Object.values(all)) if ((+v.ts || 0) > (process.env.ERRORES === '1' ? now - 864e5 : (st.errAt || now - 3600e3))) { const k = String(v.m).slice(0, 90) + ' @ ' + String(v.s || '').slice(0, 60); by[k] = (by[k] || 0) + 1; }
     for (const [k, n] of Object.entries(by)) console.log(`🐞 ${n}× ${k}`);
     const old = (await r.orderByChild('ts').endAt(now - 7 * 864e5).get()).val() || {}; if (Object.keys(old).length) await r.update(Object.fromEntries(Object.keys(old).map(k => [k, null])));
     await stateRef.set({ errAt: now }, { merge: true });
