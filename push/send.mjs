@@ -62,6 +62,18 @@ if (!st.memAt || now - st.memAt > 1800e3 || (memN >= 0 && memN !== st.memN)) {
     await stateRef.set({ memAt: now, memN: ids.length }, { merge: true }); st.memAt = now; st.memN = ids.length;
   } catch (e) { console.log('Miembros de juegos: no se pudieron copiar.'); }
 }
+// 🧹 Mesas de juego abandonadas: las cierra el servidor (aunque nadie abra la app). A los ganadores que aún no
+// anotaron su victoria se la anota antes de borrar. Sala 20 min · partida 2 h · terminada 10 min · vacía: al momento.
+try {
+  const rdb = getDatabase(), games = (await rdb.ref('games').orderByChild('updatedAt').endAt(now - 10 * 60e3).get()).val() || {}, U = {};
+  for (const [gid, g] of Object.entries(games)) {
+    const st = g?.status, age = now - (+g?.updatedAt || 0), players = Array.isArray(g?.players) ? g.players : Object.values(g?.players || {});
+    if (players.length && age < (st === 'done' ? 10 * 60e3 : st === 'lobby' ? 20 * 60e3 : 2 * 3600e3)) continue;
+    if (st === 'done') for (const w of (Array.isArray(g.winners) ? g.winners : Object.values(g.winners || {}))) if (!/^bot\d$/.test(w)) U[`wins/${g.round ? `${gid}_${g.round}_${w}` : `${gid}_${w}`}`] = { uid: w, gid, type: g.type || '', at: +g.updatedAt || now };
+    for (const c of ['games', 'hands', 'emotes', 'gchat']) U[`${c}/${gid}`] = null;
+  }
+  if (Object.keys(U).length) { await rdb.ref().update(U); console.log('Mesas abandonadas cerradas.'); }
+} catch (e) { console.log('Mesas: no se pudieron revisar.'); }
 // 🏆 Una sola vez: la tabla de campeones de antes (Firestore) se copia a Realtime Database, donde viven los juegos ahora
 if (!st.winsMig) {
   try {
