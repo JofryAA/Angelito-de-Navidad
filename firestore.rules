@@ -341,7 +341,7 @@ service cloud.firestore {
       allow create: if isParticipant() && okId(id)
         && request.resource.data.keys().hasOnly(['text', 'to'])
         && str(request.resource.data.text, 500) && request.resource.data.text.size() > 0 && str(request.resource.data.to, 80)
-        && getAfter(/databases/$(database)/documents/questionAuthors/$(id)).data.uid == me();
+        && existsAfter(/databases/$(database)/documents/questionAuthors/$(id)); // 🔐 el autor va cifrado (box)
       allow delete: if isOwner();
     }
     // Autor de cada mensaje anónimo: SOLO el organizador principal.
@@ -375,7 +375,7 @@ service cloud.firestore {
           || (request.resource.data.signed == false
               && request.resource.data.keys().hasOnly(['text', 'signed', 'status', 'ts'])))
         && request.resource.data.ts is int
-        && getAfter(/databases/$(database)/documents/suggestionAuthors/$(id)).data.uid == me();
+        && existsAfter(/databases/$(database)/documents/suggestionAuthors/$(id)); // 🔐 el autor va cifrado (box)
       allow update: if can('moderar') && changed().hasOnly(['status'])
         && request.resource.data.status in ['nueva', 'revision', 'aprobada', 'hecho', 'no'];
       allow delete: if can('moderar');

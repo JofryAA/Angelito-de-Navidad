@@ -130,7 +130,7 @@ function startUserSubs(user) {
     unsubUser.push(onSnapshot(doc(db, 'staff', user.uid), s => { S.myStaff = s.exists() ? s.data() : null; syncAdminMode(); }, () => { S.myStaff = null; syncAdminMode(); }));
     // 🔐 mi persona viene cifrada: se abre en este teléfono (caja fuerte) y queda solo en memoria
     CF.register(user.uid); let asSeq = 0;
-    unsubUser.push(onSnapshot(doc(db, 'assignments', user.uid), s => { const n = ++asSeq, raw = s.exists() ? s.data() : null; CF.unlockAssignment(raw).then(a => { if (n !== asSeq) return; if (a?.boxErr) CF.register(user.uid, true); S.assignment = a; render(); }); }, ufail('assignment')));
+    unsubUser.push(onSnapshot(doc(db, 'assignments', user.uid), s => { const n = ++asSeq, raw = s.exists() ? s.data() : null; CF.unlockAssignment(raw).then(a => { if (n !== asSeq) return; if (a?.boxErr || (a?.pendingBox && Date.now() - (+localStorage.getItem('angelito:devreg:' + user.uid + ':t') || 0) > 5 * 60e3)) CF.register(user.uid, true); /* sin cajita un buen rato: se vuelve a pedir */ S.assignment = a; render(); }); }, ufail('assignment')));
     const rows = rowsOf;
     unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('uid', '==', user.uid)), s => { S.myPicks = rows(s); render(); }, ufail('myPicks')));
     unsubUser.push(onSnapshot(query(collection(db, 'activityPicks'), where('public', '==', true)), s => { S.publicPicks = rows(s); render(); }, ufail('publicPicks')));

@@ -99,6 +99,7 @@ export async function vaultTasks({ db, sa, now, log = console.log }) {
     await op.ref.delete();
   }
 
+  if (did.some(x => x === 'draw' || x === 'remap')) cv.boxAt = 0; // tras sortear o cambiar un uid: cajitas para TODOS los teléfonos
   // 3) Cajitas para cada teléfono nuevo de quien está en el sorteo
   const draw = (await db.doc('config/draw').get()).data();
   if (draw?.ids?.length) {
