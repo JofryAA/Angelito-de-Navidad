@@ -115,10 +115,13 @@
     }
     const who = R && R.team >= 0 ? (g.mode === 'parejas' ? 'Pareja ' + (R.team ? 'B' : 'A') : (g.players[R.team] === me() ? 'Tú' : seatName(g.players[R.team]))) : '';
     const done = g.status === 'done';
-    return `<div class="pq ${tr ? 'lock' : ''} ${done ? 'fin' : ''}"><div class="pq-ic">${done ? '🏆' : ic}</div><b class="pq-h">${tr && !done && R?.team >= 0 ? '' : ''}${done ? ((g.winners || []).length ? '¡Ganan ' + g.winners.map(s => esc(s === me() ? 'tú' : seatName(s))).join(' y ') + '!' : '¡Ganaron los 🤖!') : head}</b>
+    const pk = `${g.id}:${g.round || 0}:${g.hand || 0}`;
+    return `<div class="pq ${tr ? 'lock' : ''} ${done ? 'fin' : ''} ${G.pqMini === pk ? 'mini' : ''}" data-pk="${esc(pk)}" title="Toca para ver la mesa"><div class="pq-ic">${done ? '🏆' : ic}</div><b class="pq-h">${tr && !done && R?.team >= 0 ? '' : ''}${done ? ((g.winners || []).length ? '¡Ganan ' + g.winners.map(s => esc(s === me() ? 'tú' : seatName(s))).join(' y ') + '!' : '¡Ganaron los 🤖!') : head}</b>
       ${tr && !done ? '<small class="pq-rule">gana el que tiene menos</small>' : ''}${who ? `<span class="pq-pts">${esc(who)} <b>+${R.pts || 0}</b></span>` : ''}${cmp}
       ${!done && mySeat >= 0 ? `<button class="pq-next" data-gact="next" ${g.want && g.host !== me() ? 'disabled' : ''}>Siguiente mano ▶</button><small class="pq-sub">Sale ${esc(seatName(g.players[R?.seat ?? 0]))}</small>` : ''}</div>`;
   }
+  // tocar la placa la achica (para mirar la mesa y las fichas viradas); tocarla otra vez la vuelve a abrir
+  document.addEventListener('click', e => { const q = e.target.closest('.pq'); if (!q || e.target.closest('button,a')) return; G.pqMini = G.pqMini === q.dataset.pk ? '' : q.dataset.pk; q.classList.toggle('mini', G.pqMini === q.dataset.pk); });
   // 🃏 Al terminar, cada quien «vira» sus fichas en su lado de la mesa, como en la vida real: tú abajo, los demás arriba y a los lados
   function handsOnTable(g) {
     const sh = g.shown || {}, R = g.result || {}, n = g.players.length, meI = Math.max(0, g.players.indexOf(me()));
@@ -181,7 +184,7 @@
   function renderGame(g) {
     if (g.loading) return '<div class="card empty"><span class="spin-dots"></span></div>';
     if (g.gone) return '<div class="card empty"><span class="e">🫥</span>Esta mesa ya no existe.<div class="qa" style="justify-content:center"><a class="btn" href="#juegos">Volver</a></div></div>';
-    const emoBtn = `<button type="button" class="iconbtn gsnd gemo-btn" data-gact="emo" data-n="${G.chatUnread || ''}" aria-label="Chat y reacciones">💬</button>`;
+    const emoBtn = `<button type="button" class="iconbtn gsnd gemo-btn" data-gact="chat" data-n="${G.chatUnread || ''}" aria-label="Chat de la mesa">💬</button>`;
     const head = `<div class="ghead"><a class="backbtn" href="#juegos"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Juegos</a><b>${GINFO[g.type]?.e || ''} ${esc(g.title || GINFO[g.type]?.name)}</b><button class="iconbtn gsnd ${SND.pref.m || SND.pref.f ? '' : 'off'}" data-gact="snd" aria-label="Sonido">${SND.pref.m || SND.pref.f ? '🔊' : '🔇'}</button>${isLoc(g.id) ? '' : emoBtn}${g.host === me() ? '<button class="iconbtn gdel" data-gact="del" aria-label="Cerrar mesa"><svg class="ic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg></button>' : '<span style="width:42px"></span>'}</div>`;
     if (g.status === 'lobby') return head + lobbyHTML(g) + queueHTML(g);
     if (false) return head + `<div class="card empty"><span class="e">🔒</span>Esta partida es solo de ${g.players.map(s => esc(seatName(s))).join(' y ')}<div class="qa" style="justify-content:center"><a class="btn" href="#juegos">Volver</a></div></div>`;

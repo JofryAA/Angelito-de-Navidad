@@ -24,17 +24,20 @@
     try { await setDoc(doc(db, 'games', g.id, 'emotes', me()), d); } catch (e) { toast(gErr(e)); }
   }
   // botoncito de reaccionar: va junto a «¡Te toca!» / el estado de la jugada, donde se mira durante el juego
-  const emoChip = g => g?.players?.includes(me()) && (g.status === 'playing' || g.status === 'done') ? `<button type="button" class="emo-chip" data-gact="emo" data-n="${G.chatUnread || ''}" aria-label="Chat y reacciones">💬</button>` : '';
+  const emoChip = g => g?.players?.includes(me()) && (g.status === 'playing' || g.status === 'done') ? '<button type="button" class="emo-chip" data-gact="emo" aria-label="Reacciones rápidas">😄</button>' : '';
   /* ----- 💬 chat de la mesa: privado de esta sala (jugadores y quien esté mirando); se borra con la mesa ----- */
-  const chatOpen = () => !!document.querySelector('#sheet .gc-list') && !!document.getElementById('modal')?.classList.contains('on');
+  // Dos cosas separadas y pequeñas, para que la mesa se siga viendo:
+  //   😄 bandeja de reacciones rápidas (flota encima del botón y se cierra al usarla)
+  //   💬 chat de la mesa (panel bajito abajo, sin tapar el juego; la mesa sigue tocable)
+  const chatOpen = () => !!document.getElementById('gchat-panel');
   const chatRow = m => `<div class="gc-m ${m.uid === me() ? 'me' : ''}"><small>${esc(m.uid === me() ? 'Tú' : String(seatName(m.uid)))}</small><span>${esc(m.t)}</span></div>`;
   function paintChat() {
-    const l = document.querySelector('#sheet .gc-list'); if (!l) return;
+    const l = document.querySelector('#gchat-panel .gc-list'); if (!l) return;
     const near = l.scrollHeight - l.scrollTop - l.clientHeight < 60;
     l.innerHTML = G.chat.length ? G.chat.map(chatRow).join('') : '<p class="gc-empty">Nadie ha escrito todavía. ¡Rompe el hielo! 😏</p>';
     if (near) l.scrollTop = l.scrollHeight;
   }
-  function chatBadge() { document.querySelectorAll('[data-gact="emo"]').forEach(b => { b.dataset.n = G.chatUnread > 9 ? '9+' : G.chatUnread || ''; }); }
+  function chatBadge() { document.querySelectorAll('[data-gact="chat"]').forEach(b => { b.dataset.n = G.chatUnread > 9 ? '9+' : G.chatUnread || ''; }); }
   async function sendChat(txt) {
     const g = G.cur; txt = String(txt || '').trim().slice(0, 200); if (!g || !txt) return;
     if (Date.now() - (G.chatT || 0) < 900) return; G.chatT = Date.now();
@@ -42,21 +45,32 @@
     if (isLoc(g.id)) { G.chat = [...G.chat, { id: 'l' + m.ts, ...m }].slice(-40); paintChat(); return; } // contra 🤖 se queda en tu teléfono
     try { const k = RT.push(rr('gchat/' + g.id)).key; await rUpdate({ [`gchat/${g.id}/${k}`]: m }); } catch (e) { toast(gErr(e)); }
   }
-  function emotePicker() {
-    const g = G.cur, seated = g?.players?.includes(me());
+  function closeChat() { const p = document.getElementById('gchat-panel'); if (!p) return; p.classList.add('out'); setTimeout(() => p.remove(), 200); }
+  function openChat() {
+    if (chatOpen()) return closeChat(); closeTray();
     G.chatUnread = 0; chatBadge();
-    const s2 = openModal(`<h3>💬 Chat de la mesa</h3><p class="muted small" style="margin-top:2px">Solo lo ve quien está en esta mesa · se borra al cerrarla</p>
-      <div class="gc-list"></div>
-      <form class="gc-form"><input class="in" maxlength="200" placeholder="Escribe algo… 😏" autocomplete="off" enterkeyhint="send"><button class="btn gold" type="submit" aria-label="Enviar">➤</button></form>
-      ${seated ? `<div class="emo-grid">${EMOTES.slice(0, 8).map((e, k) => `<button type="button" data-emo="${k}">${e}</button>`).join('')}</div>
-      <div class="emo-phr">${EMOTES.slice(8).map((e, k) => `<button type="button" data-emo="${k + 8}">${esc(e)}</button>`).join('')}</div>` : ''}`);
-    paintChat();
-    const f = s2.querySelector('.gc-form');
-    f.onsubmit = e => { e.preventDefault(); const i = f.querySelector('input'); sendChat(i.value); i.value = ''; i.focus(); };
-    s2.onclick = e => { const b = e.target.closest('[data-emo]'); if (!b) return; closeModal(); sendEmote(+b.dataset.emo); };
+    const p = document.createElement('div'); p.id = 'gchat-panel';
+    p.innerHTML = `<div class="gcp-h"><b>💬 Chat de la mesa</b><small>solo esta sala</small><button type="button" class="gcp-x" aria-label="Cerrar chat">✕</button></div><div class="gc-list"></div>
+      <form class="gc-form"><input class="in" maxlength="200" placeholder="Escribe algo… 😏" autocomplete="off" enterkeyhint="send"><button class="btn gold" type="submit" aria-label="Enviar">➤</button></form>`;
+    document.body.appendChild(p); paintChat();
+    const f = p.querySelector('.gc-form');
+    f.onsubmit = e => { e.preventDefault(); const i = f.querySelector('input'); sendChat(i.value); i.value = ''; };
+    p.querySelector('.gcp-x').onclick = closeChat;
+  }
+  function closeTray() { document.getElementById('gq-tray')?.remove(); }
+  function emotePicker(anchor) {
+    if (document.getElementById('gq-tray')) return closeTray();
+    const g = G.cur; if (!g?.players?.includes(me())) return toast('Solo los que están en la mesa pueden reaccionar');
+    const t = document.createElement('div'); t.id = 'gq-tray';
+    t.innerHTML = `<div class="gqt-e">${EMOTES.slice(0, 8).map((e, k) => `<button type="button" data-emo="${k}">${e}</button>`).join('')}</div>
+      <div class="gqt-p">${EMOTES.slice(8).map((e, k) => `<button type="button" data-emo="${k + 8}">${esc(e)}</button>`).join('')}</div>`;
+    document.body.appendChild(t);
+    const r = anchor?.getBoundingClientRect?.(); if (r) { t.style.bottom = Math.max(8, innerHeight - r.top + 8) + 'px'; }
+    t.onclick = e => { const b = e.target.closest('[data-emo]'); if (!b) return; closeTray(); sendEmote(+b.dataset.emo); };
+    setTimeout(() => document.addEventListener('pointerdown', function off(ev) { if (!ev.target.closest('#gq-tray,[data-gact="emo"]')) { closeTray(); document.removeEventListener('pointerdown', off, true); } }, true), 0);
   }
   function closeGame() {
-    G.subEmo?.(); G.subEmo = null; G.subChat?.(); G.subChat = null; G.subQ?.(); G.subQ = null; G.queue = []; G.chat = []; G.chatIds = null; G.chatUnread = 0;
+    closeChat(); closeTray(); G.subEmo?.(); G.subEmo = null; G.subChat?.(); G.subChat = null; G.subQ?.(); G.subQ = null; G.queue = []; G.chat = []; G.chatIds = null; G.chatUnread = 0;
     [G.sub, G.subHand, ...Object.values(G.subBots)].forEach(u => u && u()); clearTimeout(G.botT); clearTimeout(G.clockT); clearTimeout(G.dogT); clearTimeout(G.nextT);
     Object.assign(G, { sub: null, subHand: null, subBots: {}, cur: null, hand: [], botHands: {}, turnKey: '', srv: null, srvHand: [], srvBots: {}, pend: 0, okSeq: 0 });
   }
@@ -98,7 +112,7 @@
     G.passT = setTimeout(() => {
       const c = G.cur; if (!live(c) || c.players[c.turn] !== me() || `${c.id}:${c.hand}:${c.turn}:${c.seq}` !== key) return;
       if (playable(G.hand, c.chain || [], c.mustOpen).length) return;
-      toast('🙅 No llevas ficha: pasas'); playDomino(me(), null);
+      playDomino(me(), null); // sin cartel que tape la mesa: el «No llevas · pasando…» ya se ve en tu atril
     }, 1500);
   }
   // Alguien no está (se le fue el internet o salió): en X y O y 4 en línea juega un 🤖 por esa persona; en los demás se salta su turno

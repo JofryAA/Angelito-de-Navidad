@@ -16,7 +16,8 @@
     if (a === 'lobby') return rematch();
     if (a === 'del') return del();
     if (a === 'pass') return playDomino(me(), null);
-    if (a === 'emo') return emotePicker();
+    if (a === 'emo') return emotePicker(e.target.closest('[data-gact]'));
+    if (a === 'chat') return openChat();
     if (a === 'queue' || a === 'unqueue') return setQueue(a === 'queue');
     if (a === 'peek') { G.peek = G.peek === G.cur?.seq ? -1 : G.cur?.seq; return renderView(); }
     if (a === 'snd') {

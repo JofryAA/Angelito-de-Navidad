@@ -1269,3 +1269,43 @@ body.touring #helper{display:none!important}
 .tn-champ span{font-size:46px;animation:pqIc 1.6s ease-in-out infinite}.tn-champ b{font-size:1.2rem;color:#ffe2a3}.tn-champ small{color:rgba(255,255,255,.7)}
 .cdmsg{margin:10px auto 0;max-width:340px;text-align:center;font-size:.86rem;font-weight:600;color:#ffe2a3;padding:7px 14px;border-radius:999px;background:rgba(0,0,0,.25);border:1px solid rgba(255,215,110,.25)}
 .cdmsg.in{animation:fade .5s}
+/* ---- v2.1: menos espacio, la mesa siempre visible ---- */
+/* placa del resultado: más pequeña; se puede achicar tocándola */
+#v-juegos .pq{min-width:0;max-width:min(70%,250px);padding:7px 12px 8px;gap:1px;border-radius:16px;background:rgba(6,30,19,.78);cursor:pointer;transition:transform .35s cubic-bezier(.2,1.2,.4,1),top .35s,padding .25s,opacity .25s}
+#v-juegos .pq-ic{font-size:18px}#v-juegos .pq-h{font-size:.98rem}#v-juegos .pq-pts{font-size:.78rem}#v-juegos .pq-pts b{font-size:.88rem}
+#v-juegos .pq-rule{font-size:.64rem}#v-juegos .pq-cmp{font-size:.74rem;gap:4px}#v-juegos .pq-cmp span{padding:2px 7px}
+#v-juegos .pq-next{white-space:nowrap;padding:6px 14px;font-size:.78rem;margin-top:5px}#v-juegos .pq-sub{font-size:.62rem}
+#v-juegos .pq.mini{top:12px;transform:translate(-50%,0);flex-direction:row;gap:6px;padding:4px 10px;border-radius:999px}
+#v-juegos .pq.mini>:not(.pq-ic):not(.pq-h){display:none}#v-juegos .pq.mini .pq-ic{font-size:14px;animation:none}#v-juegos .pq.mini .pq-h{font-size:.8rem}
+#v-juegos .pq.mini::after{content:'▾';font-size:.7rem;opacity:.7}
+#v-juegos .mesa.ended .snake{opacity:.55!important}
+/* el pasador de latón solo en las fichas grandes (en la mesa tapaba los puntos) */
+#v-juegos .dmn:not(.big) b::after{display:none}
+/* asiento: la barra del reloj ya no tapa «N fichas» */
+#v-juegos .seat{padding-bottom:14px!important}#v-juegos .seat .tbar{bottom:5px;height:4px}
+/* título de la mesa en una sola línea */
+#v-juegos .ghead h2,#v-juegos .ghead .gtitle,#v-juegos .ghead b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+/* 😄 bandeja de reacciones rápidas: flotante y pequeña */
+#gq-tray{position:fixed;left:50%;transform:translateX(-50%);bottom:180px;z-index:90;width:min(94vw,420px);padding:8px;border-radius:18px;background:rgba(12,26,19,.94);border:1px solid rgba(236,188,92,.35);box-shadow:0 14px 34px rgba(0,0,0,.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);animation:pqIn2 .22s ease-out}
+.gqt-e{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.gqt-e button{height:40px;border-radius:12px;font-size:22px;background:rgba(255,255,255,.06);border:0}
+.gqt-p{display:flex;gap:6px;overflow-x:auto;margin-top:6px;padding-bottom:2px;scrollbar-width:none}.gqt-p::-webkit-scrollbar{display:none}
+.gqt-p button{flex:none;padding:7px 11px;border-radius:999px;background:rgba(236,188,92,.14);border:1px solid rgba(236,188,92,.3);color:#ffe2a6;font-weight:700;font-size:.78rem;white-space:nowrap}
+.gqt-e button:active,.gqt-p button:active{transform:scale(.92)}
+/* 💬 chat de la mesa: panel bajito, la mesa queda arriba visible y tocable */
+#gchat-panel{position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:90;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:6px;padding:8px 10px 10px;border-radius:18px;
+  background:rgba(10,24,17,.9);border:1px solid rgba(255,255,255,.1);box-shadow:0 -8px 30px rgba(0,0,0,.5);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);animation:gcpIn .22s ease-out}
+#gchat-panel.out{opacity:0;transform:translateY(20px);transition:.2s}
+.gcp-h{display:flex;align-items:center;gap:8px}.gcp-h b{font-size:.86rem}.gcp-h small{flex:1;color:rgba(255,255,255,.5);font-size:.7rem}
+.gcp-x{width:28px;height:28px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:inherit;font-weight:800}
+#gchat-panel .gc-list{max-height:min(26vh,190px);margin:0;padding:6px;gap:4px}
+#gchat-panel .gc-m{padding:5px 9px 6px;font-size:.85rem}#gchat-panel .gc-empty{margin:8px 0;font-size:.78rem}
+#gchat-panel .gc-form .in{padding:9px 12px;font-size:.9rem}#gchat-panel .gc-form .btn{width:42px;height:40px}
+@keyframes pqIn2{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes gcpIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+#v-juegos .ghead>b{flex:1 1 0;font-size:1.02rem;text-align:center}
+/* el chat arriba (sobre marcador y asientos): tus fichas y la mesa quedan libres */
+#gchat-panel{top:calc(64px + env(safe-area-inset-top));bottom:auto;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:gcpInT .22s ease-out}
+#gchat-panel .gc-list{max-height:min(22vh,160px)}
+#gchat-panel.out{transform:translateY(-20px)}
+@keyframes gcpInT{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:none}}
