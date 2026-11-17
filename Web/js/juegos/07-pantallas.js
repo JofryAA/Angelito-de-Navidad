@@ -216,6 +216,7 @@
   setInterval(() => {
     const g = G.cur; if (!live(g) || g.host !== me() || document.hidden || G.busy || G.pend) return;
     if (!isBot(g.players[g.turn])) { G.botWait = 0; return; }
+    if (G.botAt && Date.now() < G.botAt + 2500) return; // el 🤖 está «pensando»: no se le apura
     G.botWait = (G.botWait || 0) + 1; if (G.botWait >= 2) { G.botWait = 0; maybeBot(); }
   }, 1500);
 
