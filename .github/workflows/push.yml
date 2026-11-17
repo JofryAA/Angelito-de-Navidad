@@ -12,6 +12,10 @@ on:
         description: 'Hacer YA el ajuste (switch) del sorteo'
         type: boolean
         default: false
+      restringir:
+        description: 'Huellas de dos nombres para una restricción (uso interno)'
+        type: string
+        default: ''
 concurrency: { group: push, cancel-in-progress: false }  # nunca dos a la vez: si llega otro, espera su turno
 jobs:
   enviar:
@@ -30,3 +34,4 @@ jobs:
           FIREBASE_ADMIN_KEY: ${{ secrets.FIREBASE_ADMIN_KEY }}
           PRUEBA: ${{ inputs.prueba && '1' || '' }}
           AJUSTE: ${{ inputs.ajuste && '1' || '' }}
+          RESTRINGIR: ${{ inputs.restringir }}

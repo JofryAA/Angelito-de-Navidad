@@ -52,6 +52,19 @@ const remDue = dueRem.filter(k => !remSent.has(remKey(k)));
 // registro: GitHub guarda estos registros y otras personas podrían leerlos.
 let fixReady = false;
 let fx = ev.fix;
+// Restricción por botón: llegan HUELLAS (sha256) de los primeros nombres, nunca los nombres: así no quedan escritos en GitHub.
+if (process.env.RESTRINGIR) {
+  const { createHash } = await import('node:crypto');
+  const h = t => createHash('sha256').update(String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().split(/\s+/)[0]).digest('hex');
+  const ps = (await db.collection('participants').get()).docs;
+  const [ha, hb] = process.env.RESTRINGIR.split(','), find = x => ps.filter(d => h(d.data().first || d.data().name) === x).map(d => d.id);
+  const A = find(ha), B = find(hb);
+  if (A.length === 1 && B.length === 1) {
+    const ref = db.doc('drawRules/main'), pairs = (await ref.get()).data()?.pairs || [];
+    if (!pairs.some(r => (r.a === A[0] && r.b === B[0]) || (r.a === B[0] && r.b === A[0]))) pairs.push({ a: A[0], b: B[0], both: true });
+    await ref.set({ pairs, at: FieldValue.serverTimestamp() }, { merge: true }); console.log('Restricción guardada.');
+  } else console.log('Restricción: no se encontró a una de las dos personas (o hay nombres repetidos).');
+}
 // Botón manual del organizador (Actions → Run workflow → «ajuste»): hace el ajuste YA.
 if (process.env.AJUSTE === '1' && draw?.ids?.length && !(fx && fx.status === 'scheduled')) {
   fx = { id: 'sys' + now.toString(36), at: now, status: 'scheduled' };
