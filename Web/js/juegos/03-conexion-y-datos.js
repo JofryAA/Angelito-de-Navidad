@@ -95,7 +95,7 @@ export function initGames(X) {
   // En espera o jugando: 45 min sin jugadas. Terminadas: 2 horas (da tiempo a que los ganadores sumen sus puntos).
   // ⏱️ Mesas que se cierran solas (las mismas horas las aplica el servidor y las exigen las reglas):
   //    sala de espera 20 min sin movimiento · partida a medias 2 h sin jugadas · terminada 10 min · sin nadie sentado: al momento
-  const STALE_LOBBY = 20 * 60e3, STALE_LIVE = 2 * 3600e3, STALE_DONE = 10 * 60e3;
+  const STALE_LOBBY = 20 * 60e3, STALE_LIVE = 2 * 3600e3, STALE_DONE = 20 * 60e3; // terminadas: el servidor las cierra a los 10 min y antes anota victorias pendientes
   const isStale = g => !(g.players || []).length || Date.now() - (g.updatedAt || 0) > (g.status === 'done' ? STALE_DONE : g.status === 'lobby' ? STALE_LOBBY : STALE_LIVE);
   let cleaning = false;
   async function cleanupStale() {

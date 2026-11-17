@@ -79,7 +79,7 @@
       ".read": "auth != null && auth.token.email == 'admin@angelito.app'",
       "$id": {
         ".write": "auth != null && !data.exists()",
-        ".validate": "newData.child('m').isString() && newData.child('m').val().length <= 300 && newData.child('s').isString() && newData.child('s').val().length <= 160 && newData.child('v').isString() && newData.child('v').val().length <= 40 && newData.child('p').isString() && newData.child('p').val().length <= 30 && newData.child('ts').isNumber() && newData.child('ts').val() <= now + 600000"
+        ".validate": "newData.child('m').isString() && newData.child('m').val().length <= 300 && newData.child('s').isString() && newData.child('s').val().length <= 160 && newData.child('v').isString() && newData.child('v').val().length <= 40 && newData.child('p').isString() && newData.child('p').val().length <= 30 && newData.child('ts').isNumber() && newData.child('ts').val() <= now + 600000 && newData.child('ts').val() > now - 600000"
       },
       ".indexOn": [
         "ts"
@@ -91,7 +91,7 @@
         ".write": "auth != null && !newData.exists() && !newData.parent().parent().child('games/'+$gid).exists()",
         "$uid": {
           ".write": "auth != null && root.child('members/'+auth.uid).val() == true && ((auth.uid == $uid && (!newData.exists() || root.child('games/'+$gid+'/host').exists())) || (!newData.exists() && (root.child('games/'+$gid+'/host').val() == auth.uid || root.child('games/'+$gid+'/players/0').val() == auth.uid || root.child('games/'+$gid+'/players/1').val() == auth.uid || root.child('games/'+$gid+'/players/2').val() == auth.uid || root.child('games/'+$gid+'/players/3').val() == auth.uid || root.child('games/'+$gid+'/players/4').val() == auth.uid || root.child('games/'+$gid+'/players/5').val() == auth.uid)))",
-          ".validate": "newData.isNumber()"
+          ".validate": "newData.isNumber() && newData.val() > now - 600000 && newData.val() < now + 60000"
         }
       }
     },
@@ -108,7 +108,7 @@
         "$r": {
           "$i": {
             "gid": {
-              ".write": "auth != null && root.child('members/'+auth.uid).val() == true && !data.exists() && newData.isString() && (data.parent().child('t/0/0').val() == auth.uid || data.parent().child('t/0/1').val() == auth.uid || data.parent().child('t/1/0').val() == auth.uid || data.parent().child('t/1/1').val() == auth.uid)"
+              ".write": "auth != null && root.child('members/'+auth.uid).val() == true && !data.exists() && !data.parent().child('w').exists() && newData.isString() && (data.parent().child('t/0/0').val() == auth.uid || data.parent().child('t/0/1').val() == auth.uid || data.parent().child('t/1/0').val() == auth.uid || data.parent().child('t/1/1').val() == auth.uid)"
             }
           }
         }

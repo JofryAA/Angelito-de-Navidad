@@ -83,7 +83,7 @@ export const SND = (() => {
     if (!pref.v || typeof speechSynthesis === 'undefined' || !text) return;
     try {
       voice ||= pickVoice(); const u = new SpeechSynthesisUtterance(text); u.lang = voice?.lang || 'es-US'; if (voice) u.voice = voice; u.rate = 1.05; u.pitch = 1.05; u.volume = 1;
-      if (musicBus && ctx) { musicBus.gain.setTargetAtTime(mv() * .3, ctx.currentTime, .05); u.onend = () => musicBus.gain.setTargetAtTime(mv(), ctx.currentTime, .2); }
+      if (musicBus && ctx) { musicBus.gain.setTargetAtTime(mv() * .3, ctx.currentTime, .05); u.onend = u.onerror = () => musicBus.gain.setTargetAtTime(mv(), ctx.currentTime, .2); }
       speechSynthesis.cancel(); speechSynthesis.speak(u);
     } catch { }
   }

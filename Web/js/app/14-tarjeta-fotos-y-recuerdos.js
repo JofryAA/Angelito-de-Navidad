@@ -194,8 +194,8 @@ async function saveMemories() {
   const qz = S.activities.find(a => a.kind === 'quiz' && a.resultsOpen && a.results?.[0]?.count), tw = qz ? [qz.results[0].key, qz.results[0].count] : null;
   const rc = {}; chat.forEach(m => { rc[m.id] = Object.keys(m.r || {}).length; });
   const topChat = chat.filter(m => rc[m.id]).sort((a, b) => rc[b.id] - rc[a.id]).slice(0, 3).map(m => ({ text: m.text.slice(0, 200), who: nm(m.uid), n: rc[m.id] }));
-  const vc = {}; sv.forEach(v => vc[v.sug] = (vc[v.sug] || 0) + 1);
-  const topSugs = sugs.filter(x => vc[x.id]).sort((a, b) => vc[b.id] - vc[a.id]).slice(0, 3).map(x => ({ text: x.text.slice(0, 200), n: vc[x.id] }));
+  const vc = {}; sv.forEach(v => vc[v.sug] = (vc[v.sug] || 0) + ((v.v ?? 1) > 0 ? 1 : -1)); // 👎 resta
+  const topSugs = sugs.filter(x => vc[x.id] > 0).sort((a, b) => vc[b.id] - vc[a.id]).slice(0, 3).map(x => ({ text: x.text.slice(0, 200), n: vc[x.id] }));
   const mem = { year, eventName: c.eventName || 'Angelito', date: c.eventDate || '', place: c.place || '', people: S.participants.map(p => ({ name: p.name, emoji: p.emoji })),
     pairs, votes, guessWinner: c.guessWinner ? nm(c.guessWinner) : '', triviaWinner: tw ? { name: nm(tw[0]), n: tw[1] } : null, topChat, topSugs,
     stats: { participants: S.participants.length, wishes: wishes.length, chat: chat.length, suggestions: sugs.length, questions: S.qCount, photos: photos.length },

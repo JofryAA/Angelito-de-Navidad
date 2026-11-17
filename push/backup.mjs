@@ -16,6 +16,7 @@ const dec = (v, db) => Array.isArray(v) ? v.map(x => dec(x, db)) : v && typeof v
 export async function nightlyBackup({ db, rdb, sa, st, stateRef, now, force = false }) {
   const loc = new Date(now - 4 * 3600e3), day = loc.toISOString().slice(0, 10);
   if (!force && (loc.getUTCHours() !== 3 || st.bkDay === day)) return;
+  await stateRef.set({ bkDay: day }, { merge: true }); // se marca ANTES: si falla, no se reintenta cada 2 minutos (gastaría la cuota)
   const dump = {}; let n = 0;
   for (const col of await db.listCollections()) {
     if (SKIP.has(col.id)) continue;
@@ -23,8 +24,9 @@ export async function nightlyBackup({ db, rdb, sa, st, stateRef, now, force = fa
   }
   const iv = randomBytes(12), c = createCipheriv('aes-256-gcm', keyOf(sa), iv);
   const data = Buffer.concat([c.update(gzipSync(Buffer.from(JSON.stringify(dump)))), c.final()]);
+  if (data.length > 7e6) { console.log(`Copia de seguridad: demasiado grande (${Math.round(data.length / 1e6)} MB), no se guardó.`); return; }
   await rdb.ref('backups/' + day).set({ iv: iv.toString('base64'), tag: c.getAuthTag().toString('base64'), data: data.toString('base64'), n, at: now });
-  const all = Object.keys((await rdb.ref('backups').orderByKey().get()).val() || {}).sort();
+  const all = Object.keys((await rdb.ref('backups').orderByChild('at').limitToFirst(20).get()).val() || {}).sort(); // (igual baja las copias; son pocas)
   if (all.length > 7) await rdb.ref('backups').update(Object.fromEntries(all.slice(0, all.length - 7).map(k => [k, null])));
   await stateRef.set({ bkDay: day }, { merge: true });
   console.log(`Copia de seguridad guardada (${n} registros, ${Math.round(data.length / 1024)} KB).`);

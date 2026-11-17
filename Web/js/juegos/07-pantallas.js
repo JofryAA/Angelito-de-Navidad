@@ -149,7 +149,7 @@
   }
   // Al terminar: cualquiera de la mesa pide otra partida (sale quien ganó); quien la creó puede además cambiar jugadores.
   function againHTML(g, label) {
-    if (g.status !== 'done' || !label) return '';
+    if (g.status !== 'done' || !label || g.tm) return ''; // partido de torneo: el resultado es definitivo
     if (!g.players.includes(me()) && g.host !== me()) return '';
     const waiting = g.type === 'domino' && g.want === 'again' && g.host !== me();
     return `<div class="qa" style="justify-content:center"><button class="btn gold" data-gact="again" ${waiting ? 'disabled' : ''}>${waiting ? 'Repartiendo…' : label}</button>${g.host === me() ? '<button class="btn" data-gact="lobby">👥 Cambiar jugadores</button>' : ''}</div>`;

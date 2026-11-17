@@ -72,7 +72,7 @@
   });
 
   return { render: renderView, stop, leaveView: () => {
-    SND.music(null); const g = G.cur; if (g && !(g.status === 'playing' && Array.isArray(g.players) && g.players.includes(me()))) closeGame();
+    SND.music(null); closeChat(); closeTray(); const g = G.cur; if (g && !(g.status === 'playing' && Array.isArray(g.players) && g.players.includes(me()))) closeGame();
     // 💸 cuota: fuera de Juegos la lista de mesas se suelta (cada jugada de cualquiera costaba una lectura a todos),
     // salvo que estés en una partida en curso (para el aviso de «te toca»).
     clearTimeout(G.offT2); G.offT2 = setTimeout(() => {

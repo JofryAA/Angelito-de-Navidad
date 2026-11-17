@@ -63,8 +63,7 @@
         const id = RT.push(rr('games')).key, now = Date.now();
         const base = { type: 'domino', host: me(), players: [me()], status: 'lobby', createdAt: now, updatedAt: now, seq: 0, mode: T.mode === 'parejas' ? 'parejas' : 'solo', max: T.mode === 'parejas' ? 4 : 2,
           target: T.target || 100, scores: T.mode === 'parejas' ? [0, 0] : [], title: `🏆 ${(T.title || 'Torneo').slice(0, 40)} · partido`, tm: { tid: T.id, r: mm.r, i: mm.i, order } };
-        await rUpdate({ ['games/' + id]: base });
-        await tUpd({ [`rounds/${mm.r}/${mm.i}/gid`]: id });
+        await rUpdate({ ['games/' + id]: base, [`tourn/rounds/${mm.r}/${mm.i}/gid`]: id }); // las dos cosas juntas: si otro ya creó la mesa, no queda una huérfana
         for (const u of order) if (u !== me()) rUpdate({ [`invites/${u}/${id}_${me()}`]: { from: me(), game: id, type: 'domino', title: 'tu partido del torneo 🏆', ts: Date.now() } }).catch(() => { });
         location.hash = 'juego-' + id;
       }

@@ -91,7 +91,7 @@ try {
       if (!m.t?.[1]) { m.w = 0; U[`rounds/${r}/${i}/w`] = 0; continue; }
       if (!m.gid) continue;
       const g = (await rdb.ref('games/' + m.gid).get()).val();
-      if (!g) { U[`rounds/${r}/${i}/gid`] = null; continue; } // la mesa se cerró sin terminar: se puede volver a jugar
+      if (!g || g.type !== 'domino' || g.tm?.tid !== T.id || g.tm?.r !== r || g.tm?.i !== i) { U[`rounds/${r}/${i}/gid`] = null; continue; } // mesa cerrada o que no es de este partido: se vuelve a jugar
       const wins = Array.isArray(g.winners) ? g.winners : Object.values(g.winners || {});
       if (g.status === 'done' && wins.length) { const k = (m.t[0] || []).includes(wins[0]) ? 0 : (m.t[1] || []).includes(wins[0]) ? 1 : -1; if (k >= 0) { m.w = k; U[`rounds/${r}/${i}/w`] = k; } }
     }
@@ -99,9 +99,12 @@ try {
     if (last.length && last.every(m => m?.w != null)) {
       const adv = last.map(m => m.t[m.w]);
       if (adv.length === 1) { U.status = 'done'; U.champ = adv[0]; U.end = now; }
-      else { const nr = []; for (let i = 0; i < adv.length; i += 2) nr.push(adv[i + 1] ? { t: [adv[i], adv[i + 1]] } : { t: [adv[i], null], w: 0 }); U[`rounds/${rs.length}`] = nr; }
+      else {
+        // si sobra uno, pasa directo alguien que NO haya pasado directo antes (antes siempre le tocaba al último)
+        if (adv.length % 2) { const had = t => rs.some(rd => (rd || []).some(m => m && !m.t?.[1] && JSON.stringify(m.t[0]) === JSON.stringify(t))); const k = [...adv.keys()].reverse().find(j => !had(adv[j])) ?? adv.length - 1; adv.push(adv.splice(k, 1)[0]); }
+        const nr = []; for (let i = 0; i < adv.length; i += 2) nr.push(adv[i + 1] ? { t: [adv[i], adv[i + 1]] } : { t: [adv[i], null], w: 0 }); U[`rounds/${rs.length}`] = nr; }
     }
-    if (Object.keys(U).length) { await tr.update(U); console.log('Torneo actualizado.'); }
+    if (Object.keys(U).length) { const still = (await tr.child('by').get()).val(); if (still) { await tr.update(U); console.log('Torneo actualizado.'); } } // si lo cancelaron justo ahora, no se revive
   }
 } catch (e) { console.log('Torneo: no se pudo revisar.'); }
 // 🧹 Mesas de juego abandonadas: las cierra el servidor (aunque nadie abra la app). A los ganadores que aún no

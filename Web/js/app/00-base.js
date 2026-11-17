@@ -5,7 +5,7 @@ const APP_VERSION = '2026.11.13-114418';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, deleteUser, updatePassword, reauthenticateWithCredential, EmailAuthProvider, setPersistence, browserSessionPersistence, inMemoryPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { initGames, tileHTML } from './juegos.js';
-import { getDatabase, ref as rtRef, onValue as rtOnValue, update as rtUpdate, get as rtGet, push as rtPush, query as rtQuery, orderByChild as rtOrderByChild, limitToLast as rtLimitToLast } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+import { getDatabase, ref as rtRef, onValue as rtOnValue, update as rtUpdate, get as rtGet, push as rtPush, query as rtQuery, orderByChild as rtOrderByChild, limitToLast as rtLimitToLast, onDisconnect as rtOnDisconnect } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 import { decoratePanel, navHTML, pic, fillPics } from './panel.js';
 import { runTransaction, deleteField, terminate, clearIndexedDbPersistence, getFirestore, getDocsFromServer, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc as fsSetDoc, getDoc, getDocs, onSnapshot, query, where, orderBy, limit, writeBatch as fsWriteBatch, increment, serverTimestamp, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 

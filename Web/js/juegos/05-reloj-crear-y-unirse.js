@@ -74,7 +74,7 @@
         }
       });
   }
-  const join = () => tx((t, g) => { if (g.status !== 'lobby') throw new Error('La partida ya empezó'); if (g.players.includes(me())) return; if (g.players.length >= g.max) throw new Error('La mesa está llena'); upd(t, g, { players: [...g.players, me()] }); });
+  const join = () => tx((t, g) => { if (g.status !== 'lobby') throw new Error('La partida ya empezó'); if (g.tm && !(g.tm.order || []).includes(me())) throw new Error('Esta mesa es de un partido del torneo'); if (g.players.includes(me())) return; if (g.players.length >= g.max) throw new Error('La mesa está llena'); upd(t, g, { players: [...g.players, me()] }); });
   const leave = () => tx((t, g) => { if (g.status !== 'lobby') throw new Error('Ya empezó'); upd(t, g, { players: g.players.filter(s => s !== me()) }); }).then(() => { location.hash = 'juegos'; });
   const addBot = () => tx((t, g) => { if (g.host !== me() || g.status !== 'lobby' || g.players.length >= g.max) return; const b = ['bot1', 'bot2', 'bot3'].find(x => !g.players.includes(x)); if (b) upd(t, g, { players: [...g.players, b] }); });
   const kick = s => tx((t, g) => { if (g.host !== me() || g.status !== 'lobby') return; upd(t, g, { players: g.players.filter(x => x !== s) }); });
@@ -157,7 +157,7 @@
     const g = G.cur; if (g.host !== me() || G.starting) return; G.starting = true; setTimeout(() => { G.starting = false; }, 2000);
     if (g.type === 'domino') {
       let players = g.players.slice();
-      if (g.tm && Array.isArray(g.tm.order) && g.tm.order.every(u => players.includes(u))) players = g.tm.order.slice(); // torneo: cada pareja en asientos alternos
+      if (g.tm) { const ord = Array.isArray(g.tm.order) ? g.tm.order : []; if (!ord.every(u => players.includes(u))) { G.starting = false; return toast('🏆 Faltan jugadores del partido: espera a que entren todos'); } players = ord.slice(); } // torneo: nadie juega contra 🤖, cada pareja en asientos alternos
       if (g.mode === 'parejas') { while (players.length < 4) players.push(['bot1', 'bot2', 'bot3'].find(x => !players.includes(x))); }
       if (players.length < 2) { players.push('bot1'); }
       if (isLoc(g.id)) while (players.length < (g.max || 4)) players.push(['bot1', 'bot2', 'bot3'].find(x => !players.includes(x)));
@@ -185,7 +185,7 @@
   }
   // "Otra partida": arranca de una vez con los mismos jugadores y sale quien ganó.
   async function again() {
-    let g = G.cur; if (!g || g.status !== 'done' || (!g.players.includes(me()) && g.host !== me()) || G.starting) return;
+    let g = G.cur; if (!g || g.tm || g.status !== 'done' || (!g.players.includes(me()) && g.host !== me()) || G.starting) return;
     const wait = 2500 - (Date.now() - (g.updatedAt || 0)); // un respiro para que los ganadores anoten su victoria antes de limpiar la mesa
     if (wait > 0) { if (G.againWait) return; G.againWait = true; await sleep(Math.min(wait, 2500)); G.againWait = false; g = G.cur; if (!g || g.status !== 'done' || G.starting) return; }
     if (g.type === 'domino') {
@@ -208,14 +208,18 @@
   // de la fila (primero los 🤖). En parejas entran en el mismo asiento, así las parejas no se mezclan. Empate: nadie sale.
   function rotation(g) {
     const q = (G.queue || []).map(x => x.uid).filter(u => !g.players.includes(u) && X.P(u)); if (!q.length || isLoc(g.id)) return null;
-    const win = new Set(g.winners || []); if (!win.size && g.type !== 'domino') return null;
-    const out = g.players.map((s, i) => ({ s, i })).filter(x => !win.has(x.s)).sort((a, b) => isBot(b.s) - isBot(a.s));
+    if (g.tm || g.result?.why === 'empate') return null;
+    // quién ganó de verdad (los 🤖 también ganan): en dominó por equipo; en los demás, el asiento ganador
+    const wt = g.type === 'domino' ? g.result?.team : null;
+    const won = (s, i) => g.type === 'domino' ? (wt >= 0 && teamOf(g, i) === wt) : g.result?.seat != null ? s === g.result.seat || i === g.result.seat : (g.winners || []).includes(s);
+    if (g.type !== 'domino' && g.result?.seat == null && !(g.winners || []).length) return null;
+    const out = g.players.map((s, i) => ({ s, i })).filter(x => !won(x.s, x.i) && (x.s !== g.host || (g.type !== 'domino' && !g.players.some(isBot)))).sort((a, b) => isBot(b.s) - isBot(a.s)); // quien creó la mesa no sale si reparte (dominó) o mueve 🤖
     const players = g.players.slice(), used = [];
     for (const o of out) { if (!q.length) break; const u = q.shift(); players[o.i] = u; used.push(u); }
     return used.length ? { players, used } : null;
   }
   function queueHTML(g) {
-    if (isLoc(g.id) || g.status === 'lobby' && g.players.length < (g.max || 2)) return '';
+    if (isLoc(g.id) || g.tm || g.status === 'lobby' && g.players.length < (g.max || 2)) return '';
     const q = (G.queue || []).filter(x => !g.players.includes(x.uid) && X.P(x.uid)), inQ = q.some(x => x.uid === me()), seated = g.players.includes(me());
     const rot = g.status === 'done' ? rotation(g) : null;
     const who = s => s === me() ? 'ti' : seatName(s), gone = rot ? g.players.filter(s => !rot.players.includes(s)) : [];
@@ -227,16 +231,17 @@
   }
   async function setQueue(on) {
     const g = G.cur; if (!g || isLoc(g.id)) return;
-    try { await rUpdate({ [`queue/${g.id}/${me()}`]: on ? Date.now() : null }); toast(on ? '🙋 Estás en la fila: entras cuando alguien pierda' : 'Saliste de la fila'); } catch (e) { toast(gErr(e)); }
+    try { const qp = `queue/${g.id}/${me()}`; await rUpdate({ [qp]: on ? Date.now() : null }); try { const od = RT.onDisconnect?.(rr(qp)); on ? od?.remove() : od?.cancel(); } catch { } /* si se va, sale de la fila */ toast(on ? '🙋 Estás en la fila: entras cuando alguien pierda' : 'Saliste de la fila'); } catch (e) { toast(gErr(e)); }
   }
   // Volver a la sala para cambiar jugadores (solo quien creó la mesa).
   async function rematch() {
-    const g = G.cur; if (g.host !== me()) return;
+    const g = G.cur; if (g.host !== me() || g.tm) return;
     const human = g.players.filter(s => !isBot(s));
     await tx((t, gg) => upd(t, gg, { status: 'lobby', round: (gg.round || 0) + 1, want: null, players: gg.type === 'domino' && gg.mode === 'parejas' ? gg.players : human.concat(gg.players.filter(isBot)), winners: [], result: null, handOver: false, scores: gg.mode === 'parejas' ? [0, 0] : [], chain: [], hand: 0, board: gg.type === 'c4' ? C4EMPTY : '.........', guessed: '', errors: 0, lastCell: -1 }));
   }
   const askNext = () => tx((t, g) => { if (g.status === 'playing' && g.handOver && !g.want) upd(t, g, { want: 'next' }); });
   async function del() {
+    if (G.cur?.tm && G.cur.status === 'done') return toast('🏆 Espera un momento: el torneo está anotando el resultado');
     if (!(await confirmBox('¿Cerrar esta mesa?', 'Se borra la partida para todos.', 'Cerrar mesa'))) return;
     try { await dropGame(G.cur); location.hash = 'juegos'; } catch (e) { toast(gErr(e)); }
   }

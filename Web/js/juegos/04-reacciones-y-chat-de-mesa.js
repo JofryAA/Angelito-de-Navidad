@@ -7,7 +7,7 @@
   // Globito flotante sobre la mesa: lo usan las reacciones y los mensajes del chat de la mesa
   function bubble(seat, txt, big, ts) {
     const key = seat + ':' + ts + ':' + txt.length; G.emoSeen ||= new Set(); if (G.emoSeen.has(key) || Date.now() - ts > 9000) return; G.emoSeen.add(key);
-    const root = document.getElementById('g-root'); if (!root) return;
+    const root = document.getElementById('g-root'); if (!root || !document.getElementById('v-juegos')?.classList.contains('on')) return; // fuera de Juegos no salen globitos
     let box = document.getElementById('g-emos'); if (!box) { box = document.createElement('div'); box.id = 'g-emos'; document.body.appendChild(box); }
     const el = document.createElement('div');
     el.className = 'gemo' + (big ? ' big' : '') + (seat === me() ? ' mine' : '');
@@ -108,6 +108,7 @@
     setTimeout(() => document.addEventListener('pointerdown', function off(ev) { if (!ev.target.closest('#gq-tray,[data-gact="emo"]')) { closeTray(); document.removeEventListener('pointerdown', off, true); } }, true), 0);
   }
   function closeGame() {
+    { const g = G.cur; if (g && !isLoc(g.id) && !g.players?.includes(me()) && (G.queue || []).some(x => x.uid === me())) rUpdate({ [`queue/${g.id}/${me()}`]: null }).catch(() => { }); } // quien se va deja la fila
     closeChat(); closeTray(); G.subEmo?.(); G.subEmo = null; G.subChat?.(); G.subChat = null; G.subQ?.(); G.subQ = null; G.queue = []; G.chat = []; G.chatIds = null; G.chatUnread = 0;
     [G.sub, G.subHand, ...Object.values(G.subBots)].forEach(u => u && u()); clearTimeout(G.botT); clearTimeout(G.clockT); clearTimeout(G.dogT); clearTimeout(G.nextT);
     Object.assign(G, { sub: null, subHand: null, subBots: {}, cur: null, hand: [], botHands: {}, turnKey: '', srv: null, srvHand: [], srvBots: {}, pend: 0, okSeq: 0 });
