@@ -215,3 +215,11 @@ En Admin → *¿Qué crees que te van a regalar?* pones el premio. El día del i
 - Los recuerdos del año no incluyen las parejas hasta que hagas la gran revelación.
 - Nadie puede ver el estado del regalo de otro (así nadie puede cruzar datos para adivinar quién es su angelito).
 - Tú, como organizador, técnicamente podrías ver las parejas desde la consola de Firebase. La página no te las muestra.
+
+## 🧩 Cómo está organizado el código de la app
+
+El código principal está dividido por temas en `Web/js/app/` (ruleta, deseos, chat, panel del organizador, modo fiesta…).
+Los archivos llevan un número delante porque se unen en ese orden en `Web/js/app.js`, que es lo que carga la página.
+
+- Para cambiar algo, edita el archivo del tema en `Web/js/app/`.
+- `Web/js/app.js` se genera solo: GitHub lo arma antes de publicar. Para probar en tu computadora: `node tools/build-app.mjs`.

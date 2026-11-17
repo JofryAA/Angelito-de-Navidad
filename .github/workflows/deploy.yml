@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Armar app.js con las partes de Web/js/app/
+        run: node tools/build-app.mjs
       - name: Marcar versión (para que los teléfonos se actualicen solos)
         run: |
           V=$(date -u +%Y.%m.%d-%H%M%S)
