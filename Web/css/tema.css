@@ -1357,3 +1357,17 @@ body.logged .hero p.cdmsg:not([hidden]){display:block;margin:10px 0 0;max-width:
 .vote3 .vote2{min-height:48px;width:52px;border-radius:14px}
 .vote3 .vote2 .v-th{font-size:17px}.vote3 .vote2 b{font-size:.9rem}
 .vote2.nay.on{background:#7a2a2a;border-color:transparent;box-shadow:0 6px 14px rgba(122,42,42,.4)}
+/* 💬😄 botones flotantes de la mesa */
+.gfab{position:fixed;right:10px;top:46%;z-index:80;display:flex;flex-direction:column;gap:10px}
+.gfab-b{position:relative;width:46px;height:46px;border-radius:50%;font-size:22px;border:1px solid #6a5628;background:linear-gradient(180deg,#2c2410,#17130a);box-shadow:0 8px 20px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,236,190,.15);cursor:pointer}
+.gfab-b:active{transform:scale(.9)}
+.gfab-b[data-n]:not([data-n=""])::after{content:attr(data-n);position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#e5484d;color:#fff;font-size:.68rem;font-weight:800;line-height:18px;text-align:center;box-shadow:0 0 0 2px #0f2419;animation:pop .3s}
+#gq-tray{left:auto;right:64px;transform:none;width:min(80vw,360px);animation:gcpIn .2s ease-out}
+/* sonido */
+.snd-box{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.snd-r{padding:12px;border-radius:16px;background:#132e21;border:1px solid #24493a}
+.snd-t{display:flex;align-items:center;gap:10px}.snd-ic{font-size:24px}.snd-t b{display:block;font-size:.92rem}.snd-t small{color:var(--muted);font-size:.74rem}
+.snd-v{display:flex;align-items:center;gap:8px;margin-top:10px;transition:opacity .2s}.snd-v.off{opacity:.35;pointer-events:none}
+.snd-v input{flex:1;accent-color:#e3ae4b;height:28px}.snd-v b{min-width:30px;text-align:right;font-size:.82rem;color:#ffd77e}
+#v-juegos .pq-cmp span.w,#v-juegos .mt-side.win .mt-tag{background:#3ccf83;color:#06281a}
+#v-juegos .pq-cmp span:not(.w),#v-juegos .mt-tag{color:#e9f6ee}

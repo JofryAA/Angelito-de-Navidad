@@ -5,14 +5,17 @@ const BOT_NAMES = { bot1: '🤖 Robertico', bot2: '🤖 Chispita', bot3: '🤖 T
 /* ================= 🔊 sonido: música de fondo, efectos y voz (todo generado en el teléfono, sin archivos) ================= */
 export const SND = (() => {
   let ctx = null, master = null, musicBus = null, fxBus = null, seqT = 0, kind = null, step = 0, nextT = 0;
-  const pref = (() => { try { return { m: 1, f: 1, ...JSON.parse(localStorage.getItem('angelito:snd') || '{}') }; } catch { return { m: 1, f: 1 }; } })();
+  const pref = (() => { try { return { m: 1, f: 1, v: 1, vm: 70, vf: 90, ...JSON.parse(localStorage.getItem('angelito:snd') || '{}') }; } catch { return { m: 1, f: 1, v: 1, vm: 70, vf: 90 }; } })();
   const save = () => { try { localStorage.setItem('angelito:snd', JSON.stringify(pref)); } catch { } };
+  const mv = () => .22 * (pref.vm ?? 70) / 100, fv = () => 1.1 * (pref.vf ?? 90) / 100; // volumen de música y de efectos (0–100)
   function ac() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume().catch(() => { }); return ctx; }
     const C = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext); if (!C) return null;
-    ctx = new C(); master = ctx.createGain(); master.gain.value = .9; master.connect(ctx.destination);
-    musicBus = ctx.createGain(); musicBus.gain.value = .085; musicBus.connect(master);
-    fxBus = ctx.createGain(); fxBus.gain.value = .5; fxBus.connect(master);
+    // más fuerte sin que suene rajado: todo pasa por un compresor antes de la bocina
+    ctx = new C(); const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.knee.value = 12; comp.ratio.value = 5; comp.attack.value = .004; comp.release.value = .2;
+    master = ctx.createGain(); master.gain.value = 1.35; master.connect(comp); comp.connect(ctx.destination);
+    musicBus = ctx.createGain(); musicBus.gain.value = mv(); musicBus.connect(master);
+    fxBus = ctx.createGain(); fxBus.gain.value = fv(); fxBus.connect(master);
     return ctx;
   }
   if (typeof document !== 'undefined') ['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => { if (ctx) ac(); }, { passive: true }));
@@ -77,15 +80,17 @@ export const SND = (() => {
   }
   if (typeof speechSynthesis !== 'undefined') try { speechSynthesis.onvoiceschanged = () => { voice = pickVoice(); }; } catch { }
   function say(text) {
-    if (!pref.f || typeof speechSynthesis === 'undefined' || !text) return;
+    if (!pref.v || typeof speechSynthesis === 'undefined' || !text) return;
     try {
       voice ||= pickVoice(); const u = new SpeechSynthesisUtterance(text); u.lang = voice?.lang || 'es-US'; if (voice) u.voice = voice; u.rate = 1.05; u.pitch = 1.05; u.volume = 1;
-      if (musicBus && ctx) { musicBus.gain.setTargetAtTime(.03, ctx.currentTime, .05); u.onend = () => musicBus.gain.setTargetAtTime(.085, ctx.currentTime, .2); }
+      if (musicBus && ctx) { musicBus.gain.setTargetAtTime(mv() * .3, ctx.currentTime, .05); u.onend = () => musicBus.gain.setTargetAtTime(mv(), ctx.currentTime, .2); }
       speechSynthesis.cancel(); speechSynthesis.speak(u);
     } catch { }
   }
   if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) { const k = kind; music(null); SND._resume = k; } else if (SND._resume) { const k = SND._resume; SND._resume = null; music(k); } });
-  const SND = { music, fx, say, pref, set(k, v) { pref[k] = v ? 1 : 0; save(); if (k === 'm' && !v) music(null); }, get playing() { return kind; } };
+  const SND = { music, fx, say, pref, set(k, v) { pref[k] = v ? 1 : 0; save(); if (k === 'm' && !v) music(null); },
+    vol(k, n) { pref[k] = Math.max(0, Math.min(100, Math.round(n))); save(); if (ctx) { if (k === 'vm') musicBus.gain.setTargetAtTime(mv(), ctx.currentTime, .05); if (k === 'vf') fxBus.gain.setTargetAtTime(fv(), ctx.currentTime, .05); } },
+    get playing() { return kind; } };
   return SND;
 })();
 

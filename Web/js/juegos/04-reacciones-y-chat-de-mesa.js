@@ -24,7 +24,7 @@
     try { await setDoc(doc(db, 'games', g.id, 'emotes', me()), d); } catch (e) { toast(gErr(e)); }
   }
   // botoncito de reaccionar: va junto a «¡Te toca!» / el estado de la jugada, donde se mira durante el juego
-  const emoChip = g => g?.players?.includes(me()) && (g.status === 'playing' || g.status === 'done') ? '<button type="button" class="emo-chip" data-gact="emo" aria-label="Reacciones rápidas">😄</button>' : '';
+  const emoChip = () => ''; // las reacciones y el chat ahora van en los botones flotantes (gfab)
   /* ----- 💬 chat de la mesa: privado de esta sala (jugadores y quien esté mirando); se borra con la mesa ----- */
   // Dos cosas separadas y pequeñas, para que la mesa se siga viendo:
   //   😄 bandeja de reacciones rápidas (flota encima del botón y se cierra al usarla)
@@ -65,7 +65,7 @@
     t.innerHTML = `<div class="gqt-e">${EMOTES.slice(0, 8).map((e, k) => `<button type="button" data-emo="${k}">${e}</button>`).join('')}</div>
       <div class="gqt-p">${EMOTES.slice(8).map((e, k) => `<button type="button" data-emo="${k + 8}">${esc(e)}</button>`).join('')}</div>`;
     document.body.appendChild(t);
-    const r = anchor?.getBoundingClientRect?.(); if (r) { t.style.bottom = Math.max(8, innerHeight - r.top + 8) + 'px'; }
+    const r = anchor?.getBoundingClientRect?.(); if (r) { t.style.top = Math.max(70, Math.min(innerHeight - 140, r.top - 20)) + 'px'; t.style.bottom = 'auto'; }
     t.onclick = e => { const b = e.target.closest('[data-emo]'); if (!b) return; closeTray(); sendEmote(+b.dataset.emo); };
     setTimeout(() => document.addEventListener('pointerdown', function off(ev) { if (!ev.target.closest('#gq-tray,[data-gact="emo"]')) { closeTray(); document.removeEventListener('pointerdown', off, true); } }, true), 0);
   }

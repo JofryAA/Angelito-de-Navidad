@@ -21,11 +21,18 @@
     if (a === 'queue' || a === 'unqueue') return setQueue(a === 'queue');
     if (a === 'peek') { G.peek = G.peek === G.cur?.seq ? -1 : G.cur?.seq; return renderView(); }
     if (a === 'snd') {
-      const s2 = openModal(`<h3>🔊 Sonido del juego</h3><div class="stack" style="margin-top:12px">
-        <div class="switch"><div><b>🎶 Música de fondo</b><div class="muted small">Ritmo de merengue en el dominó; campanitas en los demás.</div></div><button class="tg ${SND.pref.m ? 'on' : ''}" data-snd="m" aria-label="Música"></button></div>
-        <div class="switch"><div><b>🗣️ Efectos y voz</b><div class="muted small">«Paso», «¡Capicúa!», «¡Juego trancado!», «¡Ganaste!»…</div></div><button class="tg ${SND.pref.f ? 'on' : ''}" data-snd="f" aria-label="Efectos"></button></div></div>
-        <div class="actions"><button class="btn gold" data-a="x">Listo</button></div>`);
-      s2.onclick = ev => { const t = ev.target.closest('[data-snd]'); if (t) { const k = t.dataset.snd, v = !SND.pref[k]; SND.set(k, v); t.classList.toggle('on', v); if (k === 'f' && v) SND.say('Sonido activado'); renderView(); return; } if (ev.target.closest('[data-a]')) closeModal(); };
+      const row = (k, vk, ic, t, d) => `<div class="snd-r"><div class="snd-t"><span class="snd-ic">${ic}</span><div class="grow"><b>${t}</b><small>${d}</small></div><button class="tg ${SND.pref[k] ? 'on' : ''}" data-snd="${k}" aria-label="${t}"></button></div>
+        ${vk ? `<div class="snd-v ${SND.pref[k] ? '' : 'off'}"><span>🔈</span><input type="range" min="0" max="100" step="5" value="${SND.pref[vk] ?? 80}" data-vol="${vk}" aria-label="Volumen de ${t}"><span>🔊</span><b>${SND.pref[vk] ?? 80}</b></div>` : ''}</div>`;
+      const s2 = openModal(`<h3>🔊 Sonido del juego</h3><div class="snd-box">
+        ${row('m', 'vm', '🎶', 'Música de fondo', 'Merengue en el dominó, campanitas en los demás')}
+        ${row('f', 'vf', '💥', 'Efectos', 'Fichas sobre la mesa, pases, aplausos…')}
+        ${row('v', '', '🗣️', 'Voz del narrador', '«¡Paso!», «¡Capicúa!», «¡Trancado!», «¡Ganaste!»')}
+        </div><div class="actions"><button class="btn" data-a="test">▶️ Probar</button><button class="btn gold" data-a="x">Listo</button></div>`);
+      s2.oninput = ev => { const r = ev.target.closest('[data-vol]'); if (!r) return; SND.vol(r.dataset.vol, +r.value); r.parentElement.querySelector('b').textContent = r.value; clearTimeout(G.volT); G.volT = setTimeout(() => SND.fx(r.dataset.vol === 'vf' ? 'clack' : 'turn'), 120); };
+      s2.onclick = ev => {
+        const t = ev.target.closest('[data-snd]'); if (t) { const k = t.dataset.snd, v = !SND.pref[k]; SND.set(k, v); t.classList.toggle('on', v); t.closest('.snd-r').querySelector('.snd-v')?.classList.toggle('off', !v); if (k === 'v' && v) SND.say('Sonido activado'); renderView(); return; }
+        const x = ev.target.closest('[data-a]')?.dataset.a; if (x === 'test') { SND.fx('clack'); setTimeout(() => SND.fx('pass'), 450); setTimeout(() => SND.say('¡Capicúa!'), 900); return; } if (x) closeModal();
+      };
       return;
     }
     if (a === 'share') {
