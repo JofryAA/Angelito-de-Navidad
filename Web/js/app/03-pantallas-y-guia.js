@@ -392,6 +392,20 @@ document.addEventListener('click', e => {
   if (go === 'gs') { location.hash = 'ruleta'; setTimeout(() => $('#r-extra .stat4')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 400); return; }
   if (go === 'att') $('#h-att')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); else if (go === 'perfil') openProfile(); else if (go === 'notif') enableNotifications(); else if (go === 'install') installApp(); else location.hash = go.slice(1);
 });
+// 🎄 Mensaje vivo debajo de la cuenta regresiva: cambia según lo que falte (y según cómo vas tú)
+function cdMsg(d) {
+  const days = Math.floor(d / 864e5), hrs = d / 36e5, gave = !!S.me && S.assignment?.revealed, st = S.giftStatus?.[S.uid];
+  const bought = st === 'comprado' || st === 'envuelto', wished = !!S.me && S.wishes.some(w => w.uid === S.uid);
+  if (d <= 0) return '🎉 ¡Llegó el día! Nos vemos en el angelito';
+  if (hrs < 3) return '⏰ ¡Ya casi! Ve preparando el regalo y la sonrisa';
+  if (days < 1) return gave && !bought ? '🛍️ ¡Es hoy! ¿Ya tienes el regalo? Todavía estás a tiempo' : '🎁 ¡Es hoy! ¿Ya envolviste el regalo?';
+  if (days === 1) return '🌙 ¡Mañana es el angelito! Deja el regalo listo y envuelto';
+  if (days <= 3) return gave && !bought ? `🛍️ Faltan ${days} días… ¿ya compraste el regalo?` : `🎀 Faltan ${days} días: ¿ya envolviste el regalo?`;
+  if (days <= 7) return gave ? '🔍 Última semana: revisa la lista de deseos de tu persona' : '🎡 ¡Gira la ruleta y descubre a quién le regalas!';
+  if (!wished && S.me) return `📝 Faltan ${days} días · escribe tu lista de deseos para que tu angelito acierte`;
+  if (days <= 14) return `🎄 Faltan ${days} días: buen momento para ir pensando el regalo`;
+  return `✨ Faltan ${days} días para el angelito`;
+}
 function tick() {
   const cands = [S.event.eventAt ? new Date(ms(S.event.eventAt)) : null, S.event.eventDate ? new Date(S.event.eventDate.length <= 10 ? S.event.eventDate + 'T00:00' : S.event.eventDate) : null];
   const t = cands.find(x => x && !isNaN(x) && x.getFullYear() > 2000) || null;
@@ -399,6 +413,7 @@ function tick() {
   const set = (k, v) => { const el = $(`[data-c="${k}"]`); if (el) el.textContent = v; };
   const cnt = $('.hero .count'), nd = $('#h-nodate');
   if (cnt) cnt.hidden = d == null; if (nd) nd.hidden = d != null;
+  const msgEl = $('#h-cdmsg'); if (msgEl) { const m = d == null ? '' : cdMsg(d); if (msgEl.dataset.m !== m) { msgEl.dataset.m = m; msgEl.textContent = m; msgEl.classList.remove('in'); void msgEl.offsetWidth; msgEl.classList.add('in'); } msgEl.hidden = !m; }
   if (d == null) return;
   set('d', Math.floor(d / 864e5)); set('h', String(Math.floor(d / 36e5) % 24).padStart(2, '0'));
   set('m', String(Math.floor(d / 6e4) % 60).padStart(2, '0')); set('s', String(Math.floor(d / 1e3) % 60).padStart(2, '0'));

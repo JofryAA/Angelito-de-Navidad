@@ -1267,3 +1267,5 @@ body.touring #helper{display:none!important}
 .tn-live{position:absolute;top:4px;right:6px;font-style:normal;font-size:.62rem;font-weight:800;color:#ff8a8a;animation:blink 1.4s infinite}
 .tn-champ{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px;border-radius:16px;background:radial-gradient(circle at 50% 0%,rgba(255,215,110,.35),transparent 70%)}
 .tn-champ span{font-size:46px;animation:pqIc 1.6s ease-in-out infinite}.tn-champ b{font-size:1.2rem;color:#ffe2a3}.tn-champ small{color:rgba(255,255,255,.7)}
+.cdmsg{margin:10px auto 0;max-width:340px;text-align:center;font-size:.86rem;font-weight:600;color:#ffe2a3;padding:7px 14px;border-radius:999px;background:rgba(0,0,0,.25);border:1px solid rgba(255,215,110,.25)}
+.cdmsg.in{animation:fade .5s}
