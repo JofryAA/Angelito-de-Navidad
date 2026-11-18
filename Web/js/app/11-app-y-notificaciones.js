@@ -304,7 +304,7 @@ $('#att-remind2').addEventListener('click', async () => {
 const NCAT = {
   chat: ['💬', 'Mensajes del chat', 0], mencion: ['📣', 'Cuando te mencionan con @', 0], sugerencias: ['💡', 'Sugerencias nuevas', 30], actividades: ['📅', 'Actividades nuevas y resultados', 10],
   deseos: ['🎁', 'Deseos nuevos de tu persona', 30], evento: ['🎄', 'Cambios del evento (fecha, lugar, reglas)', 10],
-  angelito: ['💌', 'Pistas y noticias de tu angelito', 5], juegos: ['🎮', 'Te toca jugar', 1], avisos: ['📣', 'Avisos, sorteo y recordatorios', 0]
+  angelito: ['💌', 'Pistas y noticias de tu angelito', 5], juegos: ['🎮', 'Te toca jugar', 1], aportes: ['💵', 'Quién ya pagó el aporte', 0], avisos: ['📣', 'Avisos, sorteo y recordatorios', 0]
 };
 const NP_KEY = 'angelito:nprefs', NS_KEY = 'angelito:nstate';
 const nprefs = () => { try { return { quiet: true, ...JSON.parse(localStorage.getItem(NP_KEY) || '{}') }; } catch { return { quiet: true }; } };

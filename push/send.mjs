@@ -194,7 +194,10 @@ async function runFix(fx) {
   for (let i = 0; i < ops.length; i += 400) { const b = db.batch(); ops.slice(i, i + 400).forEach(f => f(b)); await b.commit(); }
   return true;
 }
-const nothing = !PRUEBA && !fixReady && !VT.alerts?.length && !VT.remaps?.length && !VT.revealedNow && !remDue.length && !invs.length && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
+// 💵 ¿cambió cuántos pagaron? (contar cuesta 1 lectura; la lista solo se lee si cambió)
+const paidQ = db.collection('attendance').where('confirmed', '==', true);
+const paidN = (await paidQ.count().get()).data().count, paidMove = paidN !== (st.paidSent?.length ?? -1);
+const nothing = !PRUEBA && !fixReady && !paidMove && !VT.alerts?.length && !VT.remaps?.length && !VT.revealedNow && !remDue.length && !invs.length && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
   && !(open && st.revealSent !== openKey) && hintsQ.docs.every(d => seenH.has(d.id));
 if (nothing) { await stateRef.set({ last: now }, { merge: true }); console.log('Nada nuevo.'); process.exit(0); }
 
@@ -238,6 +241,15 @@ if (fixReady) for (const uid of draw.ids || []) put(uid, 'avisos', { title: '�
 if (draw && ms(draw.at) > since) for (const uid of draw.ids || []) put(uid, 'avisos', { title: '🎡 ¡La ruleta ya está habilitada!', body: 'Entra y descubre a quién te toca regalar.', url: '#ruleta' });
 // 💌 buzón anónimo abierto (por fecha u hora, o porque el organizador lo abrió)
 if (open && st.revealSent !== openKey) for (const uid of all) put(uid, 'avisos', { title: '💌 ¡Se abrió el buzón anónimo!', body: 'Entra a leer todos los mensajes.', url: '#anonimos' });
+// 💵 aportes: cuando el organizador confirma que alguien pagó, se le avisa a todo el grupo (una vez por persona)
+const paidNow = paidMove ? (await paidQ.get()).docs.map(d => d.id) : (st.paidSent || []);
+const paidSeen = new Set(st.paidAnn || st.paidSent || []), newPaid = st.paidSent ? paidNow.filter(id => !paidSeen.has(id)) : []; // a cada quien se le anuncia una sola vez (aunque le quiten y vuelvan a marcar el pago) // la primera vez solo se anotan los que ya habían pagado
+if (newPaid.length) {
+  const who = newPaid.length === 1 ? short(newPaid[0]) : `${short(newPaid[0])} y ${newPaid.length - 1} más`, cuenta = `Ya van ${paidNow.length} de ${all.length}.`;
+  for (const uid of all) put(uid, 'aportes', paidNow.includes(uid)
+    ? { title: `💵 ${who} ${newPaid.length === 1 ? 'pagó' : 'pagaron'} el aporte`, body: newPaid.includes(uid) ? `¡Gracias! Tu pago quedó confirmado. ${cuenta}` : cuenta, url: '#inicio' }
+    : { title: `💵 ${who} ${newPaid.length === 1 ? 'pagó' : 'pagaron'} el aporte`, body: `${cuenta} ¿Y tú? 😉`, url: '#inicio' });
+}
 // 💌 pistas del angelito (su hora se redondea a 10 min por privacidad: se recuerdan las ya enviadas)
 const newH = [];
 for (const d of hintsQ.docs) {
@@ -289,7 +301,7 @@ if (Object.keys(out).length) {
     const { uid, token, off = [] } = t.data(); const mine = out[uid]; if (!mine || !token || done.has(token)) continue; done.add(token); // un aviso por teléfono
     // si hay varias cosas a la vez, va la más importante
     const dev = t.data().dev || ''; // lo que se mandó desde este mismo teléfono no le llega a él
-    const cat = ['mencion', 'juegos', 'angelito', 'avisos', 'actividades', 'chat'].find(c => mine[c] && (PRUEBA || !off.includes(c)) && !(dev && mine[c].skipDev === dev)); if (!cat) continue;
+    const cat = ['mencion', 'juegos', 'angelito', 'avisos', 'aportes', 'actividades', 'chat'].find(c => mine[c] && (PRUEBA || !off.includes(c)) && !(dev && mine[c].skipDev === dev)); if (!cat) continue;
     const m = mine[cat];
     jobs.push(fcm.send({ token, data: { title: m.title, body: m.body, url: BASE + m.url, cat, ...(m.kind ? { kind: m.kind, game: m.game || '' } : {}) },
       webpush: { headers: { Urgency: cat === 'chat' ? 'normal' : 'high', TTL: '86400' } } })
@@ -298,5 +310,5 @@ if (Object.keys(out).length) {
   }
   await Promise.all(jobs);
 }
-await stateRef.set({ rem: [...remSent, ...remDue.map(remKey)].slice(-60), last: now, revealSent: open ? openKey : (st.revealSent || ''), hints: [...seenH, ...newH].slice(-200), at: FieldValue.serverTimestamp(), sent, dropped }, { merge: true });
+await stateRef.set({ paidSent: paidNow, paidAnn: [...new Set([...(st.paidAnn || st.paidSent || []), ...paidNow])], rem: [...remSent, ...remDue.map(remKey)].slice(-60), last: now, revealSent: open ? openKey : (st.revealSent || ''), hints: [...seenH, ...newH].slice(-200), at: FieldValue.serverTimestamp(), sent, dropped }, { merge: true });
 console.log(`Listo: ${sent} avisos enviados, ${dropped} teléfonos dados de baja.`);
