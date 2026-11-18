@@ -166,12 +166,12 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid', 'text', 'link', 'price', 'at', 'hasImg']) && tsOk(request.resource.data)
         && (!('hasImg' in request.resource.data) || (request.resource.data.hasImg == true
             && existsAfter(/databases/$(database)/documents/wishImg/$(id))))
-        && str(request.resource.data.text, 200) && request.resource.data.text.size() > 0
+        && str(request.resource.data.text, 500) && request.resource.data.text.size() > 0
         && str(request.resource.data.get('link', ''), 300) && str(request.resource.data.get('price', ''), 30);
       allow update: if isParticipant() && resource.data.uid == me()
         && ((changed().hasOnly(['top']) && request.resource.data.top is bool)
           || (changed().hasOnly(['text', 'link', 'price']) // editar el propio deseo
-              && str(request.resource.data.text, 200) && request.resource.data.text.size() > 0
+              && str(request.resource.data.text, 500) && request.resource.data.text.size() > 0
               && str(request.resource.data.get('link', ''), 300) && str(request.resource.data.get('price', ''), 30)));
       allow delete: if can('moderar') || can('participantes') || (signedIn() && resource.data.uid == me());
     }

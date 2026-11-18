@@ -60,7 +60,7 @@ function wishMenu(id) {
 function editWish(id) {
   const w = S.wishes.find(x => x.id === id && x.uid === S.uid); if (!w) return;
   const s2 = openModal(`<h3>✏️ Editar deseo</h3><form class="stack" id="we-form" style="margin-top:10px">
-    <label class="field"><span>¿Qué te gustaría?</span><textarea class="in" name="text" maxlength="160" required style="min-height:80px">${esc(w.text)}</textarea></label>
+    <label class="field"><span>¿Qué te gustaría?</span><textarea class="in" name="text" maxlength="500" required style="min-height:120px;resize:vertical">${esc(w.text)}</textarea></label>
     <label class="field"><span>Enlace de referencia <small class="muted">(opcional)</small></span><input class="in" name="link" type="url" maxlength="300" placeholder="https://…" value="${esc(w.link || '')}"></label>
     <label class="field"><span>Precio aproximado <small class="muted">(opcional)</small></span><input class="in" name="price" maxlength="30" placeholder="RD$1,500" value="${esc(w.price || '')}"></label>
     <div class="actions"><button type="button" class="btn" data-a="close">Cancelar</button><button class="btn gold" type="submit">Guardar</button></div></form>`);
