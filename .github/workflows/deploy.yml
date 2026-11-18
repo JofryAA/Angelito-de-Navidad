@@ -7,6 +7,8 @@ on:
   workflow_dispatch:
 jobs:
   deploy:
+    # 🔐 la app nueva se publica SOLO si las reglas se publicaron bien: nunca queda una app nueva con reglas viejas
+    needs: rules
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -26,11 +28,10 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
-  # Publica también las reglas de Firestore (antes había que correr "firebase deploy --only firestore:rules" a mano).
+  # Primero se publican las reglas de Firestore y de Realtime Database; si fallan, todo el despliegue falla (y se ve en rojo).
   # Usa la misma cuenta de servicio; necesita los roles "Firebase Rules Admin" y "Service Usage Consumer".
   rules:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -45,11 +46,10 @@ jobs:
           npx -y firebase-tools@14 deploy --only firestore:rules --project angelito-2026 --non-interactive
           rm -f "$RUNNER_TEMP/sa.json"
       - name: Publicar reglas de Realtime Database (juegos)
-        continue-on-error: true
         env:
           SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
-          npx -y firebase-tools@14 deploy --only database --project angelito-2026 --non-interactive || echo "::warning::No se pudieron subir las reglas de Realtime Database"
+          npx -y firebase-tools@14 deploy --only database --project angelito-2026 --non-interactive
           rm -f "$RUNNER_TEMP/sa.json"
