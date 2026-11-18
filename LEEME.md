@@ -129,7 +129,8 @@ En Admin → **Equipo organizador** (solo tú lo ves) creas cuentas con **nombre
 - 🧹 Moderar chat, deseos y sugerencias
 
 Ellos entran con **Entrar → 🛡️ Organizador** y escriben su usuario y contraseña. Tú entras ahí con el usuario **admin**.
-Un ayudante **nunca** puede: hacer el sorteo, ver las parejas, ver quién escribió los anónimos o las sugerencias, leer los anónimos antes de tiempo ni crear otros organizadores.
+Un ayudante **nunca** puede hacer el sorteo, leer los anónimos antes de tiempo ni crear otros organizadores.
+**Nadie, ni siquiera tú como organizador principal,** puede ver las parejas ni quién escribió los anónimos o las ideas: van cifrados en la caja fuerte (ver `SEGURIDAD.md`).
 Las reglas de Firebase hacen que esto se cumpla aunque alguien sepa de programación.
 > Nota: quien tenga permiso de *Actividades* técnicamente puede consultar lo que le tocó a cada quien en las asignaciones secretas (por ejemplo, los personajes bíblicos), porque es quien las reparte.
 

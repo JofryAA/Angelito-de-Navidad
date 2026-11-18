@@ -350,7 +350,7 @@ function askPin(title, body) {
 }
 // 🔐 Caja fuerte: qué teléfonos pueden abrir tu persona y el registro público (lo escribe solo el servidor; nadie lo puede borrar desde la app)
 async function openVaultInfo() {
-  const T = { draw: '🎲 Sorteo hecho', fix: '🔀 Ajuste del sorteo (switch)', remap: '🔑 Se restableció el PIN de una persona', reveal: '🎁 Revelación abierta', revealDenied: '⛔ Revelación pedida antes de tiempo (rechazada)', device: '📱 Una persona agregó otro teléfono' };
+  const T = { draw: '🎲 Sorteo hecho', fix: '🔀 Ajuste del sorteo (switch)', remap: '🔑 Se restableció el PIN de una persona', reveal: '🎁 Revelación abierta', revealDenied: '⛔ Revelación pedida antes de tiempo (rechazada)', device: '📱 Una persona agregó otro teléfono', restore: '🗄️ Se restauró una copia de seguridad' };
   let log = []; try { log = (await getDocs(query(collection(db, 'vaultLog'), orderBy('at', 'desc'), limit(15)))).docs.map(d => d.data()); } catch { }
   const mine = S.myBoxes || [], others = mine.filter(x => x !== DEV), when = x => x?.toDate ? x.toDate().toLocaleString('es-DO', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '';
   const okHere = !S.myBoxFor || S.myBoxFor === (await CF.pubB64().catch(() => '')).slice(0, 16);

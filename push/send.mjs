@@ -62,6 +62,7 @@ const remDue = dueRem.filter(k => !remSent.has(remKey(k)));
 if (process.env.RESTAURAR) {
   if (process.env.CONFIRMAR !== 'RESTAURAR') { console.log('Para restaurar escribe RESTAURAR en «confirmar».'); process.exit(0); }
   await restoreBackup({ db, rdb: getDatabase(), sa: SA, day: process.env.RESTAURAR.trim(), cols: (process.env.COLECCIONES || '').split(',').map(x => x.trim()).filter(Boolean) });
+  await db.collection('vaultLog').add({ t: 'restore', at: FieldValue.serverTimestamp() }); // 🔐 también queda a la vista de todos
   process.exit(0);
 }
 // 🔐 Una sola vez tras activar la caja fuerte: se borran las copias de seguridad viejas (tenían las parejas sin cifrar)

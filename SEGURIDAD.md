@@ -86,6 +86,19 @@ persona** puede ver lo que vería esa persona (solo su pareja, no las demás). F
 
 Para quitar también estas posibilidades, la propiedad de Firebase y GitHub puede pasarse a un **custodio** que no participe.
 
+## Historia (para que nada quede oculto)
+- **Hasta el 17 de noviembre de 2026** las parejas se guardaban sin cifrar: las reglas no dejaban que un participante viera
+  las de otros, pero el organizador principal y el dueño del proyecto sí habrían podido leerlas en la base de datos.
+  Ese día se activó la caja fuerte: todo se cifró, se borraron las copias de seguridad viejas y luego se pasó a `VAULT_KEY`.
+- **Ese mismo día, antes de la caja fuerte,** se hizo un ajuste del sorteo (switch) por una restricción entre dos hermanos
+  (commit `8e1281d`: la restricción se cargó con *huellas* de los nombres para no escribirlos en GitHub) y se borró un
+  usuario de prueba. El ajuste se hizo con las reglas normales del sistema y avisó a todos.
+- Todo cambio posterior está en el historial de Git y en el registro público de la app (🔐 Caja fuerte).
+
+## Lo que está fuera de la caja fuerte (no es secreto para el organizador)
+- Las **asignaciones de actividades** (por ejemplo, personajes bíblicos): quien las reparte puede verlas.
+- Asistencia, aportes, estado de «ya compré el regalo» (`giftStatus`), deseos, perfiles de gustos y el chat del grupo.
+
 ## Cómo auditar en 10 minutos
 1. Lee `push/vault.mjs` completo: es corto y comentado. Busca cualquier `console.log` que imprima `r`, `pairs` o `uid`:
    solo se imprimen conteos.
