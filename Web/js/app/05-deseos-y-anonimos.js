@@ -18,11 +18,14 @@ function renderWishes() {
   const mine = S.wishPid === S.uid;
   const items = S.wishes.filter(w => w.uid === S.wishPid).sort((a, b) => (b.top ? 1 : 0) - (a.top ? 1 : 0));
   const isRec = !mine && S.assignment?.revealed && secretOpen() && S.assignment.recipient === S.wishPid;
-  const keep = { t: $('#w-text')?.value || '', l: $('#w-link')?.value || '', p: $('#w-price')?.value || '', f: document.activeElement?.id, sl: $('#w-strip')?.scrollLeft || 0 };
+  const keep = { t: $('#w-text')?.value || '', l: $('#w-link')?.value || '', p: $('#w-price')?.value || '', f: document.activeElement?.id };
   const many = S.participants.length > 8;
-  root.innerHTML = `${secBar()}${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}
-  <div class="pscroll" id="w-strip">${wishStrip()}</div>
-  ${wishHero(S.wishPid, mine, isRec, items)}
+  // 🧈 sin «fricción»: ya no se reconstruye la pantalla entera en cada cambio; cada parte se toca solo si cambió de verdad
+  //    (no se cortan el deslizamiento, la fila de personas, las fotos ni lo que estás escribiendo)
+  if (root.__sk !== many || !$('#w-main')) { root.__sk = many; root.innerHTML = `<div id="w-sec"></div>${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}<div class="pscroll" id="w-strip"></div><div id="w-main"></div><div id="w-formbox"></div>`; }
+  setHTML($('#w-sec'), secBar());
+  setHTML($('#w-strip'), wishStrip());
+  setHTML($('#w-main'), `${wishHero(S.wishPid, mine, isRec, items)}
   ${items.length || mine ? `<div class="wl-h"><b>${mine ? 'Lo que me gustaría' : 'Lo que le gustaría'}</b><span>${items.length} ${items.length === 1 ? 'deseo' : 'deseos'}</span></div>` : ''}
   <div class="wshop">${items.length || mine ? items.map((w, k) => { const img = w.hasImg && S.wishImgs[w.id], dom = /^https?:\/\//i.test(w.link || '') ? (w.link.match(/^https?:\/\/(?:www\.)?([^/?#]+)/i)?.[1] || 'Ver enlace') : '', [we, wc] = wishArt(w.text, k);
     return `<article class="wsc ${w.top ? 'wtop' : ''}" style="--d:${k * 60}ms">
@@ -37,20 +40,20 @@ function renderWishes() {
         ${overBudget(w.price) ? '<small class="wsc-warn">Pasa el presupuesto</small>' : ''}
         ${isRec ? `<button class="wsc-buy ${S.wishPick?.wishId === w.id ? 'on' : ''}" data-wpick="${esc(w.id)}">${S.wishPick?.wishId === w.id ? '✓ Lo compro yo' : '🛒 Lo compro yo'}</button>` : ''}
       </div></article>`; }).join('') + (mine ? `<button class="wsc wsc-add" data-wadd><span>${ic('plus', 26)}</span><b>Agregar deseo</b><small>Con foto queda mejor</small></button>` : '')
-    : `<div class="wempty"><div class="we-ic">🎁</div><b>${mine ? 'Tu lista está vacía' : esc(pName(S.wishPid)) + ' todavía no ha pedido nada'}</b><p class="muted small">${mine ? 'Agrega lo que te gustaría recibir: con foto y enlace tu angelito acierta seguro.' : isRec ? 'Mira su perfil de gustos para inspirarte 👆' : 'Vuelve más tarde 😉'}</p></div>`}</div>
-  ${mine ? `<details class="wadd" id="w-add" ${S.wAddOpen || keep.t ? 'open' : ''}><summary><span class="wa-ic">${ic('plus', 20)}</span><span><b>Agregar un deseo</b><small>Con foto, enlace y precio si quieres</small></span><span class="wa-ch">${ic('back', 18)}</span></summary><form class="card stack" id="w-form">
+    : `<div class="wempty"><div class="we-ic">🎁</div><b>${mine ? 'Tu lista está vacía' : esc(pName(S.wishPid)) + ' todavía no ha pedido nada'}</b><p class="muted small">${mine ? 'Agrega lo que te gustaría recibir: con foto y enlace tu angelito acierta seguro.' : isRec ? 'Mira su perfil de gustos para inspirarte 👆' : 'Vuelve más tarde 😉'}</p></div>`}</div>`);
+  if (setHTML($('#w-formbox'), `${mine ? `<details class="wadd" id="w-add" ${S.wAddOpen ? 'open' : ''}><summary><span class="wa-ic">${ic('plus', 20)}</span><span><b>Agregar un deseo</b><small>Con foto, enlace y precio si quieres</small></span><span class="wa-ch">${ic('back', 18)}</span></summary><form class="card stack" id="w-form">
     <div class="wi-chips">${WISH_IDEAS.map(([e, t]) => `<button type="button" class="wi-chip" data-widea="${esc(t)}">${e} ${t}</button>`).join('')}</div>
     <textarea class="in" id="w-text" maxlength="500" rows="3" placeholder="Ej. Un libro de cocina, talla M, color azul… Puedes dar todos los detalles que quieras." required style="min-height:84px;resize:vertical"></textarea>
     <div class="row"><input class="in" id="w-link" maxlength="300" placeholder="Enlace (opcional)"><input class="in" id="w-price" maxlength="30" placeholder="Precio aprox. (opcional)"></div>
     ${budgetMax() ? `<div class="wi-chips price"><small>Precio:</small>${[.5, .75, 1].map(f => Math.round(budgetMax() * f / 50) * 50).filter((v, i, a) => v > 0 && a.indexOf(v) === i).map(v => `<button type="button" class="wi-chip" data-wprice="RD$${v.toLocaleString('en-US')}">RD$${v.toLocaleString('en-US')}</button>`).join('')}</div>` : ''}
     ${S.wishDraftImg ? `<div class="wprev" style="background-image:url('${S.wishDraftImg}')"><button type="button" id="w-img-x" aria-label="Quitar foto">✕</button></div>`
       : `<div class="camrow"><label class="btn sm btn-ic">${ic('camera', 16)} Tomar foto<input type="file" class="w-img" accept="image/*" capture="environment" hidden></label><label class="btn sm btn-ic">${ic('image', 16)} Galería<input type="file" class="w-img" accept="image/*" hidden></label></div>`}
-    <button class="btn gold" type="submit">✨ Agregar a mi lista</button></form></details>` : ''}`;
-  $('#w-add')?.addEventListener('toggle', e => { S.wAddOpen = e.target.open; });
+    <button class="btn gold" type="submit">✨ Agregar a mi lista</button></form></details>` : ''}`)) {
+    $('#w-add')?.addEventListener('toggle', e => { S.wAddOpen = e.target.open; });
+    if (mine) { $('#w-text').value = keep.t; $('#w-link').value = keep.l; $('#w-price').value = keep.p; if (keep.t) $('#w-add').open = true; }
+    if (keep.f && /^w-(text|link|price)$/.test(keep.f) && $('#' + keep.f)) $('#' + keep.f).focus();
+  }
   loadWishImgs(items);
-  if (mine) { $('#w-text').value = keep.t; $('#w-link').value = keep.l; $('#w-price').value = keep.p; }
-  $('#w-strip').scrollLeft = keep.sl;
-  if (keep.f && $('#' + keep.f)) { const f = $('#' + keep.f); f.focus(); if (keep.f === 'w-q') { const L = f.value.length; f.setSelectionRange?.(L, L); } }
 }
 // Orden: yo, la persona que me tocó (si ya la vi), quienes tienen deseos y luego el resto, por nombre.
 function wishStrip() {
@@ -96,7 +99,7 @@ $('#w-root').addEventListener('click', e => {
 });
 $('#w-root').addEventListener('input', e => {
   if (e.target.id !== 'w-q') return;
-  S.wishQ = e.target.value; $('#w-strip').innerHTML = wishStrip(); $('#w-strip').scrollLeft = 0;
+  S.wishQ = e.target.value; setHTML($('#w-strip'), wishStrip()); $('#w-strip').scrollLeft = 0;
 });
 $('#w-root').addEventListener('click', async e => {
   const c = e.target.closest('[data-p]'); if (c) { S.wishPid = c.dataset.p; $$('#w-form input').forEach(i => i.value = ''); renderWishes(); $('#w-strip [data-p].on')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' }); return; }

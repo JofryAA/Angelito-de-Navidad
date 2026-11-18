@@ -2,6 +2,7 @@
 const PROF = [['shirt', '👕', 'Talla de camisa/blusa', 'M'], ['pants', '👗', 'Talla de pantalón/falda', '32 / 8'], ['shoe', '👟', 'Talla de zapatos', '9'],
   ['colors', '🎨', 'Colores favoritos', 'Azul, verde'], ['likes', '💛', 'Me gusta', 'Café, libros, el béisbol…'],
   ['allergy', '⚠️', 'Alergias o cosas que no puedo usar', 'Perfumes fuertes, nueces…'], ['nogift', '🙅', 'Por favor no me regales', 'Tazas, medias…']];
+const PROF_LONG = ['colors', 'likes', 'allergy', 'nogift']; // gustos: hasta 500 caracteres (tallas: 120)
 const profDone = (uid = S.uid) => { const pr = S.profiles?.[uid] || {}; return PROF.filter(([k]) => String(pr[k] || '').trim()).length; };
 function renderProfCard() {
   const box = $('#h-prof'); if (!box) return;
@@ -50,7 +51,7 @@ function profileHtml(uid, compact) {
   const pr = S.profiles[uid]; if (!pr || !PROF.some(([k]) => pr[k])) return compact ? '' : (uid === S.uid ? '' : `<p class="muted small" style="margin:-4px 0 12px">Todavía no ha llenado su perfil de gustos.</p>`);
   if (compact) return `<div class="card" style="margin-bottom:14px;padding:14px"><div class="stack" style="gap:6px">${PROF.filter(([k]) => pr[k]).map(([k, e, l]) =>
     `<div class="small"><span class="muted">${e} ${esc(l)}:</span> <b>${esc(pr[k])}</b></div>`).join('')}</div></div>`;
-  const v = k => String(pr[k] || '').trim(), list = k => v(k).split(/[;,\n]| y /).map(x => x.trim()).filter(Boolean).slice(0, 12);
+  const v = k => String(pr[k] || '').trim(), list = k => v(k).split(/[;,\n]| y /).map(x => x.trim()).filter(Boolean).slice(0, 40);
   const sizes = [['shirt', '👕', 'Camisa'], ['pants', '👖', 'Pantalón'], ['shoe', '👟', 'Zapatos']].filter(([k]) => v(k));
   return `<section class="wprof">
     ${sizes.length ? `<div class="wp-sizes">${sizes.map(([k, e, l]) => `<div class="wp-size"><span>${e}</span><b>${esc(v(k))}</b><small>${l}</small></div>`).join('')}</div>` : ''}
@@ -63,7 +64,7 @@ function profileHtml(uid, compact) {
 function openProfile() {
   const pr = S.profiles[S.uid] || {};
   const s2 = openModal(`<h3>👕 Mi perfil de gustos</h3><p class="muted small">Ayuda a tu angelito a acertar. Todo es opcional.</p>
-    <div class="stack" style="margin-top:12px">${PROF.map(([k, e, l, ph]) => `<label class="field"><span>${e} ${esc(l)}</span><input class="in" data-pf="${k}" maxlength="120" placeholder="${esc(ph)}" value="${esc(pr[k] || '')}"></label>`).join('')}</div>
+    <div class="stack" style="margin-top:12px">${PROF.map(([k, e, l, ph]) => `<label class="field"><span>${e} ${esc(l)}</span>${PROF_LONG.includes(k) ? `<textarea class="in" data-pf="${k}" maxlength="500" rows="2" placeholder="${esc(ph)}" style="min-height:64px;resize:vertical">${esc(pr[k] || '')}</textarea>` : `<input class="in" data-pf="${k}" maxlength="120" placeholder="${esc(ph)}" value="${esc(pr[k] || '')}">`}</label>`).join('')}</div>
     <div class="actions"><button class="btn" data-a="no">Cancelar</button><button class="btn gold" data-a="ok">Guardar</button></div>`);
   s2.onclick = async e => {
     const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return; if (a === 'no') return closeModal();

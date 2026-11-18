@@ -149,3 +149,4 @@ body.anim-in .wsc{animation:popin .4s var(--d,0ms) backwards}
 .wsc-add:active{transform:scale(.97)}
 .wadd:not([open]){display:none}.wadd{margin-top:14px}
 
+.wp-chip{white-space:normal;overflow-wrap:anywhere;max-width:100%}

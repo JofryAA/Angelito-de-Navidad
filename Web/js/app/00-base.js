@@ -61,6 +61,8 @@ function morphKids(from, to) {
 })();
 const rowsOf = s => s.docs.map(d => ({ id: d.id, ...d.data() })); // documentos de una consulta como lista
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// pone el HTML solo si cambió (así no se rompe el deslizamiento ni se recargan fotos en cada cambio de datos). Devuelve true si lo cambió.
+const setHTML = (el, h) => { if (!el || el.__h === h) return false; el.__h = h; el.innerHTML = h; return true; };
 const ms = t => !t ? 0 : typeof t.toMillis === 'function' ? t.toMillis() : typeof t === 'number' ? t : t.seconds != null ? t.seconds * 1000 + Math.floor((t.nanoseconds || 0) / 1e6) : t.__t != null ? t.__t : t._ms != null ? t._ms : 0;
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const cap = t => t ? t.charAt(0).toUpperCase() + t.slice(1) : t;

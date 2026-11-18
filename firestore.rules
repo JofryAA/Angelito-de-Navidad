@@ -462,9 +462,9 @@ service cloud.firestore {
       allow create, update: if isParticipant() && me() == uid
         && request.resource.data.keys().hasOnly(['shirt', 'pants', 'shoe', 'colors', 'likes', 'allergy', 'nogift'])
         && str(request.resource.data.get('shirt', ''), 120) && str(request.resource.data.get('pants', ''), 120)
-        && str(request.resource.data.get('shoe', ''), 120) && str(request.resource.data.get('colors', ''), 120)
-        && str(request.resource.data.get('likes', ''), 120) && str(request.resource.data.get('allergy', ''), 120)
-        && str(request.resource.data.get('nogift', ''), 120);
+        && str(request.resource.data.get('shoe', ''), 120) && str(request.resource.data.get('colors', ''), 500)
+        && str(request.resource.data.get('likes', ''), 500) && str(request.resource.data.get('allergy', ''), 500)
+        && str(request.resource.data.get('nogift', ''), 500);
       allow delete: if can('participantes');
     }
 

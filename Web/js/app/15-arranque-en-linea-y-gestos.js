@@ -128,7 +128,7 @@ function goTab(dir) { // dir: +1 siguiente, -1 anterior
   }, { passive: true });
   document.addEventListener('touchmove', e => {
     if (!st) return; const p = e.touches[0], dx = p.clientX - st.x, dy = p.clientY - st.y;
-    if (!st.lock) { if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.4) st.lock = 'h'; else if (Math.abs(dy) > 10) { st = null; return; } else return; }
+    if (!st.lock) { if (Math.abs(dx) > 22 && Math.abs(dx) > Math.abs(dy) * 2.2) st.lock = 'h'; else if (Math.abs(dy) > 8) { st = null; return; } else return; } // solo un gesto claramente de lado cambia de pestaña: al subir y bajar la pantalla no se «arrastra» hacia los lados
     const ok = dx < 0 ? st.canL : st.canR, k = ok ? .9 : .25; st.dx = dx; // sin pestaña a ese lado: se estira un poquito y vuelve
     st.view.style.transition = 'none'; if (!st.fixed) st.view.style.transform = `translateX(${dx * k}px)`; st.view.style.opacity = String(1 - Math.min(.35, Math.abs(dx * k) / 900));
   }, { passive: true });
