@@ -107,7 +107,7 @@ function mentionQuery() { const i = $('#c-text'), v = i.value.slice(0, i.selecti
 function renderMentionBar() {
   const box = $('#c-mention'); if (!box) return;
   const q = mentionQuery(); if (q == null) { box.innerHTML = ''; box.hidden = true; return; }
-  // coincide si el nombre o el apellido EMPIEZA con lo escrito ("@as" → Asael, no Nicole Cuevas); primero los que empiezan por el nombre
+  // coincide si el nombre o el apellido EMPIEZA con lo escrito ("@an" → Ana, no Juliana); primero los que empiezan por el nombre
   const nq = normName(q), rank = p => { const w = normName(p.name).split(/\s+/); return w[0].startsWith(nq) ? 0 : w.some(x => x.startsWith(nq)) ? 1 : 9; };
   const list = S.participants.filter(p => p.id !== S.uid && rank(p) < 9).sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name)).slice(0, 8);
   const all = 'todos'.startsWith(nq);
