@@ -86,3 +86,7 @@
 .s2-lthumb i{font-style:normal;width:26px;height:26px;border-radius:50%;background:#e8b04a;color:#1a1408;display:grid;place-items:center;font-size:.7rem}
 @media (prefers-reduced-motion:reduce){.s2-img:disabled{animation:none}}
 .sug2 .txt{white-space:pre-line}
+/* 🔒 ruleta en pausa */
+.pausec{display:flex;gap:12px;align-items:flex-start;margin-top:12px;padding:14px;border-radius:18px;background:#1f2a1c;border:1px solid rgba(232,176,74,.45)}
+.pausec .pz-ic{flex:none;width:42px;height:42px;border-radius:14px;background:#2c3a26;display:grid;place-items:center;font-size:1.3rem}
+.pausec b{color:#f3d58a}.pausec p{margin:6px 0 0;font-size:.92rem;line-height:1.45}.pausec p b{color:inherit}

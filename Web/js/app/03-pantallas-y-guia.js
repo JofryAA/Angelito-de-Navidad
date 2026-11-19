@@ -333,7 +333,7 @@ const secretOpen = () => !spinPaused() && Date.now() < (S.secretUntil || 0);
 function openSecret() { S.secretUntil = Date.now() + 60e3; clearTimeout(secT); secT = setTimeout(lockSecret, 60e3); }
 function lockSecret() { if (!S.secretUntil) return; S.secretUntil = 0; clearTimeout(secT); if (S.wishPid && S.wishPid === S.assignment?.recipient) S.wishPid = S.uid; render(); } // al ocultarse, Deseos vuelve a tu lista
 async function unlockSecret() {
-  if (spinPaused()) { toast('🔒 El organizador pausó la ruleta: por ahora nadie puede ver su persona'); return false; }
+  if (spinPaused()) { toast('🔒 La ruleta está en pausa. Tu persona sigue siendo la misma y está guardada: la verás cuando se active.'); return false; }
   if (!(await askPin('🤫 Ver tu persona', 'Confirma tu PIN. Se oculta sola en 1 minuto o al salir de la app.'))) return false;
   openSecret(); render(); return true;
 }

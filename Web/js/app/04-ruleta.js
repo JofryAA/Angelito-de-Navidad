@@ -5,8 +5,13 @@ function renderWheel() {
   if (!S.me) {
     top.innerHTML = S.authReady ? needLogin('Entra con tu nombre y tu PIN para girar.') : ''; btn.style.display = 'none'; msg.textContent = '';
   } else {
-    top.innerHTML = `<div class="spinpass"><div class="sp-top"><span class="sp-av"><i></i><span>${esc(S.me.emoji)}</span></span><div class="grow"><small>Vas a girar como</small><b>${esc(S.me.name)}</b></div></div><div class="wc-st" id="wc-st"></div></div>${fixBanner()}`;
-    if (S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid) && spinPaused()) msg.textContent = '🔒 El organizador pausó la ruleta por ahora. Tu persona sigue guardada y segura: vuelve pronto.';
+    top.innerHTML = `<div class="spinpass"><div class="sp-top"><span class="sp-av"><i></i><span>${esc(S.me.emoji)}</span></span><div class="grow"><small>Vas a girar como</small><b>${esc(S.me.name)}</b></div></div><div class="wc-st" id="wc-st"></div></div>${fixBanner()}${S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid) && spinPaused() ? `<div class="card pausec"><div class="pz-ic">🔒</div><div><b>La ruleta está en pausa</b>
+        <p>El organizador la pausó para cuidar el sorteo. <b>Tu persona sigue siendo la misma</b>: está guardada y cifrada, nadie la cambia ni la puede ver.</p>
+        <p class="muted small">${S.assignment?.revealed ? 'Cuando se active otra vez, la vuelves a ver con tu PIN, igual que siempre.' : 'Cuando se active otra vez, podrás girar y descubrir a quién le regalas.'}</p></div></div>` : ''}`;
+    if (S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid) && spinPaused()) {
+      msg.textContent = '';
+      // (va dentro del HTML de arriba: insertarla aparte la duplicaba)
+    }
     else if (!S.drawMeta || !drawReady() || !S.drawMeta.ids.includes(S.uid)) msg.textContent = 'La ruleta está inhabilitada por ahora. ¡Vuelve pronto! 🎄';
     else if (!S.assignment) msg.textContent = 'Cargando tu sorteo…';
     else { canSpin = true; msg.textContent = S.assignment.revealed ? 'Ya giraste. Puedes volver a verlo con tu PIN.' : `¡Mucha suerte, ${S.me.first}! 🍀`; }
@@ -19,7 +24,7 @@ function renderWheel() {
   const wasLocked = $('#v-ruleta').classList.contains('locked');
   $('#v-ruleta').classList.toggle('locked', locked);
   const st = $('#wc-st');
-  if (st) st.innerHTML = locked ? `<span class="wc-pill">${ic('lock', 14)} Se abre cuando el organizador haga el sorteo</span>` : canSpin && S.assignment && !S.assignment.revealed ? `<span class="wc-pill go">${ic('wheel', 14)} ¡Ya puedes girar!</span>` : '';
+  if (st) st.innerHTML = locked ? `<span class="wc-pill">${ic('lock', 14)} ${spinPaused() && S.drawMeta && drawReady() ? 'En pausa · tu persona sigue guardada' : 'Se abre cuando el organizador haga el sorteo'}</span>` : canSpin && S.assignment && !S.assignment.revealed ? `<span class="wc-pill go">${ic('wheel', 14)} ¡Ya puedes girar!</span>` : '';
   if (locked) msg.innerHTML = '';
   wheelBulbs();
   if (!S.spinning) { if (wasLocked !== locked) requestAnimationFrame(drawWheel); else drawWheel(); }

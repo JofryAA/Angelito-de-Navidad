@@ -164,7 +164,8 @@ function renderAdmin() {
   $('#d-gen').textContent = hasDraw ? '🧹 Limpiar sorteo' : '🎡 Generar sorteo';
   { const off = spinPaused(), b = $('#d-pause'); if (b) { b.textContent = off ? '▶️ Activar' : '⏸️ Pausar'; b.classList.toggle('gold', off);
     $('#d-pause-t').textContent = off ? '🔒 Ruleta en pausa' : '⏸️ Pausar la ruleta';
-    $('#d-pause-sub').textContent = off ? 'Ahora nadie puede girar ni volver a ver a quién le tocó. Actívala cuando quieras.' : 'Nadie podrá girar ni volver a ver a quién le tocó hasta que la actives otra vez.'; } }
+    $('#d-pause-sub').textContent = off ? 'Nadie puede girar ni ver su persona ahora mismo. Cada quien conserva la persona que le tocó: no se borró ni cambió nada. Actívala cuando quieras.'
+      : 'Oculta la ruleta y «ver a quién me tocó» para todos. Cada quien conserva la persona que le tocó: no se borra ni cambia nada, solo queda guardada hasta que la actives.'; } }
   renderFixAdmin();
   $('#d-gen').classList.toggle('danger', !!hasDraw);
   renderHistory();
@@ -593,8 +594,8 @@ $('#h-clear')?.addEventListener('click', async () => {
 // ⏸️ pausar / ▶️ activar la ruleta (y el «ver a quién me tocó»)
 $('#d-pause').addEventListener('click', async () => {
   const off = !spinPaused();
-  if (off && !(await confirmBox('¿Pausar la ruleta?', 'Nadie podrá girar ni volver a ver a quién le tocó hasta que la actives otra vez. No se pierde nada: cada persona conserva la suya.', 'Pausar'))) return;
-  try { await setDoc(doc(adb, 'config', 'event'), { spinOff: off }, { merge: true }); toast(off ? '🔒 Ruleta en pausa' : '▶️ Ruleta activa otra vez'); } catch (e) { toast(authErr(e)); }
+  if (off && !(await confirmBox('¿Pausar la ruleta?', 'Nadie podrá girar ni volver a ver a quién le tocó hasta que la actives. El sorteo no cambia: cada persona conserva la persona que le tocó, guardada y cifrada, y la volverá a ver igual al activarla.', 'Pausar'))) return;
+  try { await setDoc(doc(adb, 'config', 'event'), { spinOff: off }, { merge: true }); toast(off ? '🔒 Ruleta en pausa: cada quien conserva su persona' : '▶️ Ruleta activa otra vez'); } catch (e) { toast(authErr(e)); }
 });
 $('#d-gen').addEventListener('click', async () => {
   if (S.drawMeta) return clearDraw();
