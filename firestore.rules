@@ -375,13 +375,25 @@ service cloud.firestore {
       allow create: if isParticipant() && okId(id) && request.resource.data.status == 'nueva'
         && str(request.resource.data.text, 600) && request.resource.data.text.size() > 0
         && ((request.resource.data.signed == true && request.resource.data.uid == me()
-              && request.resource.data.keys().hasOnly(['text', 'signed', 'uid', 'status', 'ts']))
+              && request.resource.data.keys().hasOnly(['text', 'signed', 'uid', 'status', 'ts', 'link', 'imgs']))
           || (request.resource.data.signed == false
-              && request.resource.data.keys().hasOnly(['text', 'signed', 'status', 'ts'])))
+              && request.resource.data.keys().hasOnly(['text', 'signed', 'status', 'ts', 'link', 'imgs'])))
+        && (!('link' in request.resource.data) || (str(request.resource.data.link, 300) && request.resource.data.link.matches('^https://[^\\s]+$')))
+        && (!('imgs' in request.resource.data) || (request.resource.data.imgs is int && request.resource.data.imgs >= 1 && request.resource.data.imgs <= 3))
         && request.resource.data.ts is int
         && existsAfter(/databases/$(database)/documents/suggestionAuthors/$(id)); // 🔐 el autor va cifrado (box)
       allow update: if can('moderar') && changed().hasOnly(['status'])
         && request.resource.data.status in ['nueva', 'revision', 'aprobada', 'hecho', 'no'];
+      allow delete: if can('moderar');
+    }
+    // 📷 fotos de las ideas: SIN nombre de quien la subió (las ideas pueden ser anónimas). Solo se crean junto con su idea.
+    match /sugImg/{id} {
+      allow read: if member();
+      allow create: if isParticipant() && request.resource.data.keys().hasOnly(['sug', 'data']) && okId(request.resource.data.sug)
+        && id in [request.resource.data.sug + '__0', request.resource.data.sug + '__1', request.resource.data.sug + '__2']
+        && str(request.resource.data.data, 160000) && request.resource.data.data.matches('^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
+        && !exists(/databases/$(database)/documents/suggestions/$(request.resource.data.sug))
+        && existsAfter(/databases/$(database)/documents/suggestions/$(request.resource.data.sug));
       allow delete: if can('moderar');
     }
     match /sugVotes/{id} {

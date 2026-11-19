@@ -8,7 +8,7 @@ import { gzipSync, gunzipSync } from 'node:zlib';
 import { Timestamp } from 'firebase-admin/firestore';
 
 // fotos pesadas, cosas que se rehacen solas o que viven en otra base: no se copian
-const SKIP = new Set(['chatImg', 'wishImg', 'photos', 'photosFull', 'push', 'fcmTokens', 'presence', 'chatSeen', 'games', 'gameInvites', 'gameWins', 'revealLog']); // revealLog: restaurar una copia no debe «abrir» los autores de anónimos
+const SKIP = new Set(['chatImg', 'wishImg', 'sugImg', 'photos', 'photosFull', 'push', 'fcmTokens', 'presence', 'chatSeen', 'games', 'gameInvites', 'gameWins', 'revealLog']); // revealLog: restaurar una copia no debe «abrir» los autores de anónimos
 // 🔐 con VAULT_KEY, la copia se cifra con ella (la cuenta de servicio sola ya no la abre)
 const VK = String(process.env.VAULT_KEY || '').trim().length >= 32 ? String(process.env.VAULT_KEY).trim() : '';
 const keyOf = (sa, old) => createHash('sha256').update(VK && !old ? 'angelito-backup-v2:' + VK : 'angelito-backup:' + sa.private_key).digest();

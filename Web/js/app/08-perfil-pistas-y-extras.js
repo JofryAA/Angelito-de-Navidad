@@ -254,28 +254,32 @@ function renderSuggestions() {
   else if (!$('#s-form')) fb.innerHTML = `<form class="ideaform2" id="s-form">
       <div class="if-hd"><span class="if-ic">${ic('bulb', 26)}</span><div><b>¿Qué le falta al angelito?</b><small>Propón juegos, comida o dinámicas. El grupo vota las mejores.</small></div></div>
       <div class="if-chips">${[['🎮', 'Un juego: '], ['🍽️', 'De comer: '], ['🎶', 'Música: '], ['🎁', 'Una dinámica: '], ['🎄', 'Decoración: ']].map(([e, t]) => `<button type="button" class="if-chip" data-sstart="${t}">${e} ${t.replace(/: $/, '')}</button>`).join('')}</div>
-      <textarea class="in" id="s-text" maxlength="600" rows="3" placeholder="Ej. Que juguemos dominó después de la cena 🎲" required></textarea>
+      <textarea class="in" id="s-text" maxlength="600" rows="3" placeholder="Ej. Que juguemos dominó después de la cena 🎲. Cuenta los detalles: cómo sería, qué hace falta, cuánto cuesta…" required></textarea>
+      <input class="in" id="s-link" type="url" maxlength="300" inputmode="url" placeholder="🎬 Enlace de un video o ejemplo (YouTube, TikTok, Instagram…) · opcional" style="margin-top:8px">
+      <div class="s-pics" id="s-pics"></div>
+      <label class="btn sm s-addpic" id="s-addpic">📷 Agregar fotos (hasta 3)<input type="file" id="s-file" accept="image/*" multiple hidden></label>
+      <p class="muted small" id="s-picnote" hidden>🕶️ Tu idea es anónima: revisa que la foto no te delate (tu cara, tu casa…).</p>
       <div class="idearow2"><button type="button" class="signsw" id="s-sign" role="switch" aria-checked="false" aria-label="Firmar con mi nombre"><span class="ss-av" id="s-av">🕶️</span><span class="ss-t"><b id="s-hint">Anónima</b><small id="s-sub">Nadie sabrá quién fue</small></span><span class="ss-tg" aria-hidden="true"><i></i></span></button>
       <button class="btn if-go" type="submit" id="s-go">${ic('send', 18)} Enviar idea</button></div></form>`;
   try { if (localStorage.getItem('angelito:signIdeas') === '1') setSign(true); } catch { }
   const list = $('#s-list');
-  if (!S.me && !S.isAdmin) { list.innerHTML = ''; return; }
+  if (!S.me && !S.isAdmin) { setHTML(list, ''); return; }
   // 👍 me gusta / 👎 no me gusta (los votos viejos sin «v» cuentan como 👍). Ordena por la diferencia.
   const votes = id => S.sugVotes.filter(v => v.sug === id && (v.v ?? 1) > 0), nays = id => S.sugVotes.filter(v => v.sug === id && v.v === -1), score = id => votes(id).length - nays(id).length;
   const items = [...S.suggestions].sort((a, b) => score(b.id) - score(a.id) || votes(b.id).length - votes(a.id).length || sTs(b) - sTs(a));
   const max = Math.max(1, ...items.map(x => votes(x.id).length));
-  list.innerHTML = items.length ? `<div class="h2row" style="margin-top:0"><h2>Ideas del grupo</h2><span class="tag">${items.length} ${items.length === 1 ? 'idea' : 'ideas'}</span></div><p class="muted small" style="margin:-6px 0 12px">Vota 👍 si te gusta o 👎 si no: las mejores suben.</p><div class="stack">${items.map((x, k) => {
-    const st = ST[x.status] || ST.nueva, au = S.sugAuthors[x.id], vs = votes(x.id), ns = nays(x.id), mine = vs.some(v => v.uid === S.uid), mineN = ns.some(v => v.uid === S.uid), top = k < 3 && score(x.id) > 0;
+  setHTML(list, items.length ? `<div class="h2row" style="margin-top:0"><h2>Ideas del grupo</h2><span class="tag">${items.length} ${items.length === 1 ? 'idea' : 'ideas'}</span></div><p class="muted small" style="margin:-6px 0 12px">Vota 👍 si te gusta o 👎 si no: las mejores suben.</p><div class="stack">${items.map((x, k) => {
+    const st = ST[x.status] || ST.nueva, vs = votes(x.id), ns = nays(x.id), mine = vs.some(v => v.uid === S.uid), mineN = ns.some(v => v.uid === S.uid), top = k < 3 && score(x.id) > 0;
     return `<div class="sug2 ${top ? 'top' : ''} s-${esc(x.status || 'nueva')}" style="--d:${Math.min(k, 8) * 50}ms;--v:${vs.length / max * 100}%">
       <div class="vote3"><button class="vote2 ${mine ? 'on' : ''}" data-svote="${esc(x.id)}" data-vv="1" ${S.me ? '' : 'disabled'} aria-label="Me gusta"><span class="v-th">👍</span><b>${vs.length}</b></button><button class="vote2 nay ${mineN ? 'on' : ''}" data-svote="${esc(x.id)}" data-vv="-1" ${S.me ? '' : 'disabled'} aria-label="No me gusta"><span class="v-th">👎</span><b>${ns.length}</b></button></div>
       <div class="s2-b"><div class="s2-top">${top ? `<span class="s2-rank">${['🥇', '🥈', '🥉'][k]} Top ${k + 1}</span>` : ''}${x.status && x.status !== 'nueva' ? `<span class="st2 ${esc(x.status)}">${st[0]} ${st[1]}</span>` : ''}</div>
         <div class="txt">${esc(x.text)}</div>
         <div class="s2-meta">${x.signed && x.uid ? `<span class="s2-av">${esc(pEmoji(x.uid))}</span>${esc(pName(x.uid))}` : '<span class="s2-av">🕶️</span>Anónima'}</div>
         <div class="s2-bar"><i></i></div>
-        ${S.isOwner ? `<div class="spy">🕵️ Solo tú ves esto · Escrita por: <b>${au ? esc(pName(au)) : 'desconocido'}</b></div>` : ''}
+        ${sugMedia(x)}
         ${can('moderar') ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${Object.entries(ST).map(([kk, v]) => `<button class="btn sm ${x.status === kk || (!x.status && kk === 'nueva') ? 'gold' : ''}" data-sst="${kk}" data-sid="${esc(x.id)}">${v[0]} ${v[1]}</button>`).join('')}<button class="btn sm" data-sdel="${esc(x.id)}">🗑️</button></div>` : ''}
       </div></div>`;
-  }).join('')}</div>` : `<div class="card s2-empty"><div class="s2e-ic">💡</div><b>Todavía no hay ideas</b><p class="muted small">¡Sé el primero! Por ejemplo:</p><div class="if-chips" style="justify-content:center">${['🎲 Dominó después de la cena', '🎤 Karaoke de villancicos', '📸 Foto grupal con gorros'].map(t => `<span class="if-chip ghost">${t}</span>`).join('')}</div></div>`;
+  }).join('')}</div>` : `<div class="card s2-empty"><div class="s2e-ic">💡</div><b>Todavía no hay ideas</b><p class="muted small">¡Sé el primero! Por ejemplo:</p><div class="if-chips" style="justify-content:center">${['🎲 Dominó después de la cena', '🎤 Karaoke de villancicos', '📸 Foto grupal con gorros'].map(t => `<span class="if-chip ghost">${t}</span>`).join('')}</div></div>`);
 }
 $('#s-formbox').addEventListener('click', e => {
   const st = e.target.closest('[data-sstart]');
@@ -284,11 +288,45 @@ $('#s-formbox').addEventListener('click', e => {
   const on = !$('#s-sign').classList.contains('on'); setSign(on);
   try { localStorage.setItem('angelito:signIdeas', on ? '1' : '0'); } catch { }
 });
+// 📷 fotos y 🎬 enlace de las ideas
+let sugDraft = [];
+const sugImgs = {}, sugTried = new Set();
+function drawSugPics() {
+  const box = $('#s-pics'); if (!box) return;
+  box.innerHTML = sugDraft.map((d, i) => `<div class="s-pic" style="background-image:url('${d}')"><button type="button" class="x" data-sprm="${i}" aria-label="Quitar foto">✕</button></div>`).join('');
+  $('#s-addpic').hidden = sugDraft.length >= 3;
+  $('#s-picnote').hidden = !sugDraft.length || $('#s-sign').classList.contains('on');
+}
+function sugMedia(x) {
+  let h = '';
+  if (x.imgs) {
+    for (let i = 0; i < Math.min(3, x.imgs); i++) { const k = `${x.id}__${i}`; if (!sugImgs[k] && !sugTried.has(k)) { sugTried.add(k); getDoc(doc(S.uid ? db : adb, 'sugImg', k)).then(d => { const v = String(d.data()?.data || '').replace(/[^A-Za-z0-9+/=:;,._-]/g, ''); if (v.startsWith('data:image/')) { sugImgs[k] = v; clearTimeout(drawSugPics.t); drawSugPics.t = setTimeout(render, 120); } }).catch(() => { }); } }
+    h += `<div class="s2-imgs n${Math.min(3, x.imgs)}">${Array.from({ length: Math.min(3, x.imgs) }, (_, i) => { const v = sugImgs[`${x.id}__${i}`]; return `<button type="button" class="s2-img" ${v ? `data-simg="${x.id}__${i}" style="background-image:url('${v}')"` : 'disabled'} aria-label="Ver foto"></button>`; }).join('')}</div>`;
+  }
+  if (x.link && /^https:\/\//.test(x.link)) {
+    let u = null; try { u = new URL(x.link); } catch { }
+    if (u) {
+      const yt = (u.hostname.replace(/^www\.|^m\./, '') === 'youtu.be' ? u.pathname.slice(1) : /youtube\.com$/.test(u.hostname) ? (u.searchParams.get('v') || (u.pathname.match(/\/(shorts|embed|live)\/([\w-]{6,})/) || [])[2]) : '') || '';
+      const site = /tiktok/.test(u.hostname) ? 'TikTok' : /instagram/.test(u.hostname) ? 'Instagram' : /facebook|fb\.watch/.test(u.hostname) ? 'Facebook' : yt ? 'YouTube' : u.hostname.replace(/^www\./, '');
+      h += `<a class="s2-link" href="${esc(u.href)}" target="_blank" rel="noopener noreferrer">${/^[\w-]{6,20}$/.test(yt) ? `<span class="s2-lthumb" style="background-image:url('https://i.ytimg.com/vi/${yt}/mqdefault.jpg')"><i>▶</i></span>` : '<span class="s2-lthumb"><i>▶</i></span>'}<span><b>Ver ${yt || /TikTok|Instagram|Facebook/.test(site) ? 'video' : 'enlace'}</b><small>${esc(site)}</small></span></a>`;
+    }
+  }
+  return h;
+}
+$('#s-formbox').addEventListener('change', async e => {
+  if (e.target.id !== 's-file') return;
+  const files = [...e.target.files].filter(f => /^image\//.test(f.type)).slice(0, 3 - sugDraft.length); e.target.value = '';
+  for (const f of files) { try { sugDraft.push(await shrink(f, 1000, .8, 150000)); } catch { toast('No se pudo leer una de las fotos'); } }
+  drawSugPics();
+});
+$('#s-formbox').addEventListener('click', e => { const r = e.target.closest('[data-sprm]'); if (r) { sugDraft.splice(+r.dataset.sprm, 1); drawSugPics(); } });
+$('#s-list').addEventListener('click', e => { const im = e.target.closest('[data-simg]'); if (im && sugImgs[im.dataset.simg]) viewImage(sugImgs[im.dataset.simg]); });
 function setSign(on) {
   const t = $('#s-sign'); if (!t) return; t.classList.toggle('on', on); t.setAttribute('aria-checked', String(on));
   $('#s-av').textContent = on ? (S.me?.emoji || '🙂') : '🕶️';
   $('#s-hint').textContent = on ? 'Con mi nombre' : 'Anónima';
   $('#s-sub').textContent = on ? `Firmada: ${shortName(S.me) || 'tú'}` : 'Nadie sabrá quién fue';
+  if ($('#s-picnote')) $('#s-picnote').hidden = on || !sugDraft.length;
 }
 $('#s-formbox').addEventListener('submit', async e => {
   e.preventDefault(); if (e.target.id !== 's-form') return;
@@ -297,9 +335,13 @@ $('#s-formbox').addEventListener('submit', async e => {
   try {
     const b = writeBatch(db), ref = doc(collection(db, 'suggestions')); S.myCreated.add(ref.id);
     const ts = Math.floor(Date.now() / 3600e3) * 3600e3; // hora redondeada: no delata quién la escribió
-    b.set(ref, signed ? { text, signed: true, uid: S.uid, status: 'nueva', ts } : { text, signed: false, status: 'nueva', ts });
+    const link = ($('#s-link')?.value || '').trim(), imgs = sugDraft.slice(0, 3);
+    if (link && !/^https:\/\/\S+$/.test(link)) { busy(btn, false, label); return toast('El enlace debe empezar con https://'); }
+    const extra = { ...(link ? { link } : {}), ...(imgs.length ? { imgs: imgs.length } : {}) };
+    b.set(ref, signed ? { text, signed: true, uid: S.uid, status: 'nueva', ts, ...extra } : { text, signed: false, status: 'nueva', ts, ...extra });
+    imgs.forEach((data, i) => b.set(doc(db, 'sugImg', `${ref.id}__${i}`), { sug: ref.id, data })); // 📷 sin nombre: no delata a quien la mandó
     b.set(doc(db, 'suggestionAuthors', ref.id), { box: await CF.sealForServer({ uid: S.uid, col: 'suggestionAuthors', id: ref.id, tok: await auth.currentUser.getIdToken() }) }); // 🔐 cifrado: ni el organizador lo puede leer
-    await b.commit(); $('#s-text').value = ''; toast('¡Gracias por tu sugerencia! 💡');
+    await b.commit(); $('#s-text').value = ''; $('#s-link').value = ''; sugDraft = []; drawSugPics(); toast('¡Gracias por tu sugerencia! 💡');
   } catch (err) { toast(authErr(err)); }
   busy(btn, false, label);
 });
@@ -315,7 +357,9 @@ $('#s-list').addEventListener('click', async e => {
     if (st) await setDoc(doc(adb, 'suggestions', st.dataset.sid), { status: st.dataset.sst }, { merge: true });
     if (del && await confirmBox('¿Borrar esta sugerencia?', 'No se puede deshacer.', 'Borrar')) {
       const b = writeBatch(adb); b.delete(doc(adb, 'suggestions', del.dataset.sdel)); if (S.isOwner || can('moderar')) b.delete(doc(adb, 'suggestionAuthors', del.dataset.sdel));
-      S.sugVotes.filter(v => v.sug === del.dataset.sdel).forEach(v => b.delete(doc(adb, 'sugVotes', v.id))); await b.commit();
+      S.sugVotes.filter(v => v.sug === del.dataset.sdel).forEach(v => b.delete(doc(adb, 'sugVotes', v.id)));
+      for (let i = 0; i < (S.suggestions.find(x => x.id === del.dataset.sdel)?.imgs || 0); i++) b.delete(doc(adb, 'sugImg', `${del.dataset.sdel}__${i}`));
+      await b.commit();
     }
   } catch (err) { toast(authErr(err)); }
 });
