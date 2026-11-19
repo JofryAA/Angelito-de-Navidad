@@ -27,6 +27,7 @@ service cloud.firestore {
     function can(p) {
       return isOwner() || (isStaff() && get(/databases/$(database)/documents/staff/$(me())).data.get('perms', {}).get(p, false) == true);
     }
+    function delSug() { return can('moderar') || isStaff(); }
     function isParticipant() { return signedIn() && exists(/databases/$(database)/documents/participants/$(me())); }
     function drawn() { return exists(/databases/$(database)/documents/config/draw); }
     // Cambiar la lista de personas: el principal siempre; un administrador de "participantes" solo antes del sorteo
@@ -384,7 +385,7 @@ service cloud.firestore {
         && existsAfter(/databases/$(database)/documents/suggestionAuthors/$(id)); // 🔐 el autor va cifrado (box)
       allow update: if can('moderar') && changed().hasOnly(['status'])
         && request.resource.data.status in ['nueva', 'revision', 'aprobada', 'hecho', 'no'];
-      allow delete: if can('moderar');
+      allow delete: if delSug(); // 🗑️ cualquier organizador (con cualquier permiso) puede borrar ideas
     }
     // 📷 fotos de las ideas: SIN nombre de quien la subió (las ideas pueden ser anónimas). Solo se crean junto con su idea.
     match /sugImg/{id} {
@@ -394,7 +395,7 @@ service cloud.firestore {
         && str(request.resource.data.data, 160000) && request.resource.data.data.matches('^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
         && !exists(/databases/$(database)/documents/suggestions/$(request.resource.data.sug))
         && existsAfter(/databases/$(database)/documents/suggestions/$(request.resource.data.sug));
-      allow delete: if can('moderar');
+      allow delete: if delSug();
     }
     match /sugVotes/{id} {
       allow read: if member();
@@ -405,12 +406,12 @@ service cloud.firestore {
       // cambiar de 👍 a 👎 (o al revés): solo el voto y la hora
       allow update: if isParticipant() && resource.data.uid == me() && request.resource.data.uid == me() && request.resource.data.sug == resource.data.sug
         && request.resource.data.keys().hasOnly(['sug', 'uid', 'at', 'v']) && request.resource.data.get('v', 1) in [1, -1] && tsOk(request.resource.data);
-      allow delete: if can('moderar') || (signedIn() && resource.data.uid == me()) || goneAfter(resource.data.uid);
+      allow delete: if delSug() || (signedIn() && resource.data.uid == me()) || goneAfter(resource.data.uid);
     }
     // Autor real de cada sugerencia: SOLO el organizador principal.
     match /suggestionAuthors/{id} {
       allow read: if isOwner();
-      allow delete: if can('moderar');
+      allow delete: if delSug();
       allow create: if isParticipant() && request.resource.data.keys().hasOnly(['box']) && request.resource.data.box is map && request.resource.data.box.keys().hasOnly(['e', 'iv', 'ct']) && request.resource.data.box.e is string && request.resource.data.box.iv is string && request.resource.data.box.ct is string && request.resource.data.box.ct.size() < 600
         && existsAfter(/databases/$(database)/documents/suggestions/$(id))
         && !exists(/databases/$(database)/documents/suggestions/$(id));

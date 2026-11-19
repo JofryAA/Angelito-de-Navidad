@@ -277,7 +277,7 @@ function renderSuggestions() {
         <div class="s2-meta">${x.signed && x.uid ? `<span class="s2-av">${esc(pEmoji(x.uid))}</span>${esc(pName(x.uid))}` : '<span class="s2-av">🕶️</span>Anónima'}</div>
         <div class="s2-bar"><i></i></div>
         ${sugMedia(x)}
-        ${can('moderar') ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${Object.entries(ST).map(([kk, v]) => `<button class="btn sm ${x.status === kk || (!x.status && kk === 'nueva') ? 'gold' : ''}" data-sst="${kk}" data-sid="${esc(x.id)}">${v[0]} ${v[1]}</button>`).join('')}<button class="btn sm" data-sdel="${esc(x.id)}">🗑️</button></div>` : ''}
+        ${can('moderar') ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${Object.entries(ST).map(([kk, v]) => `<button class="btn sm ${x.status === kk || (!x.status && kk === 'nueva') ? 'gold' : ''}" data-sst="${kk}" data-sid="${esc(x.id)}">${v[0]} ${v[1]}</button>`).join('')}<button class="btn sm" data-sdel="${esc(x.id)}">🗑️ Borrar</button></div>` : S.isAdmin ? `<div style="margin-top:10px"><button class="btn sm" data-sdel="${esc(x.id)}">🗑️ Borrar</button></div>` : ''}
       </div></div>`;
   }).join('')}</div>` : `<div class="card s2-empty"><div class="s2e-ic">💡</div><b>Todavía no hay ideas</b><p class="muted small">¡Sé el primero! Por ejemplo:</p><div class="if-chips" style="justify-content:center">${['🎲 Dominó después de la cena', '🎤 Karaoke de villancicos', '📸 Foto grupal con gorros'].map(t => `<span class="if-chip ghost">${t}</span>`).join('')}</div></div>`);
 }
@@ -356,7 +356,7 @@ $('#s-list').addEventListener('click', async e => {
     }
     if (st) await setDoc(doc(adb, 'suggestions', st.dataset.sid), { status: st.dataset.sst }, { merge: true });
     if (del && await confirmBox('¿Borrar esta sugerencia?', 'No se puede deshacer.', 'Borrar')) {
-      const b = writeBatch(adb); b.delete(doc(adb, 'suggestions', del.dataset.sdel)); if (S.isOwner || can('moderar')) b.delete(doc(adb, 'suggestionAuthors', del.dataset.sdel));
+      const b = writeBatch(adb); b.delete(doc(adb, 'suggestions', del.dataset.sdel)); if (S.isAdmin) b.delete(doc(adb, 'suggestionAuthors', del.dataset.sdel));
       S.sugVotes.filter(v => v.sug === del.dataset.sdel).forEach(v => b.delete(doc(adb, 'sugVotes', v.id)));
       for (let i = 0; i < (S.suggestions.find(x => x.id === del.dataset.sdel)?.imgs || 0); i++) b.delete(doc(adb, 'sugImg', `${del.dataset.sdel}__${i}`));
       await b.commit();
