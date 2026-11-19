@@ -6,15 +6,16 @@ function renderWheel() {
     top.innerHTML = S.authReady ? needLogin('Entra con tu nombre y tu PIN para girar.') : ''; btn.style.display = 'none'; msg.textContent = '';
   } else {
     top.innerHTML = `<div class="spinpass"><div class="sp-top"><span class="sp-av"><i></i><span>${esc(S.me.emoji)}</span></span><div class="grow"><small>Vas a girar como</small><b>${esc(S.me.name)}</b></div></div><div class="wc-st" id="wc-st"></div></div>${fixBanner()}`;
-    if (!S.drawMeta || !drawReady() || !S.drawMeta.ids.includes(S.uid)) msg.textContent = 'La ruleta está inhabilitada por ahora. ¡Vuelve pronto! 🎄';
+    if (S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid) && spinPaused()) msg.textContent = '🔒 El organizador pausó la ruleta por ahora. Tu persona sigue guardada y segura: vuelve pronto.';
+    else if (!S.drawMeta || !drawReady() || !S.drawMeta.ids.includes(S.uid)) msg.textContent = 'La ruleta está inhabilitada por ahora. ¡Vuelve pronto! 🎄';
     else if (!S.assignment) msg.textContent = 'Cargando tu sorteo…';
     else { canSpin = true; msg.textContent = S.assignment.revealed ? 'Ya giraste. Puedes volver a verlo con tu PIN.' : `¡Mucha suerte, ${S.me.first}! 🍀`; }
     btn.innerHTML = S.assignment?.revealed ? '🔐 Ver a quién me tocó' : '🎡 Girar la ruleta';
     if (canSpin && needGuess()) { btn.innerHTML = '🔮 Primero guarda tu adivinanza'; msg.textContent = 'Antes de girar, escribe abajo qué crees que te van a regalar 👇'; }
-    if (!canSpin && !(S.drawMeta && drawReady() && S.drawMeta.ids.includes(S.uid))) btn.innerHTML = '🔒 Ruleta inhabilitada';
+    if (!canSpin && !(S.drawMeta && spinOpen() && S.drawMeta.ids.includes(S.uid))) btn.innerHTML = spinPaused() && S.drawMeta ? '🔒 Ruleta en pausa' : '🔒 Ruleta inhabilitada';
   }
   btn.disabled = S.spinning || !canSpin;
-  const locked = !!S.me && !canSpin && !S.spinning && !(S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid));
+  const locked = !!S.me && !canSpin && !S.spinning && !(S.drawMeta && spinOpen() && S.drawMeta.ids?.includes(S.uid));
   const wasLocked = $('#v-ruleta').classList.contains('locked');
   $('#v-ruleta').classList.toggle('locked', locked);
   const st = $('#wc-st');

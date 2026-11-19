@@ -162,6 +162,9 @@ function renderAdmin() {
     : drawReady() ? `✅ Sorteo listo · <b>${spun} de ${S.participants.length}</b> ya giraron. Las parejas no se muestran aquí.`
       : '⚠️ Los participantes cambiaron después del sorteo. Vuelve a generarlo.';
   $('#d-gen').textContent = hasDraw ? '🧹 Limpiar sorteo' : '🎡 Generar sorteo';
+  { const off = spinPaused(), b = $('#d-pause'); if (b) { b.textContent = off ? '▶️ Activar' : '⏸️ Pausar'; b.classList.toggle('gold', off);
+    $('#d-pause-t').textContent = off ? '🔒 Ruleta en pausa' : '⏸️ Pausar la ruleta';
+    $('#d-pause-sub').textContent = off ? 'Ahora nadie puede girar ni volver a ver a quién le tocó. Actívala cuando quieras.' : 'Nadie podrá girar ni volver a ver a quién le tocó hasta que la actives otra vez.'; } }
   renderFixAdmin();
   $('#d-gen').classList.toggle('danger', !!hasDraw);
   renderHistory();
@@ -586,6 +589,12 @@ $('#h-list')?.addEventListener('click', async e => {
 $('#h-clear')?.addEventListener('click', async () => {
   if (!(await confirmBox('¿Borrar todo el historial?', 'Se borran para siempre todos los angelitos pasados.', 'Borrar todo'))) return;
   try { await commitOps((S.history || []).map(x => ['del', doc(adb, 'history', x.id)])); toast('🗑️ Historial borrado'); } catch (err) { toast(authErr(err)); }
+});
+// ⏸️ pausar / ▶️ activar la ruleta (y el «ver a quién me tocó»)
+$('#d-pause').addEventListener('click', async () => {
+  const off = !spinPaused();
+  if (off && !(await confirmBox('¿Pausar la ruleta?', 'Nadie podrá girar ni volver a ver a quién le tocó hasta que la actives otra vez. No se pierde nada: cada persona conserva la suya.', 'Pausar'))) return;
+  try { await setDoc(doc(adb, 'config', 'event'), { spinOff: off }, { merge: true }); toast(off ? '🔒 Ruleta en pausa' : '▶️ Ruleta activa otra vez'); } catch (e) { toast(authErr(e)); }
 });
 $('#d-gen').addEventListener('click', async () => {
   if (S.drawMeta) return clearDraw();

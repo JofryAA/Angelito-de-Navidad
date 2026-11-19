@@ -186,6 +186,10 @@ const drawReady = () => {
   return S.participants.map(p => p.id).sort().join(',') === [...S.drawMeta.ids].sort().join(',');
 };
 
+// 🔒 el organizador puede pausar la ruleta: nadie puede girar ni volver a ver su persona hasta que la active de nuevo
+const spinPaused = () => !!S.event?.spinOff;
+const spinOpen = () => drawReady() && !spinPaused();
+
 /* ---------- selector propio (no el menú del sistema) ---------- */
 function wrapSelect(sel) {
   if (sel.closest('.csel') || sel.multiple) return;

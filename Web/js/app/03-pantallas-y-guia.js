@@ -62,7 +62,7 @@ function helperTips() {
   if (!S.me) return [];
   const c = S.event, a = S.att[S.uid] || {}, t = [];
   if (canNotify() && Notification.permission !== 'granted' && !(isIOS() && !isStandalone())) t.push(['🔔', Notification.permission === 'denied' ? 'Tus avisos están bloqueados. Toca y te explico cómo activarlos' : '¿Te avisamos de los mensajes y de tu angelito? Actívalos aquí', 'notif', 'Activar']);
-  if (mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid) && !S.assignment?.revealed) t.push(['🎡', '¡Ya puedes girar la ruleta y ver a quién le regalas!', '#ruleta', 'Girar']);
+  if (mod('ruleta') && S.drawMeta && spinOpen() && S.drawMeta.ids?.includes(S.uid) && !S.assignment?.revealed) t.push(['🎡', '¡Ya puedes girar la ruleta y ver a quién le regalas!', '#ruleta', 'Girar']);
   if (mod('asistencia') && !a.status) t.push(['🎉', '¿Vas al angelito? Confírmalo en un toque', 'att', 'Confirmar']);
   if (mod('perfil') && profDone() < 4) t.push(['👕', 'Pon tu talla y tus gustos para que tu angelito acierte', 'perfil', 'Completar']);
   if (mod('deseos') && !S.wishes.some(w => w.uid === S.uid)) t.push(['🎁', 'Escribe 2 o 3 ideas de regalo en tu lista de deseos', '#deseos', 'Escribir']);
@@ -329,10 +329,11 @@ function maybeTour() {
 // 🤫 Modo secreto: a quién le regalas NO se nota en ninguna parte (inicio, deseos, etiquetas, orden de la lista)
 // a menos que pongas tu PIN. Se vuelve a ocultar al minuto o en cuanto sales de la app.
 let secT = 0;
-const secretOpen = () => Date.now() < (S.secretUntil || 0);
+const secretOpen = () => !spinPaused() && Date.now() < (S.secretUntil || 0);
 function openSecret() { S.secretUntil = Date.now() + 60e3; clearTimeout(secT); secT = setTimeout(lockSecret, 60e3); }
 function lockSecret() { if (!S.secretUntil) return; S.secretUntil = 0; clearTimeout(secT); if (S.wishPid && S.wishPid === S.assignment?.recipient) S.wishPid = S.uid; render(); } // al ocultarse, Deseos vuelve a tu lista
 async function unlockSecret() {
+  if (spinPaused()) { toast('🔒 El organizador pausó la ruleta: por ahora nadie puede ver su persona'); return false; }
   if (!(await askPin('🤫 Ver tu persona', 'Confirma tu PIN. Se oculta sola en 1 minuto o al salir de la app.'))) return false;
   openSecret(); render(); return true;
 }
@@ -341,7 +342,7 @@ function renderNext() {
   const box = $('#h-next'); if (!box) return;
   if (!S.me) { box.innerHTML = ''; return; }
   const c = S.event, today = todayStr(), evDay = (c.eventDate || '').slice(0, 10);
-  const A = S.assignment, ready = mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid);
+  const A = S.assignment, ready = mod('ruleta') && S.drawMeta && spinOpen() && S.drawMeta.ids?.includes(S.uid);
   let h = '';
   if (evDay && evDay === today) h = `<div class="card nextc"><div class="nx-e">🎉</div><div class="grow"><b>¡Hoy es el angelito!</b><div class="muted small">${c.place ? '📍 ' + esc(c.place) + ' · ' : ''}${esc(hm(new Date(c.eventDate)))}</div></div><a class="btn sm gold" href="#actividades">Ver agenda</a></div>`;
   else if (ready && !A?.revealed) h = `<a class="card nextc hot" href="#ruleta"><div class="nx-e spin">🎡</div><div class="grow"><b>¡Ya puedes girar la ruleta!</b><div class="muted small">Descubre a quién le vas a regalar.</div></div><span class="btn sm gold">Girar ahora</span></a>`;
