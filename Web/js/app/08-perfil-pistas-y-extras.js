@@ -109,7 +109,7 @@ function renderHints() {
     h += `<div class="h2row"><h2>🕵️ ¿Quién crees que es tu angelito?</h2></div>
       <div class="card stack"><p class="muted small">Elige a quién crees que te tocó como angelito. Nadie lo ve hasta la gran revelación en la fiesta, y puedes cambiarlo hasta entonces.</p>
       <select class="in" id="ag-sel"><option value="">Elige a alguien</option>${S.participants.filter(p => p.id !== S.uid && S.drawMeta.ids.includes(p.id)).map(p => `<option value="${esc(p.id)}" ${g === p.id ? 'selected' : ''}>${esc(p.emoji)} ${esc(p.name)}</option>`).join('')}</select>
-      ${g ? `<div class="small">✅ Tu sospecha: <b>${esc(pName(g))}</b></div>` : ''}</div>`;
+      ${g ? `<div class="small">🕵️ Sospecha guardada: <b>${esc(pName(g))}</b> <span class="muted">· si acertaste se sabrá en la revelación</span></div>` : ''}</div>`;
   }
   if (document.activeElement?.id === 'ag-sel') return; // no cerrar el selector mientras se elige
   box.innerHTML = h;
