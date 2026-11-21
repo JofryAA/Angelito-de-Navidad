@@ -69,7 +69,7 @@ function editWish(id) {
     e.preventDefault(); const f = e.target, text = f.text.value.trim(), link = f.link.value.trim(), price = f.price.value.trim();
     if (!text) return toast('Escribe tu deseo');
     if (link && !/^https?:\/\//i.test(link)) return toast('El enlace debe empezar con https://');
-    try { await setDoc(doc(db, 'wishes', id), { text, link, price }, { merge: true }); closeModal(); toast('✅ Deseo actualizado'); }
+    try { await setDoc(doc(db, 'wishes', id), { text, link, price, ed: serverTimestamp() }, { merge: true }); closeModal(); toast('✅ Deseo actualizado'); }
     catch (err) { toast(authErr(err)); }
   });
 }

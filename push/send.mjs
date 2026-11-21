@@ -3,7 +3,7 @@
 // y manda un aviso a cada teléfono que activó las notificaciones. Gratis (plan Spark): solo usa
 // Firestore y Firebase Cloud Messaging con la cuenta de servicio guardada en el secreto FIREBASE_ADMIN_KEY.
 import { initializeApp, cert } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import { getDatabase } from 'firebase-admin/database';
 import { getAuth } from 'firebase-admin/auth';
@@ -194,12 +194,18 @@ async function runFix(fx) {
   for (let i = 0; i < ops.length; i += 400) { const b = db.batch(); ops.slice(i, i + 400).forEach(f => f(b)); await b.commit(); }
   return true;
 }
+// 🎁 deseos nuevos o editados: se agrupan y se avisan cuando la persona lleva 3 min sin tocar su lista
+const wishTo = now - 3 * 60e3, wishFrom = Math.min(st.wishAt || wishTo, wishTo), wTs = Timestamp.fromMillis(wishFrom), wTe = Timestamp.fromMillis(wishTo);
+const wishNew = st.wishAt ? (await db.collection('wishes').where('at', '>', wTs).where('at', '<=', wTe).get()).docs : [];
+const wishEd = st.wishAt ? (await db.collection('wishes').where('ed', '>', wTs).where('ed', '<=', wTe).get()).docs : [];
+const wishBy = {}; for (const d of wishNew) (wishBy[d.data().uid] ||= { n: 0, e: 0 }).n++;
+for (const d of wishEd) if (!wishNew.some(x => x.id === d.id)) (wishBy[d.data().uid] ||= { n: 0, e: 0 }).e++;
 // 💵 ¿cambió cuántos pagaron? (contar cuesta 1 lectura; la lista solo se lee si cambió)
 const paidQ = db.collection('attendance').where('confirmed', '==', true);
 const paidN = (await paidQ.count().get()).data().count, paidMove = paidN !== (st.paidSent?.length ?? -1);
-const nothing = !PRUEBA && !fixReady && !paidMove && !VT.alerts?.length && !VT.remaps?.length && !VT.revealedNow && !remDue.length && !invs.length && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
+const nothing = !PRUEBA && !fixReady && !paidMove && !Object.keys(wishBy).length && !VT.alerts?.length && !VT.remaps?.length && !VT.revealedNow && !remDue.length && !invs.length && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
   && !(open && st.revealSent !== openKey) && hintsQ.docs.every(d => seenH.has(d.id));
-if (nothing) { await stateRef.set({ last: now }, { merge: true }); console.log('Nada nuevo.'); process.exit(0); }
+if (nothing) { await stateRef.set({ last: now, wishAt: wishTo }, { merge: true }); console.log('Nada nuevo.'); process.exit(0); }
 
 const people = Object.fromEntries((await db.collection('participants').get()).docs.map(d => [d.id, d.data()]));
 const short = uid => { const p = people[uid]; return p ? `${p.first} ${(p.last || '')[0] || ''}.`.trim() : 'Alguien'; };
@@ -250,6 +256,8 @@ if (newPaid.length) {
     ? { title: `💵 ${who} ${newPaid.length === 1 ? 'pagó' : 'pagaron'} el aporte`, body: newPaid.includes(uid) ? `¡Gracias! Tu pago quedó confirmado. ${cuenta}` : cuenta, url: '#inicio' }
     : { title: `💵 ${who} ${newPaid.length === 1 ? 'pagó' : 'pagaron'} el aporte`, body: `${cuenta} ¿Y tú? 😉`, url: '#inicio' });
 }
+for (const [who, c] of Object.entries(wishBy)) if (people[who]) for (const uid of all) if (uid !== who)
+  put(uid, 'deseos', { title: `🎁 ${short(who)} ${c.n ? `agregó ${c.n === 1 ? 'un deseo' : c.n + ' deseos'}` : 'actualizó su lista de deseos'}`, body: 'Échale un vistazo: puede que sea tu persona secreta 😉', url: '#deseos' });
 // 💌 pistas del angelito (su hora se redondea a 10 min por privacidad: se recuerdan las ya enviadas)
 const newH = [];
 for (const d of hintsQ.docs) {
@@ -301,7 +309,7 @@ if (Object.keys(out).length) {
     const { uid, token, off = [] } = t.data(); const mine = out[uid]; if (!mine || !token || done.has(token)) continue; done.add(token); // un aviso por teléfono
     // si hay varias cosas a la vez, va la más importante
     const dev = t.data().dev || ''; // lo que se mandó desde este mismo teléfono no le llega a él
-    const cat = ['mencion', 'juegos', 'angelito', 'avisos', 'aportes', 'actividades', 'chat'].find(c => mine[c] && (PRUEBA || !off.includes(c)) && !(dev && mine[c].skipDev === dev)); if (!cat) continue;
+    const cat = ['mencion', 'juegos', 'angelito', 'avisos', 'aportes', 'deseos', 'actividades', 'chat'].find(c => mine[c] && (PRUEBA || !off.includes(c)) && !(dev && mine[c].skipDev === dev)); if (!cat) continue;
     const m = mine[cat];
     jobs.push(fcm.send({ token, data: { title: m.title, body: m.body, url: BASE + m.url, cat, ...(m.kind ? { kind: m.kind, game: m.game || '' } : {}) },
       webpush: { headers: { Urgency: cat === 'chat' ? 'normal' : 'high', TTL: '86400' } } })
@@ -310,5 +318,5 @@ if (Object.keys(out).length) {
   }
   await Promise.all(jobs);
 }
-await stateRef.set({ paidSent: paidNow, paidAnn: [...new Set([...(st.paidAnn || st.paidSent || []), ...paidNow])], rem: [...remSent, ...remDue.map(remKey)].slice(-60), last: now, revealSent: open ? openKey : (st.revealSent || ''), hints: [...seenH, ...newH].slice(-200), at: FieldValue.serverTimestamp(), sent, dropped }, { merge: true });
+await stateRef.set({ wishAt: wishTo, paidSent: paidNow, paidAnn: [...new Set([...(st.paidAnn || st.paidSent || []), ...paidNow])], rem: [...remSent, ...remDue.map(remKey)].slice(-60), last: now, revealSent: open ? openKey : (st.revealSent || ''), hints: [...seenH, ...newH].slice(-200), at: FieldValue.serverTimestamp(), sent, dropped }, { merge: true });
 console.log(`Listo: ${sent} avisos enviados, ${dropped} teléfonos dados de baja.`);

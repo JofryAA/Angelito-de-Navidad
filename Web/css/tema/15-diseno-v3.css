@@ -80,3 +80,5 @@ html body .gm h3,html body .gcard b{font-family:var(--disp)}
 /* la cinta de la cajita va como tapa arriba (no cruza los números) */
 html body .count>div::before,html body .count .c::before{left:0;right:0;top:0;bottom:auto;width:auto;height:7px;margin:0;opacity:1;box-shadow:0 1px 0 rgba(0,0,0,.12)}
 html body .count>div,html body .count .c{padding-top:12px}
+/* 🔔 la campana del chat vuelve a ser dorada cuando está activa (el estilo general de botones la tapaba) */
+html body .bellbtn.on{background:linear-gradient(160deg,#f7d98b,#e2a93b)!important;border-color:transparent!important;color:#1b140a!important;box-shadow:0 4px 12px rgba(226,169,59,.35)}
