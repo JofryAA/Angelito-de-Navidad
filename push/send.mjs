@@ -308,7 +308,7 @@ if (PRUEBA) for (const uid of all) put(uid, 'avisos', { title: '🔔 Prueba de n
 
 // enviar
 // 🔁 primero se anota qué se va a avisar y después se envía: si algo se corta a mitad, la próxima vuelta no repite los avisos
-await stateRef.set({ wishAt: wishTo, paidSent: paidNow, paidAnn: [...new Set([...(st.paidAnn || st.paidSent || []), ...paidNow])], rem: [...remSent, ...remDue.map(remKey)].slice(-60), last: now, revealSent: open ? openKey : (st.revealSent || ''), hints: [...seenH, ...newH].slice(-200), at: FieldValue.serverTimestamp(), sent, dropped }, { merge: true });
+await stateRef.set({ wishAt: wishTo, paidSent: paidNow, paidAnn: [...new Set([...(st.paidAnn || st.paidSent || []), ...paidNow])], rem: [...remSent, ...remDue.map(remKey)].slice(-60), last: now, revealSent: open ? openKey : (st.revealSent || ''), hints: [...seenH, ...newH].slice(-200), at: FieldValue.serverTimestamp() }, { merge: true });
 let sent = 0, dropped = 0;
 // Un teléfono pertenece solo a la última persona que entró en él: si antes entró otra cuenta (una de prueba, por ejemplo),
 // ese registro viejo se borra para que nadie reciba en su teléfono los avisos de otra persona (ni los de sus propios mensajes).
@@ -339,3 +339,4 @@ if (Object.keys(out).length) {
 }
 // (el estado ya se guardó antes de enviar)
 console.log(`Listo: ${sent} avisos enviados, ${dropped} teléfonos dados de baja.`);
+await stateRef.set({ sent, dropped }, { merge: true });

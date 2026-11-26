@@ -17,15 +17,16 @@ export function safeUrl(u) {
   } catch { return null; }
 }
 
+const why = {};
 async function getLimited(url, max, accept) {
   const ac = new AbortController(), t = setTimeout(() => ac.abort(), 12000);
   try {
     const r = await fetch(url, { redirect: 'follow', signal: ac.signal, headers: { 'User-Agent': UA, 'Accept-Language': 'es-DO,es;q=0.9,en;q=0.8', Accept: accept } });
-    if (!r.ok || !safeUrl(r.url)) return null;
+    if (!r.ok || !safeUrl(r.url)) { why.last = 'HTTP ' + r.status; return null; }
     const chunks = []; let n = 0;
     for await (const c of r.body) { n += c.length; if (n > max) break; chunks.push(c); }
     return { buf: Buffer.concat(chunks), type: r.headers.get('content-type') || '', url: r.url };
-  } catch { return null; } finally { clearTimeout(t); }
+  } catch (e) { why.last = e.name === 'AbortError' ? 'tardó mucho' : 'sin conexión'; return null; } finally { clearTimeout(t); }
 }
 
 const unesc = s => String(s || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
@@ -81,7 +82,7 @@ export async function toDataUrl(buf) {
 
 export async function wishLinkTasks({ db, log = console.log }) {
   const pend = (await db.collection('wishes').where('auto', '==', true).limit(8).get()).docs;
-  let ok = 0, bad = 0;
+  let ok = 0, bad = 0; const fails = [];
   for (const d of pend) {
     const w = d.data(), u = safeUrl(w.link), upd = { auto: FieldValue.delete() };
     try {
@@ -95,10 +96,10 @@ export async function wishLinkTasks({ db, log = console.log }) {
         if (data) { await db.doc('wishImg/' + d.id).set({ uid: w.uid, data }); upd.hasImg = true; }
       }
       if (w.autoText) upd.autoText = FieldValue.delete();
-      if (!upd.hasImg && !upd.text) bad++; else ok++;
+      if (!upd.hasImg && !upd.text) { bad++; fails.push(`${u?.hostname.replace(/^www\./, '') || 'enlace inválido'}: ${page ? (p.title || p.image ? 'sin foto' : 'página sin datos') : why.last || 'no respondió'}`); } else ok++;
     } catch { bad++; }
     await d.ref.set(upd, { merge: true });
   }
-  if (pend.length) log(`Deseos desde enlace: ${ok} completados, ${bad} sin datos de la tienda.`);
+  if (pend.length) log(`Deseos desde enlace: ${ok} completados, ${bad} sin datos de la tienda${fails.length ? ' (' + fails.join('; ') + ')' : ''}.`); // solo la tienda, nunca quién ni qué
   return pend.length;
 }
