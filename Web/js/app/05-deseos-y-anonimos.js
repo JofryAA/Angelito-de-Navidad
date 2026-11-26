@@ -72,7 +72,7 @@ function renderWishes() {
   const many = S.participants.length > 8;
   // 🧈 sin «fricción»: ya no se reconstruye la pantalla entera en cada cambio; cada parte se toca solo si cambió de verdad
   //    (no se cortan el deslizamiento, la fila de personas, las fotos ni lo que estás escribiendo)
-  if (root.__sk !== many || !$('#w-main')) { root.__sk = many; root.innerHTML = `<div id="w-sec"></div><div class="wtabs" id="w-tabs" role="tablist"></div><div id="w-listv">${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}<div class="pscroll" id="w-strip"></div><div id="w-main"></div><div id="w-formbox"></div></div><div id="w-feed" hidden></div>`; }
+  if (root.__sk !== many || !$('#w-main')) { root.__sk = many; root.innerHTML = `<div id="w-sec"></div>${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}<div class="pscroll" id="w-strip"></div><div id="w-listv"><div id="w-main"></div><div id="w-formbox"></div></div><div id="w-feed" hidden></div>`; }
   setHTML($('#w-sec'), secBar());
   setHTML($('#w-strip'), wishStrip());
   setHTML($('#w-main'), `${wishHero(S.wishPid, mine, isRec, items)}
@@ -108,7 +108,7 @@ function renderWishes() {
     if (keep.f && /^w-(text|link|price)$/.test(keep.f) && $('#' + keep.f)) $('#' + keep.f).focus();
   }
   // 📰 pestañas: lista por persona / todos los deseos juntos (como publicaciones)
-  setHTML($('#w-tabs'), [['list', '👤 Por persona'], ['feed', '📰 Todos']].map(([k, t]) => `<button type="button" role="tab" class="wtab ${S.wView === k ? 'on' : ''}" aria-selected="${S.wView === k}" data-wview="${k}">${t}</button>`).join(''));
+  // 📰 «Todos» va en la fila de personas, al lado de «Mi lista»
   $('#w-listv').hidden = S.wView === 'feed'; $('#w-feed').hidden = S.wView !== 'feed';
   if (S.wView === 'feed') { const fi = wishFeedItems(); setHTML($('#w-feed'), wishFeed(fi)); loadWishImgs(fi); } else loadWishImgs(items);
   if (S.cmOpen && $('#cm-list')) { setHTML($('#cm-list'), cmList(S.cmOpen)); }
@@ -124,8 +124,9 @@ function wishStrip() {
   if (!list.length) return '<div class="pempty">Nadie con ese nombre.</div>';
   const fc = {}; S.participants.forEach(p => { const k = normName(p.first); fc[k] = (fc[k] || 0) + 1; });
   const label = p => fc[normName(p.first)] > 1 ? shortName(p) : p.first;
-  return list.map(p => { const n = cnt(p.id);
-    return `<button class="pav ${S.wishPid === p.id ? 'on' : ''}" data-p="${esc(p.id)}" title="${esc(p.name)}"><span class="ci">${esc(p.emoji)}${n ? `<span class="n">${n}</span>` : ''}</span><span class="nm">${esc(p.id === S.uid ? 'Mi lista' : p.id === rec ? '🎯 ' + label(p) : label(p))}</span></button>`; }).join('');
+  const feed = `<button class="pav pav-all ${S.wView === 'feed' ? 'on' : ''}" data-wview="feed" title="Todos los deseos"><span class="ci">📰${S.wishes.length ? `<span class="n">${S.wishes.length}</span>` : ''}</span><span class="nm">Todos</span></button>`;
+  return list.map((p, i) => { const n = cnt(p.id);
+    return (i === 1 || (i === 0 && p.id !== S.uid) ? feed : '') + `<button class="pav ${S.wView !== 'feed' && S.wishPid === p.id ? 'on' : ''}" data-p="${esc(p.id)}" title="${esc(p.name)}"><span class="ci">${esc(p.emoji)}${n ? `<span class="n">${n}</span>` : ''}</span><span class="nm">${esc(p.id === S.uid ? 'Mi lista' : p.id === rec ? '🎯 ' + label(p) : label(p))}</span></button>`; }).join('') + (list.length === 1 ? feed : '');
 }
 // Las fotos de los deseos se bajan solo cuando alguien abre esa lista (así la app sigue rápida).
 // Cada foto se pide UNA sola vez (antes, si una foto faltaba o venía vacía, se volvía a pedir en cada
@@ -160,7 +161,7 @@ $('#w-root').addEventListener('input', e => {
   S.wishQ = e.target.value; setHTML($('#w-strip'), wishStrip()); $('#w-strip').scrollLeft = 0;
 });
 $('#w-root').addEventListener('click', async e => {
-  const c = e.target.closest('[data-p]'); if (c) { S.wishPid = c.dataset.p; $$('#w-form input').forEach(i => i.value = ''); renderWishes(); $('#w-strip [data-p].on')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' }); return; }
+  const c = e.target.closest('[data-p]'); if (c) { S.wishPid = c.dataset.p; S.wView = 'list'; $$('#w-form input').forEach(i => i.value = ''); renderWishes(); $('#w-strip [data-p].on')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' }); return; }
   const d = e.target.closest('[data-del]');
   if (d && await confirmBox('¿Borrar este deseo?', 'Se quitará de la lista.', 'Borrar')) {
     const xdb = d.dataset.own ? db : adb, b = writeBatch(xdb); b.delete(doc(xdb, 'wishes', d.dataset.del));
