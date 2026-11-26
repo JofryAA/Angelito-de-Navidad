@@ -269,8 +269,11 @@ if (!cmQ.empty) {
   const allCm = (await db.collection('wishComments').get()).docs.map(d => d.data());
   for (const c of cmQ.docs.map(d => d.data())) {
     if (!people[c.owner]) continue; const txt = String(c.text || '').slice(0, 140);
-    if (c.uid !== c.owner) put(c.owner, 'deseos', { title: c.anon ? '💬 Alguien comentó tu deseo (en secreto)' : `💬 ${short(c.uid)} comentó tu deseo`, body: txt, url: '#deseos' });
-    else for (const u of new Set(allCm.filter(x => x.wish === c.wish && x.uid && x.uid !== c.owner).map(x => x.uid))) put(u, 'deseos', { title: `💬 ${short(c.owner)} respondió en su deseo`, body: txt, url: '#deseos' });
+    const who = c.anon ? 'Alguien (en secreto)' : short(c.uid);
+    if (c.uid !== c.owner) put(c.owner, 'deseos', { title: `💬 ${who} comentó tu deseo`, body: txt, url: '#deseos' });
+    // también a quienes ya comentaron ese deseo con su nombre (siguen la conversación), menos a quien escribió
+    for (const u of new Set(allCm.filter(x => x.wish === c.wish && x.uid && x.uid !== c.owner && x.uid !== c.uid).map(x => x.uid)))
+      put(u, 'deseos', { title: c.uid === c.owner ? `💬 ${short(c.owner)} respondió en su deseo` : `💬 ${who} también comentó en el deseo de ${short(c.owner)}`, body: txt, url: '#deseos' });
   }
 }
 // 💌 pistas del angelito (su hora se redondea a 10 min por privacidad: se recuerdan las ya enviadas)

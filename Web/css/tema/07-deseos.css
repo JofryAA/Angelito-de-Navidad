@@ -194,3 +194,7 @@ body.anim-in .wsc{animation:popin .4s var(--d,0ms) backwards}
 .cm-sw.on{background:#2a2414;border-color:#e2a93b}.cm-sw.on .cm-sw-ic{background:#3a3016}.cm-sw.on .cm-sw-t small{color:#f3d58a}
 .cm-sw.on .cm-sw-k{background:linear-gradient(160deg,#f7d98b,#e2a93b)}.cm-sw.on .cm-sw-k i{transform:translateX(20px);background:#1b140a}
 @media (prefers-reduced-motion:reduce){.cm-sw,.cm-sw-k,.cm-sw-k i{transition:none}}
+/* 🔴 comentarios nuevos */
+.wsc-cm.new,.wf-cm.new{border-color:#e2a93b;background:#2a2414}
+.cm-new{margin-left:6px;padding:1px 7px;border-radius:999px;background:#e5484d;color:#fff;font-size:.72rem;font-weight:700}
+.wf-cm.new{position:relative}.wf-cm.new::after{content:'';position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:#e5484d;border:2px solid #13281f}

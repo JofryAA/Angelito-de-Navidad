@@ -13,9 +13,20 @@ function secBar() {
 }
 // 💬 comentarios de un deseo
 const cmsOf = id => (S.wishComments || []).filter(c => c.wish === id);
+// 🔴 comentarios sin leer: en mis deseos o en deseos donde comenté (con mi nombre). Se guarda en este teléfono.
+const cmSeenMap = () => { try { return JSON.parse(localStorage.getItem('angelito:cmSeen') || '{}'); } catch { return {}; } };
+const cmBase = () => { try { let b = +localStorage.getItem('angelito:cmBase'); if (!b) { b = Date.now(); localStorage.setItem('angelito:cmBase', b); } return b; } catch { return Date.now(); } };
+function cmUnreadOf(id) {
+  if (!S.uid) return 0; const w = S.wishes.find(x => x.id === id); if (!w) return 0;
+  const cs = cmsOf(id), mine = w.uid === S.uid || cs.some(c => c.uid === S.uid); if (!mine) return 0;
+  const seen = Math.max(cmSeenMap()[id] || 0, cmBase());
+  return cs.filter(c => c.uid !== S.uid && ms(c.at) > seen).length;
+}
+const cmUnread = () => [...new Set((S.wishComments || []).map(c => c.wish))].reduce((n, id) => n + cmUnreadOf(id), 0);
+function cmMarkSeen(id) { const m = cmSeenMap(), mx = Math.max(0, ...cmsOf(id).map(c => ms(c.at))); if (mx > (m[id] || 0)) { m[id] = mx; try { localStorage.setItem('angelito:cmSeen', JSON.stringify(m)); } catch { } try { renderBadges(); } catch { } } }
 function cmBtn(w) {
-  const n = cmsOf(w.id).length;
-  return `<button type="button" class="wsc-cm" data-wcm="${esc(w.id)}">💬 ${n ? `${n} ${n === 1 ? 'comentario' : 'comentarios'}` : 'Comentar'}</button>`;
+  const n = cmsOf(w.id).length, u = cmUnreadOf(w.id);
+  return `<button type="button" class="wsc-cm ${u ? 'new' : ''}" data-wcm="${esc(w.id)}">💬 ${n ? `${n} ${n === 1 ? 'comentario' : 'comentarios'}` : 'Comentar'}${u ? `<span class="cm-new">${u} nuevo${u > 1 ? 's' : ''}</span>` : ''}</button>`;
 }
 function cmList(id) {
   const w = S.wishes.find(x => x.id === id), cs = cmsOf(id);
@@ -25,7 +36,7 @@ function cmList(id) {
 }
 function openWishComments(id) {
   const w = S.wishes.find(x => x.id === id); if (!w) return;
-  const own = w.uid === S.uid; S.cmOpen = id;
+  const own = w.uid === S.uid; S.cmOpen = id; cmMarkSeen(id);
   const m = openModal(`<h3>💬 Comentarios</h3><p class="muted small" style="margin:-4px 0 10px">${own ? 'Tu deseo' : `Deseo de ${esc(pName(w.uid))}`}: <b>${esc(w.text.slice(0, 90))}${w.text.length > 90 ? '…' : ''}</b></p>
     <div class="cm-list" id="cm-list">${cmList(id)}</div>
     <form id="cm-form" class="cm-form"><textarea class="in" id="cm-text" maxlength="300" rows="2" placeholder="${own ? 'Responde aquí…' : 'Escribe un comentario o pregunta…'}" required></textarea>
@@ -59,7 +70,7 @@ function wishFeed(items) {
     return `<article class="wfeed"><header><span class="wf-av">${esc(pEmoji(w.uid))}</span><b class="wf-n">${esc(pName(w.uid))}</b><small>${t ? agoTxt(t) : ''}${w.top ? ' · ⭐' : ''}</small><button type="button" class="wf-go" data-wgo="${esc(w.uid)}">Su lista ›</button></header>
       <div class="wf-row">${media}<div class="wf-c"><div class="wf-t">${esc(w.text)}</div>${w.auto ? '<small class="wf-auto">⏳ Buscando foto y precio…</small>' : ''}
         <div class="wf-meta">${w.price ? `<span class="wf-price">${esc(w.price)}</span>` : ''}${dom ? `<a class="wsc-link" href="${esc(w.link)}" target="_blank" rel="noopener">${ic('link', 12)}<span>${esc(dom)}</span></a>` : ''}</div></div></div>
-      <footer><button type="button" class="wf-cm" data-wcm="${esc(w.id)}">💬 ${n ? n : ''}</button>${last ? `<span class="wf-last" data-wcm="${esc(w.id)}"><b>${last.anon ? '🕶️ Alguien' : esc(pName(last.uid).split(' ')[0])}:</b> ${esc(last.text.slice(0, 90))}</span>` : '<span class="wf-last muted" data-wcm="'+esc(w.id)+'">Comentar…</span>'}</footer></article>`; }).join('') + (S.wishes.length > (S.feedN || 30) ? '<button type="button" class="btn" data-wfmore style="width:100%">Ver más deseos</button>' : '');
+      <footer><button type="button" class="wf-cm ${cmUnreadOf(w.id) ? 'new' : ''}" data-wcm="${esc(w.id)}">💬 ${n ? n : ''}</button>${last ? `<span class="wf-last" data-wcm="${esc(w.id)}"><b>${last.anon ? '🕶️ Alguien' : esc(pName(last.uid).split(' ')[0])}:</b> ${esc(last.text.slice(0, 90))}</span>` : '<span class="wf-last muted" data-wcm="'+esc(w.id)+'">Comentar…</span>'}</footer></article>`; }).join('') + (S.wishes.length > (S.feedN || 30) ? '<button type="button" class="btn" data-wfmore style="width:100%">Ver más deseos</button>' : '');
 }
 function renderWishes() {
   const root = $('#w-root');
@@ -111,7 +122,7 @@ function renderWishes() {
   // 📰 «Todos» va en la fila de personas, al lado de «Mi lista»
   $('#w-listv').hidden = S.wView === 'feed'; $('#w-feed').hidden = S.wView !== 'feed';
   if (S.wView === 'feed') { const fi = wishFeedItems(); setHTML($('#w-feed'), wishFeed(fi)); loadWishImgs(fi); } else loadWishImgs(items);
-  if (S.cmOpen && $('#cm-list')) { setHTML($('#cm-list'), cmList(S.cmOpen)); }
+  if (S.cmOpen && $('#cm-list') && $('#modal').classList.contains('on')) { setHTML($('#cm-list'), cmList(S.cmOpen)); cmMarkSeen(S.cmOpen); }
 }
 // Orden: yo, la persona que me tocó (si ya la vi), quienes tienen deseos y luego el resto, por nombre.
 function wishStrip() {

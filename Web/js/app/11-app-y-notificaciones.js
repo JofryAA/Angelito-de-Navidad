@@ -366,6 +366,7 @@ function renderBadges() {
   put($('.tab[data-v=buzon]'), c); put($('.tab[data-v=sugerencias]'), g); put($('#buz-seg [data-b=c]'), c); put($('#buz-seg [data-b=s]'), g);
   const spinNow = !!(S.me && mod('ruleta') && S.drawMeta && drawReady() && S.drawMeta.ids?.includes(S.uid) && !S.assignment?.revealed);
   put($('.tab[data-v=ruleta]'), spinNow ? '!' : 0);
+  let cmN = 0; try { cmN = S.me && mod('deseos') ? cmUnread() : 0; } catch { } put($('.tab[data-v=deseos]'), cmN); // 💬 comentarios nuevos en tus deseos
   let myTurn = 0; try { myTurn = S.me ? GAMES.active() : 0; } catch { } put($('.tab[data-v=juegos]'), myTurn);
   const mb = $('#c-mute'); if (mb) { const off = nprefs().chat === false, k = off ? 'off' : 'on'; if (mb.dataset.k !== k) { mb.dataset.k = k; mb.innerHTML = ic(off ? 'belloff' : 'bell', 20); mb.classList.toggle('on', !off); } }
 }
