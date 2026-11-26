@@ -53,13 +53,13 @@ function openWishComments(id) {
 const wishFeedItems = () => S.wishes.filter(w => P(w.uid)).sort((a, b) => Math.max(ms(b.at), ms(b.ed)) - Math.max(ms(a.at), ms(a.ed))).slice(0, S.feedN || 30);
 function wishFeed(items) {
   if (!items.length) return '<div class="card s2-empty"><b>Todavía no hay deseos</b><p class="muted small">Cuando alguien agregue uno, aparecerá aquí.</p></div>';
-  return items.map(w => { const img = w.hasImg && S.wishImgs[w.id], dom = /^https?:\/\//i.test(w.link || '') ? (w.link.match(/^https?:\/\/(?:www\.)?([^/?#]+)/i)?.[1] || 'Ver enlace') : '', t = Math.max(ms(w.at), ms(w.ed)), last = cmsOf(w.id).slice(-1)[0];
-    return `<article class="wfeed"><header><span class="wf-av">${esc(pEmoji(w.uid))}</span><div class="wf-who"><b>${esc(pName(w.uid))}</b><small>${t ? agoTxt(t) : ''}${ms(w.ed) ? ' · editado' : ''}${w.top ? ' · ⭐ favorito' : ''}</small></div><button type="button" class="btn sm" data-wgo="${esc(w.uid)}">Ver su lista</button></header>
-      ${img ? `<div class="wf-pic" style="background-image:url('${img}')" data-wimg="${esc(w.id)}" role="button" aria-label="Ver foto"></div>` : w.auto ? '<div class="wf-pic ld"><span>⏳ Buscando foto y precio en la tienda…</span></div>' : w.hasImg ? '<div class="wf-pic ld"><i class="wsc-ld"></i></div>' : ''}
-      <div class="wf-t">${esc(w.text)}</div>
-      ${w.price || dom ? `<div class="wf-meta">${w.price ? `<span class="wf-price">${esc(w.price)}</span>` : ''}${dom ? `<a class="wsc-link" href="${esc(w.link)}" target="_blank" rel="noopener">${ic('link', 12)}<span>${esc(dom)}</span></a>` : ''}</div>` : ''}
-      ${last ? `<div class="wf-last"><b>${last.anon ? '🕶️ Alguien' : esc(pName(last.uid))}:</b> ${esc(last.text.slice(0, 120))}</div>` : ''}
-      <footer>${cmBtn(w)}</footer></article>`; }).join('') + (S.wishes.length > (S.feedN || 30) ? '<button type="button" class="btn" data-wfmore style="width:100%">Ver más deseos</button>' : '');
+  return items.map((w, k) => { const img = w.hasImg && S.wishImgs[w.id], dom = /^https?:\/\//i.test(w.link || '') ? (w.link.match(/^https?:\/\/(?:www\.)?([^/?#]+)/i)?.[1] || 'Ver enlace') : '', t = Math.max(ms(w.at), ms(w.ed)), last = cmsOf(w.id).slice(-1)[0], n = cmsOf(w.id).length, [we, wc] = wishArt(w.text, k);
+    const media = img ? `<div class="wf-m" style="background-image:url('${img}')" data-wimg="${esc(w.id)}" role="button" aria-label="Ver foto"></div>`
+      : w.auto || w.hasImg ? '<div class="wf-m ld"><i class="wsc-ld"></i></div>' : `<div class="wf-m art" style="--wa:${wc}"><span>${we}</span></div>`;
+    return `<article class="wfeed"><header><span class="wf-av">${esc(pEmoji(w.uid))}</span><b class="wf-n">${esc(pName(w.uid))}</b><small>${t ? agoTxt(t) : ''}${w.top ? ' · ⭐' : ''}</small><button type="button" class="wf-go" data-wgo="${esc(w.uid)}">Su lista ›</button></header>
+      <div class="wf-row">${media}<div class="wf-c"><div class="wf-t">${esc(w.text)}</div>${w.auto ? '<small class="wf-auto">⏳ Buscando foto y precio…</small>' : ''}
+        <div class="wf-meta">${w.price ? `<span class="wf-price">${esc(w.price)}</span>` : ''}${dom ? `<a class="wsc-link" href="${esc(w.link)}" target="_blank" rel="noopener">${ic('link', 12)}<span>${esc(dom)}</span></a>` : ''}</div></div></div>
+      <footer><button type="button" class="wf-cm" data-wcm="${esc(w.id)}">💬 ${n ? n : ''}</button>${last ? `<span class="wf-last" data-wcm="${esc(w.id)}"><b>${last.anon ? '🕶️ Alguien' : esc(pName(last.uid).split(' ')[0])}:</b> ${esc(last.text.slice(0, 90))}</span>` : '<span class="wf-last muted" data-wcm="'+esc(w.id)+'">Comentar…</span>'}</footer></article>`; }).join('') + (S.wishes.length > (S.feedN || 30) ? '<button type="button" class="btn" data-wfmore style="width:100%">Ver más deseos</button>' : '');
 }
 function renderWishes() {
   const root = $('#w-root');
