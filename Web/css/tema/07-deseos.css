@@ -178,3 +178,12 @@ body.anim-in .wsc{animation:popin .4s var(--d,0ms) backwards}
 .cm-b{flex:1;min-width:0}.cm-b p{margin:3px 0;white-space:pre-line;overflow-wrap:anywhere}.cm-own{color:#f3d58a;font-weight:600;font-size:.72rem}
 .cm-x{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:.85rem}
 .cm-form{display:flex;flex-direction:column;gap:8px}.cm-anon{display:flex;gap:8px;align-items:center;font-size:.88rem;color:var(--muted)}
+/* 🕶️ interruptor «en secreto» (bien visible) */
+.cm-sw{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:16px;border:1.5px solid #3a5a48;background:#132a20;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .2s,border-color .2s}
+.cm-sw-ic{flex:none;width:38px;height:38px;border-radius:12px;background:#1d3a2c;display:grid;place-items:center;font-size:1.25rem}
+.cm-sw-t{flex:1;min-width:0}.cm-sw-t b{display:block}.cm-sw-t small{color:var(--muted);font-size:.8rem}
+.cm-sw-k{flex:none;width:50px;height:30px;border-radius:999px;background:#2c4337;position:relative;transition:background .2s}
+.cm-sw-k i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#e9efe9;transition:transform .2s;box-shadow:0 2px 4px rgba(0,0,0,.3)}
+.cm-sw.on{background:#2a2414;border-color:#e2a93b}.cm-sw.on .cm-sw-ic{background:#3a3016}.cm-sw.on .cm-sw-t small{color:#f3d58a}
+.cm-sw.on .cm-sw-k{background:linear-gradient(160deg,#f7d98b,#e2a93b)}.cm-sw.on .cm-sw-k i{transform:translateX(20px);background:#1b140a}
+@media (prefers-reduced-motion:reduce){.cm-sw,.cm-sw-k,.cm-sw-k i{transition:none}}

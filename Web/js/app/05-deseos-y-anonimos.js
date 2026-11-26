@@ -29,8 +29,13 @@ function openWishComments(id) {
   const m = openModal(`<h3>💬 Comentarios</h3><p class="muted small" style="margin:-4px 0 10px">${own ? 'Tu deseo' : `Deseo de ${esc(pName(w.uid))}`}: <b>${esc(w.text.slice(0, 90))}${w.text.length > 90 ? '…' : ''}</b></p>
     <div class="cm-list" id="cm-list">${cmList(id)}</div>
     <form id="cm-form" class="cm-form"><textarea class="in" id="cm-text" maxlength="300" rows="2" placeholder="${own ? 'Responde aquí…' : 'Escribe un comentario o pregunta…'}" required></textarea>
-      ${own ? '' : '<label class="cm-anon"><input type="checkbox" id="cm-anon"> 🕶️ En secreto (no se ve tu nombre: ideal si eres su angelito)</label>'}
-      <button class="btn gold" type="submit">Enviar</button></form>`);
+      ${own ? '' : `<button type="button" class="cm-sw" id="cm-anon" role="switch" aria-checked="false"><span class="cm-sw-ic">🙂</span><span class="cm-sw-t"><b>Comentar en secreto</b><small>Se verá tu nombre: ${esc(shortName(S.me) || 'tú')}</small></span><span class="cm-sw-k" aria-hidden="true"><i></i></span></button>`}
+      <button class="btn gold" type="submit" id="cm-send">Enviar</button></form>`);
+  const sw = $('#cm-anon', m);
+  if (sw) sw.onclick = () => { const on = !sw.classList.contains('on'); sw.classList.toggle('on', on); sw.setAttribute('aria-checked', on);
+    $('.cm-sw-ic', sw).textContent = on ? '🕶️' : '🙂';
+    $('small', sw).textContent = on ? 'Nadie sabrá que fuiste tú, ni el organizador' : `Se verá tu nombre: ${shortName(S.me) || 'tú'}`;
+    $('#cm-send', m).textContent = on ? '🕶️ Enviar en secreto' : 'Enviar'; };
   m.onclick = async e => {
     const x = e.target.closest('[data-cmdel]'); if (!x) return;
     if (!(await confirmBox('¿Borrar este comentario?', 'No se puede deshacer.', 'Borrar'))) { openWishComments(id); return; }
@@ -38,10 +43,10 @@ function openWishComments(id) {
   };
   $('#cm-form', m).addEventListener('submit', async e => {
     e.preventDefault(); const text = $('#cm-text', m).value.trim(); if (!text) return;
-    const anon = !!$('#cm-anon', m)?.checked, btn = e.target.querySelector('button'); busy(btn, true);
+    const anon = !!$('#cm-anon', m)?.classList.contains('on'), btn = $('#cm-send', m); busy(btn, true);
     try { await setDoc(doc(collection(db, 'wishComments')), anon ? { wish: id, owner: w.uid, anon: true, text, at: serverTimestamp() } : { wish: id, owner: w.uid, uid: S.uid, anon: false, text, at: serverTimestamp() }); $('#cm-text', m).value = ''; }
     catch (err) { toast(authErr(err)); }
-    busy(btn, false, 'Enviar');
+    busy(btn, false, anon ? '🕶️ Enviar en secreto' : 'Enviar');
   });
 }
 // 📰 todos los deseos juntos, lo más nuevo arriba (como publicaciones)
