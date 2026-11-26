@@ -32,6 +32,7 @@ document.addEventListener('visibilitychange', async () => { if (document.hidden)
 async function notifyUser(title, body = '', url = './', tag) {
   if (canNotify() && Notification.permission === 'granted' && document.hidden) {
     if (quietNow()) return; // horario de silencio
+    if (pushToken) return; // 🔁 este teléfono ya recibe los avisos del servidor: no repetir el mismo aviso desde la app
     try {
       const reg = swReg || await navigator.serviceWorker?.getRegistration();
       if (reg) return stackNotify(reg, title, body, url);

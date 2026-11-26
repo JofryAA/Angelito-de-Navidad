@@ -143,7 +143,7 @@ setPersistence(regAuth, inMemoryPersistence).catch(() => { });
 
 /* ---------- state ---------- */
 const S = {
-  event: {}, drawMeta: null, participants: [], activities: [], wishes: [], questions: [], qCount: 0,
+  event: {}, drawMeta: null, participants: [], activities: [], wishes: [], wishComments: [], wView: 'list', questions: [], qCount: 0,
   uid: null, me: null, authReady: false, assignment: null, isAdmin: false, assignments: {},
   wishPid: null, spinning: false, rot: 0, segs: [], qSubOn: false,
   myPicks: [], publicPicks: [], rsvps: [], myVotes: {}, myQuiz: {}, quizPlay: {}, adminQuiz: [], signups: [], adminVotes: [], actId: null, revealed: {}, suggestions: [], sugVotes: [], sugAuthors: {}, buz: 'c',

@@ -164,7 +164,8 @@ service cloud.firestore {
     match /wishes/{id} {
       allow read: if member();
       allow create: if isParticipant() && okId(id) && request.resource.data.uid == me()
-        && request.resource.data.keys().hasOnly(['uid', 'text', 'link', 'price', 'at', 'hasImg']) && tsOk(request.resource.data)
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'link', 'price', 'at', 'hasImg', 'auto', 'autoText']) && tsOk(request.resource.data)
+        && request.resource.data.get('auto', true) == true && request.resource.data.get('autoText', true) == true // 🔗 «complétalo desde el enlace» (lo hace el servidor)
         && (!('hasImg' in request.resource.data) || (request.resource.data.hasImg == true
             && existsAfter(/databases/$(database)/documents/wishImg/$(id))))
         && str(request.resource.data.text, 500) && request.resource.data.text.size() > 0
@@ -281,6 +282,19 @@ service cloud.firestore {
         && str(request.resource.data.data, 160000) && request.resource.data.data.matches('^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')
         && getAfter(/databases/$(database)/documents/chat/$(id)).data.uid == me();
       allow delete: if can('moderar') || (signedIn() && resource.data.uid == me());
+    }
+    // 💬 comentarios en los deseos. Pueden ser «en secreto» (sin nombre: así el angelito puede preguntar la talla sin delatarse)
+    match /wishComments/{id} {
+      allow read: if member();
+      allow create: if isParticipant() && request.resource.data.at == request.time && okId(request.resource.data.wish)
+        && str(request.resource.data.text, 300) && request.resource.data.text.size() > 0
+        && request.resource.data.owner == get(/databases/$(database)/documents/wishes/$(request.resource.data.wish)).data.uid
+        && ((request.resource.data.anon == false && request.resource.data.uid == me()
+              && request.resource.data.keys().hasOnly(['wish', 'owner', 'uid', 'anon', 'text', 'at']))
+          || (request.resource.data.anon == true && request.resource.data.owner != me()
+              && request.resource.data.keys().hasOnly(['wish', 'owner', 'anon', 'text', 'at'])));
+      // borra: quien lo escribió (si lo firmó), el dueño del deseo o cualquier organizador
+      allow delete: if (signedIn() && (resource.data.get('uid', '') == me() || resource.data.owner == me())) || delSug();
     }
     match /wishImg/{id} {
       allow read: if member();

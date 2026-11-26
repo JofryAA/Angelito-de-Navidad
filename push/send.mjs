@@ -8,6 +8,7 @@ import { getMessaging } from 'firebase-admin/messaging';
 import { getDatabase } from 'firebase-admin/database';
 import { getAuth } from 'firebase-admin/auth';
 import { nightlyBackup, restoreBackup } from './backup.mjs';
+import { wishLinkTasks } from './wishlink.mjs';
 import { vaultTasks, makeVault, sha256, newToken, optsOK, fixPlan, drawPlan } from './vault.mjs';
 
 const key = process.env.FIREBASE_ADMIN_KEY;
@@ -23,6 +24,8 @@ const st = (await stateRef.get()).data() || {};
 // 🔐 Caja fuerte (parejas y autores cifrados): ver push/vault.mjs y SEGURIDAD.md
 let V = makeVault(SA, process.env.VAULT_KEY), VT = {};
 try { VT = await vaultTasks({ db, sa: SA, vaultKey: process.env.VAULT_KEY, auth: getAuth(), now: Date.now() }); V = VT.V || V; } catch (e) { console.log('Caja fuerte: falló (' + String(e?.message || e).slice(0, 80) + ').'); }
+// 🔗 deseos pegados como enlace: foto, nombre y precio desde la tienda
+try { await wishLinkTasks({ db }); } catch (e) { console.log('Deseos desde enlace: falló (' + (e.code || e.message || '').toString().slice(0, 60) + ')'); }
 // la primera vez solo mira los últimos 10 minutos; nunca más de 1 hora atrás (si GitHub se atrasó)
 const since = Math.max(st.last || now - 10 * 60e3, now - 60 * 60e3);
 const ms = t => !t ? 0 : typeof t === 'number' ? t : t.toMillis ? t.toMillis() : 0;
@@ -186,7 +189,8 @@ async function runFix(fx) {
       for (const t of (await db.collection('fcmTokens').where('uid', '==', d).get()).docs) ops.push(b => b.delete(t.ref));
       for (const c of ['participants', 'assignments', 'attendance', 'profiles', 'staff', 'giftStatus', 'giftIncoming', 'guesses', 'angelGuess', 'wishPick', 'thanks', 'hintsSent', 'presence', 'chatSeen']) ops.push(b => b.delete(db.doc(`${c}/${d}`)));
       ops.push(b => b.set(db.doc('banned/' + d), { at: FieldValue.serverTimestamp() }));
-      for (const c of ['wishes', 'wishImg', 'activitySignups', 'sugVotes', 'chatReacts', 'votes']) for (const w of (await db.collection(c).where('uid', '==', d).get()).docs) ops.push(b => b.delete(w.ref));
+      for (const c of ['wishes', 'wishImg', 'wishComments', 'activitySignups', 'sugVotes', 'chatReacts', 'votes']) for (const w of (await db.collection(c).where('uid', '==', d).get()).docs) ops.push(b => b.delete(w.ref));
+      for (const w of (await db.collection('wishComments').where('owner', '==', d).get()).docs) if (w.data().uid !== d) ops.push(b => b.delete(w.ref)); // 💬 comentarios en sus deseos
     }
   }
   ops.push(b => b.set(evRef, { fix: { ...fx, status: 'done', doneAt: Date.now() } }, { merge: true }));
@@ -200,10 +204,12 @@ const wishNew = st.wishAt ? (await db.collection('wishes').where('at', '>', wTs)
 const wishEd = st.wishAt ? (await db.collection('wishes').where('ed', '>', wTs).where('ed', '<=', wTe).get()).docs : [];
 const wishBy = {}; for (const d of wishNew) (wishBy[d.data().uid] ||= { n: 0, e: 0 }).n++;
 for (const d of wishEd) if (!wishNew.some(x => x.id === d.id)) (wishBy[d.data().uid] ||= { n: 0, e: 0 }).e++;
+// 💬 comentarios nuevos en deseos
+const cmQ = await db.collection('wishComments').where('at', '>', Timestamp.fromMillis(since)).get();
 // 💵 ¿cambió cuántos pagaron? (contar cuesta 1 lectura; la lista solo se lee si cambió)
 const paidQ = db.collection('attendance').where('confirmed', '==', true);
 const paidN = (await paidQ.count().get()).data().count, paidMove = paidN !== (st.paidSent?.length ?? -1);
-const nothing = !PRUEBA && !fixReady && !paidMove && !Object.keys(wishBy).length && !VT.alerts?.length && !VT.remaps?.length && !VT.revealedNow && !remDue.length && !invs.length && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
+const nothing = !PRUEBA && !fixReady && !paidMove && cmQ.empty && !Object.keys(wishBy).length && !VT.alerts?.length && !VT.remaps?.length && !VT.revealedNow && !remDue.length && !invs.length && chatQ.empty && noticesQ.empty && actsQ.empty && !(draw && ms(draw.at) > since)
   && !(open && st.revealSent !== openKey) && hintsQ.docs.every(d => seenH.has(d.id));
 if (nothing) { await stateRef.set({ last: now, wishAt: wishTo }, { merge: true }); console.log('Nada nuevo.'); process.exit(0); }
 
@@ -258,6 +264,15 @@ if (newPaid.length) {
 }
 for (const [who, c] of Object.entries(wishBy)) if (people[who]) for (const uid of all) if (uid !== who)
   put(uid, 'deseos', { title: `🎁 ${short(who)} ${c.n ? `agregó ${c.n === 1 ? 'un deseo' : c.n + ' deseos'}` : 'actualizó su lista de deseos'}`, body: 'Échale un vistazo: puede que sea tu persona secreta 😉', url: '#deseos' });
+// 💬 al dueño del deseo le llega cada comentario; si responde el dueño, les llega a quienes comentaron con su nombre
+if (!cmQ.empty) {
+  const allCm = (await db.collection('wishComments').get()).docs.map(d => d.data());
+  for (const c of cmQ.docs.map(d => d.data())) {
+    if (!people[c.owner]) continue; const txt = String(c.text || '').slice(0, 140);
+    if (c.uid !== c.owner) put(c.owner, 'deseos', { title: c.anon ? '💬 Alguien comentó tu deseo (en secreto)' : `💬 ${short(c.uid)} comentó tu deseo`, body: txt, url: '#deseos' });
+    else for (const u of new Set(allCm.filter(x => x.wish === c.wish && x.uid && x.uid !== c.owner).map(x => x.uid))) put(u, 'deseos', { title: `💬 ${short(c.owner)} respondió en su deseo`, body: txt, url: '#deseos' });
+  }
+}
 // 💌 pistas del angelito (su hora se redondea a 10 min por privacidad: se recuerdan las ya enviadas)
 const newH = [];
 for (const d of hintsQ.docs) {
@@ -292,11 +307,15 @@ if (remDue.length) {
 if (PRUEBA) for (const uid of all) put(uid, 'avisos', { title: '🔔 Prueba de notificaciones', body: 'Si ves esto, los avisos con la app cerrada funcionan 🎁', url: '#inicio' });
 
 // enviar
+// 🔁 primero se anota qué se va a avisar y después se envía: si algo se corta a mitad, la próxima vuelta no repite los avisos
+await stateRef.set({ wishAt: wishTo, paidSent: paidNow, paidAnn: [...new Set([...(st.paidAnn || st.paidSent || []), ...paidNow])], rem: [...remSent, ...remDue.map(remKey)].slice(-60), last: now, revealSent: open ? openKey : (st.revealSent || ''), hints: [...seenH, ...newH].slice(-200), at: FieldValue.serverTimestamp(), sent, dropped }, { merge: true });
 let sent = 0, dropped = 0;
 // Un teléfono pertenece solo a la última persona que entró en él: si antes entró otra cuenta (una de prueba, por ejemplo),
 // ese registro viejo se borra para que nadie reciba en su teléfono los avisos de otra persona (ni los de sus propios mensajes).
 const allTok = (await db.collection('fcmTokens').get()).docs, byTok = new Map();
 for (const d of allTok) { const t = d.data().token; if (!t) continue; const prev = byTok.get(t); if (!prev || ms(d.data().at) > ms(prev.data().at)) byTok.set(t, d); }
+// 🔁 un mismo teléfono (mismo «dev») puede quedar con dos registros si su token cambió: solo vale el más reciente
+{ const byDev = new Map(); for (const d of byTok.values()) { const { uid, dev } = d.data(); if (!dev) continue; const k = uid + '|' + dev, prev = byDev.get(k); if (!prev || ms(d.data().at) > ms(prev.data().at)) { if (prev) byTok.delete(prev.data().token); byDev.set(k, d); } else byTok.delete(d.data().token); } }
 const stale = allTok.filter(d => d.data().token && byTok.get(d.data().token) !== d);
 await Promise.all(stale.map(d => d.ref.delete().catch(() => { })));
 if (stale.length) console.log(`Registros repetidos de un mismo teléfono borrados: ${stale.length}`);
@@ -318,5 +337,5 @@ if (Object.keys(out).length) {
   }
   await Promise.all(jobs);
 }
-await stateRef.set({ wishAt: wishTo, paidSent: paidNow, paidAnn: [...new Set([...(st.paidAnn || st.paidSent || []), ...paidNow])], rem: [...remSent, ...remDue.map(remKey)].slice(-60), last: now, revealSent: open ? openKey : (st.revealSent || ''), hints: [...seenH, ...newH].slice(-200), at: FieldValue.serverTimestamp(), sent, dropped }, { merge: true });
+// (el estado ya se guardó antes de enviar)
 console.log(`Listo: ${sent} avisos enviados, ${dropped} teléfonos dados de baja.`);

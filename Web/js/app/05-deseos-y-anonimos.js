@@ -11,6 +11,51 @@ function secBar() {
   return secretOpen() ? `<div class="secbar open"><span class="sb-e">${esc(R.emoji)}</span><div class="grow"><b>Le regalas a ${esc(R.name)}</b><small>Se oculta solo en 1 minuto</small></div><button class="btn sm gold" data-sec="list">🎁 Su lista</button><button class="btn sm" data-sec="lock" aria-label="Ocultar">🔒</button></div>`
     : `<div class="secbar"><span class="sb-e">🤫</span><div class="grow"><b>Tu persona es secreta</b><small>Nadie que mire tu teléfono puede saberlo</small></div><button class="btn sm gold" data-sec="unlock">🔐 Ver con PIN</button></div>`;
 }
+// 💬 comentarios de un deseo
+const cmsOf = id => (S.wishComments || []).filter(c => c.wish === id);
+function cmBtn(w) {
+  const n = cmsOf(w.id).length;
+  return `<button type="button" class="wsc-cm" data-wcm="${esc(w.id)}">💬 ${n ? `${n} ${n === 1 ? 'comentario' : 'comentarios'}` : 'Comentar'}</button>`;
+}
+function cmList(id) {
+  const w = S.wishes.find(x => x.id === id), cs = cmsOf(id);
+  if (!cs.length) return '<p class="muted small" style="text-align:center;margin:14px 0">Todavía no hay comentarios. Pregunta la talla, el color o lo que quieras saber 😉</p>';
+  return cs.map(c => { const del = (c.uid && c.uid === S.uid) || w?.uid === S.uid || S.isAdmin;
+    return `<div class="cm ${c.uid === S.uid ? 'me' : ''}"><span class="cm-av">${c.anon ? '🕶️' : esc(pEmoji(c.uid))}</span><div class="cm-b"><b>${c.anon ? 'Alguien (en secreto)' : esc(pName(c.uid))}${c.uid && c.uid === w?.uid ? ' <small class="cm-own">dueño del deseo</small>' : ''}</b><p>${esc(c.text)}</p><small class="muted">${ms(c.at) ? agoTxt(ms(c.at)) : 'enviando…'}</small></div>${del ? `<button type="button" class="cm-x" data-cmdel="${esc(c.id)}" aria-label="Borrar comentario">✕</button>` : ''}</div>`; }).join('');
+}
+function openWishComments(id) {
+  const w = S.wishes.find(x => x.id === id); if (!w) return;
+  const own = w.uid === S.uid; S.cmOpen = id;
+  const m = openModal(`<h3>💬 Comentarios</h3><p class="muted small" style="margin:-4px 0 10px">${own ? 'Tu deseo' : `Deseo de ${esc(pName(w.uid))}`}: <b>${esc(w.text.slice(0, 90))}${w.text.length > 90 ? '…' : ''}</b></p>
+    <div class="cm-list" id="cm-list">${cmList(id)}</div>
+    <form id="cm-form" class="cm-form"><textarea class="in" id="cm-text" maxlength="300" rows="2" placeholder="${own ? 'Responde aquí…' : 'Escribe un comentario o pregunta…'}" required></textarea>
+      ${own ? '' : '<label class="cm-anon"><input type="checkbox" id="cm-anon"> 🕶️ En secreto (no se ve tu nombre: ideal si eres su angelito)</label>'}
+      <button class="btn gold" type="submit">Enviar</button></form>`);
+  m.onclick = async e => {
+    const x = e.target.closest('[data-cmdel]'); if (!x) return;
+    if (!(await confirmBox('¿Borrar este comentario?', 'No se puede deshacer.', 'Borrar'))) { openWishComments(id); return; }
+    try { const b = writeBatch(db); b.delete(doc(db, 'wishComments', x.dataset.cmdel)); await b.commit(); } catch (err) { toast(authErr(err)); } openWishComments(id);
+  };
+  $('#cm-form', m).addEventListener('submit', async e => {
+    e.preventDefault(); const text = $('#cm-text', m).value.trim(); if (!text) return;
+    const anon = !!$('#cm-anon', m)?.checked, btn = e.target.querySelector('button'); busy(btn, true);
+    try { await setDoc(doc(collection(db, 'wishComments')), anon ? { wish: id, owner: w.uid, anon: true, text, at: serverTimestamp() } : { wish: id, owner: w.uid, uid: S.uid, anon: false, text, at: serverTimestamp() }); $('#cm-text', m).value = ''; }
+    catch (err) { toast(authErr(err)); }
+    busy(btn, false, 'Enviar');
+  });
+}
+// 📰 todos los deseos juntos, lo más nuevo arriba (como publicaciones)
+const wishFeedItems = () => S.wishes.filter(w => P(w.uid)).sort((a, b) => Math.max(ms(b.at), ms(b.ed)) - Math.max(ms(a.at), ms(a.ed))).slice(0, S.feedN || 30);
+function wishFeed(items) {
+  if (!items.length) return '<div class="card s2-empty"><b>Todavía no hay deseos</b><p class="muted small">Cuando alguien agregue uno, aparecerá aquí.</p></div>';
+  return items.map(w => { const img = w.hasImg && S.wishImgs[w.id], dom = /^https?:\/\//i.test(w.link || '') ? (w.link.match(/^https?:\/\/(?:www\.)?([^/?#]+)/i)?.[1] || 'Ver enlace') : '', t = Math.max(ms(w.at), ms(w.ed)), last = cmsOf(w.id).slice(-1)[0];
+    return `<article class="wfeed"><header><span class="wf-av">${esc(pEmoji(w.uid))}</span><div class="wf-who"><b>${esc(pName(w.uid))}</b><small>${t ? agoTxt(t) : ''}${ms(w.ed) ? ' · editado' : ''}${w.top ? ' · ⭐ favorito' : ''}</small></div><button type="button" class="btn sm" data-wgo="${esc(w.uid)}">Ver su lista</button></header>
+      ${img ? `<div class="wf-pic" style="background-image:url('${img}')" data-wimg="${esc(w.id)}" role="button" aria-label="Ver foto"></div>` : w.auto ? '<div class="wf-pic ld"><span>⏳ Buscando foto y precio en la tienda…</span></div>' : w.hasImg ? '<div class="wf-pic ld"><i class="wsc-ld"></i></div>' : ''}
+      <div class="wf-t">${esc(w.text)}</div>
+      ${w.price || dom ? `<div class="wf-meta">${w.price ? `<span class="wf-price">${esc(w.price)}</span>` : ''}${dom ? `<a class="wsc-link" href="${esc(w.link)}" target="_blank" rel="noopener">${ic('link', 12)}<span>${esc(dom)}</span></a>` : ''}</div>` : ''}
+      ${last ? `<div class="wf-last"><b>${last.anon ? '🕶️ Alguien' : esc(pName(last.uid))}:</b> ${esc(last.text.slice(0, 120))}</div>` : ''}
+      <footer>${cmBtn(w)}</footer></article>`; }).join('') + (S.wishes.length > (S.feedN || 30) ? '<button type="button" class="btn" data-wfmore style="width:100%">Ver más deseos</button>' : '');
+}
 function renderWishes() {
   const root = $('#w-root');
   if (!S.me) { root.innerHTML = S.authReady ? needLogin('Entra para ver las listas de deseos y escribir la tuya.') : ''; return; }
@@ -22,7 +67,7 @@ function renderWishes() {
   const many = S.participants.length > 8;
   // 🧈 sin «fricción»: ya no se reconstruye la pantalla entera en cada cambio; cada parte se toca solo si cambió de verdad
   //    (no se cortan el deslizamiento, la fila de personas, las fotos ni lo que estás escribiendo)
-  if (root.__sk !== many || !$('#w-main')) { root.__sk = many; root.innerHTML = `<div id="w-sec"></div>${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}<div class="pscroll" id="w-strip"></div><div id="w-main"></div><div id="w-formbox"></div>`; }
+  if (root.__sk !== many || !$('#w-main')) { root.__sk = many; root.innerHTML = `<div id="w-sec"></div><div class="wtabs" id="w-tabs" role="tablist"></div><div id="w-listv">${many ? `<input class="in psearch" id="w-q" type="search" placeholder="🔍 Buscar a alguien…" autocomplete="off" value="${esc(S.wishQ || '')}">` : ''}<div class="pscroll" id="w-strip"></div><div id="w-main"></div><div id="w-formbox"></div></div><div id="w-feed" hidden></div>`; }
   setHTML($('#w-sec'), secBar());
   setHTML($('#w-strip'), wishStrip());
   setHTML($('#w-main'), `${wishHero(S.wishPid, mine, isRec, items)}
@@ -30,7 +75,7 @@ function renderWishes() {
   <div class="wshop">${items.length || mine ? items.map((w, k) => { const img = w.hasImg && S.wishImgs[w.id], dom = /^https?:\/\//i.test(w.link || '') ? (w.link.match(/^https?:\/\/(?:www\.)?([^/?#]+)/i)?.[1] || 'Ver enlace') : '', [we, wc] = wishArt(w.text, k);
     return `<article class="wsc ${w.top ? 'wtop' : ''}" style="--d:${k * 60}ms">
       <div class="wsc-pic ${img ? '' : 'art'}" style="${img ? `background-image:url('${img}')` : `--wa:${wc}`}" ${img ? `data-wimg="${esc(w.id)}" role="button" aria-label="Ver foto"` : ''}>
-        ${img ? '' : w.hasImg && Date.now() - (wishImgTried.get(w.id) || Date.now()) <= 8000 ? '<i class="wsc-ld"></i>' : `<span class="wsc-e">${we}</span>`}
+        ${img ? '' : w.auto || (w.hasImg && Date.now() - (wishImgTried.get(w.id) || Date.now()) <= 8000) ? `<i class="wsc-ld"></i>${w.auto ? '<span class="wsc-auto">⏳ Buscando foto y precio en la tienda…</span>' : ''}` : `<span class="wsc-e">${we}</span>`}
         ${w.top ? '<span class="wsc-top">⭐ Favorito</span>' : ''}
         ${w.price ? `<span class="wsc-price ${overBudget(w.price) ? 'over' : ''}">${esc(w.price)}</span>` : ''}
         ${w.uid === S.uid ? `<button class="wsc-star ${w.top ? 'on' : ''}" data-wstar="${esc(w.id)}" aria-label="Favorito">${ic('star', 16)}</button><button class="wsc-more" data-wmore="${esc(w.id)}" aria-label="Opciones"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>` : ''}
@@ -38,13 +83,17 @@ function renderWishes() {
       <div class="wsc-b"><div class="wsc-t">${esc(w.text)}</div>
         ${dom ? `<a class="wsc-link" href="${esc(w.link)}" target="_blank" rel="noopener">${ic('link', 12)}<span>${esc(dom)}</span></a>` : ''}
         ${overBudget(w.price) ? '<small class="wsc-warn">Pasa el presupuesto</small>' : ''}
+        ${cmBtn(w)}
         ${isRec ? `<button class="wsc-buy ${S.wishPick?.wishId === w.id ? 'on' : ''}" data-wpick="${esc(w.id)}">${S.wishPick?.wishId === w.id ? '✓ Lo compro yo' : '🛒 Lo compro yo'}</button>` : ''}
       </div></article>`; }).join('') + (mine ? `<button class="wsc wsc-add" data-wadd><span>${ic('plus', 26)}</span><b>Agregar deseo</b><small>Con foto queda mejor</small></button>` : '')
     : `<div class="wempty"><div class="we-ic">🎁</div><b>${mine ? 'Tu lista está vacía' : esc(pName(S.wishPid)) + ' todavía no ha pedido nada'}</b><p class="muted small">${mine ? 'Agrega lo que te gustaría recibir: con foto y enlace tu angelito acierta seguro.' : isRec ? 'Mira su perfil de gustos para inspirarte 👆' : 'Vuelve más tarde 😉'}</p></div>`}</div>`);
-  if (setHTML($('#w-formbox'), `${mine ? `<details class="wadd" id="w-add" ${S.wAddOpen ? 'open' : ''}><summary><span class="wa-ic">${ic('plus', 20)}</span><span><b>Agregar un deseo</b><small>Con foto, enlace y precio si quieres</small></span><span class="wa-ch">${ic('back', 18)}</span></summary><form class="card stack" id="w-form">
+  if (setHTML($('#w-formbox'), `${mine ? `<details class="wadd" id="w-add" ${S.wAddOpen ? 'open' : ''}><summary><span class="wa-ic">${ic('plus', 20)}</span><span><b>Agregar un deseo</b><small>Escríbelo o pega el enlace de la tienda</small></span><span class="wa-ch">${ic('back', 18)}</span></summary><form class="card stack" id="w-form">
     <div class="wi-chips">${WISH_IDEAS.map(([e, t]) => `<button type="button" class="wi-chip" data-widea="${esc(t)}">${e} ${t}</button>`).join('')}</div>
-    <textarea class="in" id="w-text" maxlength="500" rows="3" placeholder="Ej. Un libro de cocina, talla M, color azul… Puedes dar todos los detalles que quieras." required style="min-height:84px;resize:vertical"></textarea>
-    <div class="row"><input class="in" id="w-link" maxlength="300" placeholder="Enlace (opcional)"><input class="in" id="w-price" maxlength="30" placeholder="Precio aprox. (opcional)"></div>
+    <div class="wlink"><span class="wl-ic">🔗</span><input class="in" id="w-link" type="url" inputmode="url" maxlength="300" placeholder="Pega el enlace del producto (Amazon, Temu, Shein…)"></div>
+    <p class="muted small wl-help">Con el enlace, la foto, el nombre y el precio se ponen solos en 1–2 minutos. ¿No lo tienes? Búscalo:
+      <span class="wl-shops">${WSHOPS.map(([n, u]) => `<button type="button" class="wi-chip" data-wshop="${esc(u)}">${n}</button>`).join('')}</span></p>
+    <textarea class="in" id="w-text" maxlength="500" rows="3" placeholder="Qué quieres: un libro de cocina, talla M, color azul… (si pegaste un enlace, puedes dejarlo vacío)" style="min-height:84px;resize:vertical"></textarea>
+    <input class="in" id="w-price" maxlength="30" placeholder="Precio aprox. (opcional)">
     ${budgetMax() ? `<div class="wi-chips price"><small>Precio:</small>${[.5, .75, 1].map(f => Math.round(budgetMax() * f / 50) * 50).filter((v, i, a) => v > 0 && a.indexOf(v) === i).map(v => `<button type="button" class="wi-chip" data-wprice="RD$${v.toLocaleString('en-US')}">RD$${v.toLocaleString('en-US')}</button>`).join('')}</div>` : ''}
     ${S.wishDraftImg ? `<div class="wprev" style="background-image:url('${S.wishDraftImg}')"><button type="button" id="w-img-x" aria-label="Quitar foto">✕</button></div>`
       : `<div class="camrow"><label class="btn sm btn-ic">${ic('camera', 16)} Tomar foto<input type="file" class="w-img" accept="image/*" capture="environment" hidden></label><label class="btn sm btn-ic">${ic('image', 16)} Galería<input type="file" class="w-img" accept="image/*" hidden></label></div>`}
@@ -53,7 +102,11 @@ function renderWishes() {
     if (mine) { $('#w-text').value = keep.t; $('#w-link').value = keep.l; $('#w-price').value = keep.p; if (keep.t) $('#w-add').open = true; }
     if (keep.f && /^w-(text|link|price)$/.test(keep.f) && $('#' + keep.f)) $('#' + keep.f).focus();
   }
-  loadWishImgs(items);
+  // 📰 pestañas: lista por persona / todos los deseos juntos (como publicaciones)
+  setHTML($('#w-tabs'), [['list', '👤 Por persona'], ['feed', '📰 Todos']].map(([k, t]) => `<button type="button" role="tab" class="wtab ${S.wView === k ? 'on' : ''}" aria-selected="${S.wView === k}" data-wview="${k}">${t}</button>`).join(''));
+  $('#w-listv').hidden = S.wView === 'feed'; $('#w-feed').hidden = S.wView !== 'feed';
+  if (S.wView === 'feed') { const fi = wishFeedItems(); setHTML($('#w-feed'), wishFeed(fi)); loadWishImgs(fi); } else loadWishImgs(items);
+  if (S.cmOpen && $('#cm-list')) { setHTML($('#cm-list'), cmList(S.cmOpen)); }
 }
 // Orden: yo, la persona que me tocó (si ya la vi), quienes tienen deseos y luego el resto, por nombre.
 function wishStrip() {
@@ -110,16 +163,30 @@ $('#w-root').addEventListener('click', async e => {
     try { await b.commit(); } catch (err) { toast(authErr(err)); }
   }
 });
+// 🛒 buscar en la tienda con lo que escribiste (abre la tienda; luego se copia el enlace del producto)
+const WSHOPS = [['🛒 Amazon', 'https://www.amazon.com/s?k='], ['🧡 Temu', 'https://www.temu.com/search_result.html?search_key='], ['👗 Shein', 'https://us.shein.com/pdsearch/'], ['🔴 AliExpress', 'https://www.aliexpress.com/wholesale?SearchText='], ['🔵 Walmart', 'https://www.walmart.com/search?q=']];
+$('#w-root').addEventListener('click', e => {
+  const v = e.target.closest('[data-wview]'); if (v) { S.wView = v.dataset.wview; renderWishes(); return; }
+  const c = e.target.closest('[data-wcm]'); if (c) { openWishComments(c.dataset.wcm); return; }
+  const g = e.target.closest('[data-wgo]'); if (g) { S.wishPid = g.dataset.wgo; S.wView = 'list'; renderWishes(); scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  if (e.target.closest('[data-wfmore]')) { S.feedN = (S.feedN || 30) + 30; renderWishes(); }
+});
+$('#w-root').addEventListener('click', e => { const b = e.target.closest('[data-wshop]'); if (!b) return; const q = $('#w-text')?.value.trim(); if (!q) { toast('Escribe primero qué quieres buscar'); $('#w-text')?.focus(); return; } open(b.dataset.wshop + encodeURIComponent(q.slice(0, 80)), '_blank', 'noopener'); toast('Cuando lo encuentres, copia el enlace y pégalo aquí 🔗'); });
 $('#w-root').addEventListener('submit', async e => {
   e.preventDefault(); if (e.target.id !== 'w-form') return;
-  const text = $('#w-text').value.trim(); if (!text) return;
+  let text = $('#w-text').value.trim(); const link = $('#w-link').value.trim();
+  if (link && !/^https:\/\/\S+$/i.test(link)) return toast('El enlace debe empezar con https://');
+  if (!text && !link) return toast('Escribe tu deseo o pega el enlace del producto');
+  let autoText = false; if (!text) { autoText = true; text = 'Producto de ' + (link.match(/^https:\/\/(?:www\.|m\.)?([^/?#]+)/i)?.[1] || 'la tienda'); }
   const btn = e.target.querySelector('button[type=submit]') || e.target.querySelector('button'); busy(btn, true);
   try {
     const ref = doc(collection(db, 'wishes')), img = S.wishDraftImg, b = writeBatch(db);
-    b.set(ref, { uid: S.uid, text, link: $('#w-link').value.trim(), price: $('#w-price').value.trim(), ...(img ? { hasImg: true } : {}), at: serverTimestamp() });
+    // 🔗 con enlace: el servidor completa foto, precio (y el nombre si no lo escribiste)
+    const auto = !!link && (!img || autoText || !$('#w-price').value.trim());
+    b.set(ref, { uid: S.uid, text, link, price: $('#w-price').value.trim(), ...(img ? { hasImg: true } : {}), ...(auto ? { auto: true } : {}), ...(autoText ? { autoText: true } : {}), at: serverTimestamp() });
     if (img) { b.set(doc(db, 'wishImg', ref.id), { uid: S.uid, data: img }); S.wishImgs[ref.id] = img; }
     await b.commit();
-    S.wishDraftImg = null; $('#w-text').value = $('#w-link').value = $('#w-price').value = ''; toast('Deseo agregado 🎁'); renderWishes();
+    S.wishDraftImg = null; $('#w-text').value = $('#w-link').value = $('#w-price').value = ''; toast(link && !img ? 'Deseo agregado 🎁 La foto y el precio aparecen en 1–2 minutos' : 'Deseo agregado 🎁'); renderWishes();
   } catch (err) { toast(authErr(err)); }
   busy(btn, false, '✨ Agregar a mi lista');
 });

@@ -150,3 +150,31 @@ body.anim-in .wsc{animation:popin .4s var(--d,0ms) backwards}
 .wadd:not([open]){display:none}.wadd{margin-top:14px}
 
 .wp-chip{white-space:normal;overflow-wrap:anywhere;max-width:100%}
+/* 🔗 deseo desde un enlace */
+.wlink{display:flex;align-items:center;gap:8px;background:#14281f;border:1px solid var(--line);border-radius:14px;padding:4px 4px 4px 12px}
+.wlink .in{border:0;background:transparent;padding-left:0}.wl-ic{font-size:1.1rem}
+.wl-help{margin:2px 2px 0;line-height:1.5}.wl-shops{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.wsc-auto{position:absolute;left:10px;right:10px;bottom:10px;padding:6px 10px;border-radius:10px;background:#1b2b22;color:#f3d58a;font-size:.78rem;text-align:center}
+/* 📰 pestañas de deseos */
+.wtabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;margin:4px 0 14px;background:#10241b;border:1px solid var(--line);border-radius:16px}
+.wtab{border:0;border-radius:12px;padding:10px 8px;background:transparent;color:var(--muted);font:inherit;font-weight:700;cursor:pointer}
+.wtab.on{background:linear-gradient(160deg,#f7d98b,#e2a93b);color:#1b140a}
+/* 📰 todos los deseos (publicaciones) */
+.wfeed{background:#13281f;border:1px solid var(--line);border-radius:20px;margin:0 0 14px;overflow:hidden}
+.wfeed header{display:flex;align-items:center;gap:10px;padding:12px 12px 10px}
+.wf-av{flex:none;width:40px;height:40px;border-radius:50%;background:#1d3a2c;display:grid;place-items:center;font-size:1.25rem}
+.wf-who{flex:1;min-width:0}.wf-who b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wf-who small{color:var(--muted);font-size:.78rem}
+.wf-pic{aspect-ratio:4/3;background:#0f1f18 center/contain no-repeat;cursor:zoom-in;position:relative}.wf-pic.ld{display:grid;place-items:center;cursor:default;aspect-ratio:16/6;color:#f3d58a;font-size:.88rem}
+.wf-t{padding:12px 14px 4px;font-size:1.02rem;line-height:1.45;white-space:pre-line;overflow-wrap:anywhere}
+.wf-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:6px 14px 0}
+.wf-price{padding:4px 10px;border-radius:999px;background:#2b2412;color:#f3d58a;font-weight:700;font-size:.85rem}
+.wf-last{margin:10px 14px 0;padding:8px 10px;border-radius:12px;background:#0f1f18;font-size:.86rem;color:var(--muted);overflow-wrap:anywhere}.wf-last b{color:var(--text,#fff)}
+.wfeed footer{padding:10px 14px 12px}
+/* 💬 comentarios */
+.wsc-cm{margin-top:8px;border:1px solid var(--line);background:#10241b;color:inherit;border-radius:999px;padding:6px 12px;font:inherit;font-size:.82rem;cursor:pointer}
+.cm-list{max-height:46vh;overflow:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.cm{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:14px;background:#13281f;border:1px solid var(--line)}.cm.me{background:#1b2a1d}
+.cm-av{flex:none;width:32px;height:32px;border-radius:50%;background:#1d3a2c;display:grid;place-items:center}
+.cm-b{flex:1;min-width:0}.cm-b p{margin:3px 0;white-space:pre-line;overflow-wrap:anywhere}.cm-own{color:#f3d58a;font-weight:600;font-size:.72rem}
+.cm-x{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:.85rem}
+.cm-form{display:flex;flex-direction:column;gap:8px}.cm-anon{display:flex;gap:8px;align-items:center;font-size:.88rem;color:var(--muted)}

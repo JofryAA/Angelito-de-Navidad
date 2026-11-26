@@ -1,1 +1,1 @@
-{ "name": "angelito-push", "private": true, "type": "module", "dependencies": { "firebase-admin": "^12.7.0" } }
+{"name":"angelito-push","private":true,"type":"module","dependencies":{"firebase-admin":"^12.7.0","sharp":"^0.33.5"}}

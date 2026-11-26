@@ -127,6 +127,7 @@ function startUserSubs(user) {
       if (fromServer(s)) SYNC.wishes = true;
       S.wishes = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at)); render();
     }, ufail('wishes')));
+    unsubUser.push(onSnapshot(collection(db, 'wishComments'), s => { S.wishComments = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(a.at) - ms(b.at)); render(); }, () => { S.wishComments = []; }));
     unsubUser.push(onSnapshot(doc(db, 'staff', user.uid), s => { S.myStaff = s.exists() ? s.data() : null; syncAdminMode(); }, () => { S.myStaff = null; syncAdminMode(); }));
     // 🔐 mi persona viene cifrada: se abre en este teléfono (caja fuerte) y queda solo en memoria
     CF.register(user.uid); let asSeq = 0;

@@ -51,7 +51,7 @@ function wishMenu(id) {
     if (k === 'edit') return setTimeout(() => editWish(id), 180);
     if (k === 'del') {
       if (!(await confirmBox('¿Eliminar este deseo?', 'Se quitará de tu lista.', 'Eliminar'))) return;
-      const b = writeBatch(db); b.delete(doc(db, 'wishes', id)); if (w.hasImg) b.delete(doc(db, 'wishImg', id));
+      const b = writeBatch(db); b.delete(doc(db, 'wishes', id)); if (w.hasImg) b.delete(doc(db, 'wishImg', id)); cmsOf(id).forEach(c => b.delete(doc(db, 'wishComments', c.id)));
       try { await b.commit(); toast('Deseo eliminado'); } catch (err) { toast(authErr(err)); }
     }
   });

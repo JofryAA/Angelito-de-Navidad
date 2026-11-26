@@ -200,6 +200,8 @@ async function resetPin(pid, tempPin) {
   (await q('questions', 'to', pid)).forEach(d => put(d.ref, { ...d.data(), to: nid }));
   for (const c of ['wishes', 'wishImg', 'chatImg', 'activitySignups', 'suggestions', 'suggestionAuthors'] /* los autores de anónimos están sellados: no se tocan */)
     (await q(c, 'uid', pid).catch(() => ({ forEach() { } }))).forEach(d => put(d.ref, { ...d.data(), uid: nid })); // los autores de anónimos están sellados: si no se pueden leer, se dejan
+  { const cm = new Map(); for (const f of ['uid', 'owner']) (await q('wishComments', f, pid).catch(() => ({ forEach() { } }))).forEach(d => cm.set(d.id, d));
+    cm.forEach(d => { const x = d.data(); put(d.ref, { ...x, ...(x.uid === pid ? { uid: nid } : {}), ...(x.owner === pid ? { owner: nid } : {}) }); }); } // 💬 comentarios de deseos
   (await q('activityPicks', 'uid', pid)).forEach(d => { put(R('activityPicks', `${d.data().act}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
   (await q('votes', 'uid', pid)).forEach(d => { put(R('votes', `${d.data().act}__${nid}`), { ...d.data(), uid: nid }); del(d.ref); });
   (await q('votes', 'choice', pid)).forEach(d => { if (d.data().uid !== pid) put(d.ref, { ...d.data(), choice: nid }); });
